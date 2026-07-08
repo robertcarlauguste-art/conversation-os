@@ -1,46 +1,67 @@
 # ConversationOS
 
-> Transform conversations into knowledge. Transform knowledge into action.
+Transform conversations into knowledge.
+Transform knowledge into action.
 
-ConversationOS is an AI-powered Relationship Intelligence Platform that captures client conversations, extracts structured business knowledge, and automates the administrative work that follows.
+---
 
-## Vision
+## 🚀 Overview
 
-Professionals spend too much time documenting conversations instead of building relationships.
+(short description)
 
-ConversationOS changes that.
+---
 
-## MVP
+## ✨ Features
 
 - Conversation Workspace
 - Audio Upload
 - AI Transcription
-- AI Summary
-- Client Memory
+- Knowledge Engine
 - Task Generation
 - Email Drafting
 
-## Technology Stack
+---
 
-### Frontend
-- Next.js
-- React
-- TypeScript
-- Tailwind CSS
+## 🏗 Architecture
 
-### Backend
-- FastAPI
-- Python
-- PostgreSQL
-- Redis
+(simple diagram)
 
-### AI
-- OpenAI
-- Anthropic
-- Provider Abstraction Layer
+---
 
-## Project Status
+## 🛠 Tech Stack
 
-🚧 Early Development
+Frontend
 
-Sprint 0 – Engineering Foundation
+Backend
+
+Database
+
+AI
+
+Infrastructure
+
+---
+
+## 🚀 Getting Started
+
+Installation
+
+---
+
+## 🗺 Roadmap
+
+Current Sprint
+
+---
+
+## 📚 Documentation
+
+/docs
+
+---
+
+## 🤝 Contributing
+
+---
+
+## 📄 License
