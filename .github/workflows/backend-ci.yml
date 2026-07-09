@@ -1,0 +1,69 @@
+name: backend-ci
+
+on:
+  push:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: conversation_os_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        run: uv pip install --system -e . ruff black mypy pytest pytest-asyncio httpx
+
+      - name: Ruff
+        run: ruff check app tests
+
+      - name: Black
+        run: black --check app tests
+
+      - name: MyPy
+        run: mypy app
+
+      - name: Run migrations
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/conversation_os_test
+        run: alembic upgrade head
+
+      - name: Tests
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/conversation_os_test
+          REDIS_URL: redis://localhost:6379/0
+          STORAGE_ROOT: /tmp/conversation-os-ci-storage
+        run: pytest -v
