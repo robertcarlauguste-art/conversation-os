@@ -7,6 +7,7 @@ import { WaveformMark } from "./WaveformMark";
 const LINKS = [
   { href: "/", label: "Dashboard" },
   { href: "/conversations", label: "Conversations" },
+  { href: "/clients", label: "Clients" },
 ];
 
 export function Nav() {

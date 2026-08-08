@@ -10,7 +10,7 @@ itself is shared infrastructure.
 import uuid
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, Enum, Integer, String, func
+from sqlalchemy import BigInteger, DateTime, Enum, ForeignKey, Integer, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -28,6 +28,13 @@ class Conversation(Base):
     mime_type: Mapped[str] = mapped_column(String(128), nullable=False)
     file_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
     duration_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Sprint 3: which client this conversation is primarily about, once
+    # reconciliation has run. Nullable — not every conversation will
+    # have a confidently-matched client (FD-003 is deliberately
+    # conservative), and it's null until processing completes anyway.
+    client_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("clients.id", ondelete="SET NULL"), nullable=True
+    )
 
     status: Mapped[ConversationStatus] = mapped_column(
         Enum(ConversationStatus, name="conversation_status"),

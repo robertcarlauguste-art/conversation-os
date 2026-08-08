@@ -6,6 +6,14 @@ Accepted — routing and domain-event placement superseded by ADR-004
 `repositories/`/`services/`/`orchestrator/` as shared base-class
 packages) still holds.
 
+**Sprint 2 amendment (approved, not a new ADR):** `app/orchestrator/`
+now also holds concrete cross-slice orchestrators (starting with
+`ConversationProcessingOrchestrator`), not only `BaseOrchestrator`.
+This is the "workflow spans multiple domains" case this ADR already
+described — Sprint 2 is simply the first sprint where that case
+actually occurred. See the "Sprint 2: first concrete orchestrator"
+section below for the reasoning.
+
 ## Context
 ConversationOS will grow to cover multiple domains (conversations,
 clients, memory, communication, tasks, organizations, integrations)
@@ -80,3 +88,42 @@ formatting helpers) — nothing lives there yet in Sprint 0.
   Sprint 0 would technically need — that overhead is intentional,
   since the point of Sprint 0 is to absorb structural cost before
   business logic exists, not after.
+
+## Sprint 2: first concrete orchestrator (amendment)
+
+Sprint 2 introduced `app/orchestrator/conversation_processing.py` —
+`ConversationProcessingOrchestrator`, the first concrete
+`BaseOrchestrator` subclass. It coordinates three slices
+(`conversation`, `transcription`, `memory`) through one pipeline:
+transcribe → extract → persist → update conversation status.
+
+**Where it lives, and why that's not a new decision.** This ADR's
+original "Consequences" section already named the case: *"a workflow
+that spans multiple domains gets a dedicated orchestrator subclass."*
+Sprint 0–1 never exercised that case because no workflow spanned two
+slices yet. Sprint 2 is simply the first time it did. Putting the
+concrete class in `app/orchestrator/` alongside `BaseOrchestrator`
+(rather than inside `conversation/`, `transcription/`, or `memory/`)
+follows from the same logic as `app/api/router.py` being a
+composition root in its own file rather than living inside whichever
+slice happens to be mounted first: a thing that inherently coordinates
+multiple slices shouldn't appear to belong to just one of them.
+
+**Construction is a plain function, not a FastAPI dependency.** The
+orchestrator needs two provider factories
+(`get_ai_provider`/`get_transcription_provider`) that raise a clear
+error if their API keys aren't configured. If the orchestrator itself
+were injected via `Depends(...)`, that error would surface during
+FastAPI's dependency-resolution phase — before the route body runs —
+which would make a missing API key block the *upload* itself, not
+just downstream processing. `app/orchestrator/dependencies.py`
+exposes a plain `build_conversation_processing_orchestrator(...)`
+function instead, called manually inside `conversation/api.py`'s
+upload handler, wrapped in its own `try/except` so upload success and
+processing failure stay independent. This is a small, deliberate
+deviation from "everything is a FastAPI dependency," scoped narrowly
+to this one error-handling requirement — not a general pattern change.
+
+**Synchronous execution (TD-003).** The orchestrator runs inside the
+upload request rather than as a background task. See `Sprint2.md`'s
+Technical Debt section for the tradeoff; it's tracked, not hidden.

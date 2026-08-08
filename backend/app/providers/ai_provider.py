@@ -6,9 +6,9 @@ Picture a universal power adapter: business logic plugs into
 OpenAI, Claude, or Gemini. Swapping providers means swapping the
 adapter, not rewiring the whole house.
 
-Sprint 0 scope: define the interface only. No HTTP calls, no SDKs,
-no API keys used yet — that's explicitly out of scope until a future
-sprint actually needs to talk to a model.
+Sprint 0 scope was interface-only. Sprint 2 (`claude_provider.py`) adds
+the first concrete implementation, used by the memory slice for
+structured extraction.
 """
 
 from abc import ABC, abstractmethod
