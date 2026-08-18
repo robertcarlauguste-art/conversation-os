@@ -162,6 +162,15 @@ export interface DashboardClientRecommendation {
   href: string;
 }
 
+export type FollowupAction = "complete" | "snooze" | "record_contact";
+
+export interface FollowupActionResult {
+  client_id: string;
+  action: FollowupAction;
+  snoozed_until: string | null;
+  recorded_at: string;
+}
+
 export interface DashboardData {
   overview: DashboardOverview;
   recent_clients: ClientListItem[];

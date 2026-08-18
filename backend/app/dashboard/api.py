@@ -1,16 +1,26 @@
+import uuid
+
 from fastapi import APIRouter, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.client.api import get_client_service
 from app.client.service import ClientService
 from app.conversation.api import get_conversation_service
 from app.conversation.service import ConversationService
 from app.core.config import Settings, get_settings
+from app.core.database import get_db_session
 from app.providers.ai_provider import AIProvider
 from app.providers.dependencies import get_ai_provider
 from app.schemas.envelope import ApiResponse
 
 from .briefing import DashboardBriefingService
-from .schemas import DashboardAIBriefing, DashboardResponse
+from .repository import DashboardRepository
+from .schemas import (
+    DashboardAIBriefing,
+    DashboardResponse,
+    FollowupActionRequest,
+    FollowupActionResult,
+)
 from .service import DashboardService
 
 
@@ -27,6 +37,7 @@ def get_dashboard_service(
     client_service: ClientService = Depends(
         get_client_service
     ),
+    session: AsyncSession = Depends(get_db_session),
 ) -> DashboardService:
     """
     Compose the dashboard service from existing domain services.
@@ -38,6 +49,7 @@ def get_dashboard_service(
     return DashboardService(
         conversation_service=conversation_service,
         client_service=client_service,
+        repository=DashboardRepository(session),
     )
 
 
@@ -81,3 +93,16 @@ async def generate_dashboard_briefing(
 ) -> ApiResponse[DashboardAIBriefing]:
     briefing = await service.generate()
     return ApiResponse(success=True, data=briefing)
+
+
+@router.post(
+    "/recommendations/{client_id}/actions",
+    response_model=ApiResponse[FollowupActionResult],
+)
+async def record_followup_action(
+    client_id: uuid.UUID,
+    request: FollowupActionRequest,
+    service: DashboardService = Depends(get_dashboard_service),
+) -> ApiResponse[FollowupActionResult]:
+    result = await service.record_followup_action(client_id, request)
+    return ApiResponse(success=True, data=result)

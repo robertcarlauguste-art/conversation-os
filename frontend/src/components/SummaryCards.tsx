@@ -1,8 +1,12 @@
 "use client";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { generateDashboardBriefing, getDashboard } from "@/lib/api";
+import {
+  generateDashboardBriefing,
+  getDashboard,
+  recordFollowupAction,
+} from "@/lib/api";
 import type {
   DashboardBriefItem,
   DashboardOverview,
@@ -45,12 +49,27 @@ function DashboardSkeleton() {
 }
 
 export function SummaryCards() {
+  const queryClient = useQueryClient();
   const dashboardQuery = useQuery({
     queryKey: ["dashboard"],
     queryFn: getDashboard,
   });
   const briefingMutation = useMutation({
     mutationFn: generateDashboardBriefing,
+  });
+  const followupMutation = useMutation({
+    mutationFn: ({
+      clientId,
+      action,
+      snoozeDays,
+    }: {
+      clientId: string;
+      action: "complete" | "snooze" | "record_contact";
+      snoozeDays?: number;
+    }) => recordFollowupAction(clientId, action, snoozeDays),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
   });
 
   const overview = dashboardQuery.data?.overview;
@@ -194,26 +213,72 @@ export function SummaryCards() {
         <div className="mt-4 flex flex-col gap-3">
           {clientRecommendations.length > 0 ? (
             clientRecommendations.map((recommendation) => (
-              <Link
+              <div
                 key={recommendation.client_id}
-                href={recommendation.href}
                 className="grid gap-3 rounded-lg border border-line bg-paper p-4 hover:border-ink/30 sm:grid-cols-[2.5rem_1fr_auto] sm:items-center"
               >
                 <span className="font-display text-2xl text-ink/50">
                   {recommendation.rank}
                 </span>
                 <span>
-                  <span className="block font-semibold">
+                  <Link
+                    href={recommendation.href}
+                    className="block font-semibold hover:underline"
+                  >
                     {recommendation.client_name}
-                  </span>
+                  </Link>
                   <span className="mt-1 block text-sm text-ink/60">
                     {recommendation.reason} {recommendation.recommended_action}
                   </span>
                 </span>
-                <span className="text-xs font-medium uppercase tracking-wide text-amber-700">
-                  Urgency {recommendation.urgency_score}
+                <span className="flex flex-col items-start gap-2 sm:items-end">
+                  <span className="text-xs font-medium uppercase tracking-wide text-amber-700">
+                    Urgency {recommendation.urgency_score}
+                  </span>
+                  <span className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={followupMutation.isPending}
+                      onClick={() =>
+                        followupMutation.mutate({
+                          clientId: recommendation.client_id,
+                          action: "record_contact",
+                        })
+                      }
+                      className="rounded-md bg-ink px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+                    >
+                      Record contact
+                    </button>
+                    <button
+                      type="button"
+                      disabled={followupMutation.isPending}
+                      onClick={() =>
+                        followupMutation.mutate({
+                          clientId: recommendation.client_id,
+                          action: "snooze",
+                          snoozeDays: 1,
+                        })
+                      }
+                      className="rounded-md border border-line bg-surface px-3 py-1.5 text-xs font-medium disabled:opacity-50"
+                    >
+                      Snooze 1 day
+                    </button>
+                    <button
+                      type="button"
+                      disabled={followupMutation.isPending}
+                      onClick={() =>
+                        followupMutation.mutate({
+                          clientId: recommendation.client_id,
+                          action: "complete",
+                        })
+                      }
+                      className="rounded-md border border-line bg-surface px-3 py-1.5 text-xs font-medium disabled:opacity-50"
+                    >
+                      Complete
+                    </button>
+                  </span>
                 </span>
-              </Link>
+              </div>
             ))
           ) : (
             <p className="text-sm text-ink/50">
@@ -221,6 +286,13 @@ export function SummaryCards() {
             </p>
           )}
         </div>
+        {followupMutation.isError ? (
+          <p role="alert" className="mt-3 text-sm text-red-700">
+            {followupMutation.error instanceof Error
+              ? followupMutation.error.message
+              : "The follow-up action could not be saved."}
+          </p>
+        ) : null}
       </section>
 
       <section className="rounded-xl border border-line bg-surface p-6">

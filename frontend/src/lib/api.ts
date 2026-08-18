@@ -8,6 +8,8 @@ import type {
   ConversationListItem,
   DashboardAIBriefing,
   DashboardData,
+  FollowupAction,
+  FollowupActionResult,
   MemoryDetail,
   TranscriptDetail,
 } from "./types";
@@ -192,4 +194,23 @@ export async function generateDashboardBriefing(): Promise<DashboardAIBriefing> 
     method: "POST",
   });
   return unwrap<DashboardAIBriefing>(response);
+}
+
+export async function recordFollowupAction(
+  clientId: string,
+  action: FollowupAction,
+  snoozeDays?: number,
+): Promise<FollowupActionResult> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/dashboard/recommendations/${clientId}/actions`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action,
+        ...(snoozeDays ? { snooze_days: snoozeDays } : {}),
+      }),
+    },
+  );
+  return unwrap<FollowupActionResult>(response);
 }

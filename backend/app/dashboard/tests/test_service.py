@@ -4,6 +4,8 @@ from uuid import uuid4
 
 from app.dashboard.service import DashboardService
 from app.dashboard.schemas import DashboardOverview
+from app.dashboard.schemas import FollowupActionRequest
+from app.dashboard.models import FollowupAction
 
 
 def _service(now: datetime) -> DashboardService:
@@ -186,6 +188,119 @@ def test_client_recommendations_exclude_recent_contact() -> None:
     )
 
     assert _service(now)._build_client_recommendations([client]) == []
+
+
+def test_snoozed_recommendation_is_temporarily_excluded() -> None:
+    now = datetime(2026, 8, 17, tzinfo=timezone.utc)
+    client = SimpleNamespace(
+        id=uuid4(),
+        full_name="Snoozed Client",
+        conversations=[],
+    )
+    action = SimpleNamespace(
+        action=FollowupAction.SNOOZE,
+        snoozed_until=datetime(2026, 8, 18, tzinfo=timezone.utc),
+        created_at=now,
+    )
+
+    recommendations = _service(now)._build_client_recommendations(
+        [client], {client.id: action}
+    )
+
+    assert recommendations == []
+    assert _service(now)._build_followups([client], {client.id: action}) == []
+    assert _service(now)._build_priorities(
+        0, [client], {client.id: action}
+    ) == []
+    assert _service(now)._count_due_followups(
+        [client], {client.id: action}
+    ) == 0
+
+
+def test_recorded_contact_resets_followup_clock() -> None:
+    now = datetime(2026, 8, 17, tzinfo=timezone.utc)
+    client = SimpleNamespace(
+        id=uuid4(),
+        full_name="Contacted Client",
+        conversations=[
+            SimpleNamespace(
+                created_at=datetime(2026, 8, 1, tzinfo=timezone.utc)
+            )
+        ],
+    )
+    action = SimpleNamespace(
+        action=FollowupAction.RECORD_CONTACT,
+        snoozed_until=None,
+        created_at=datetime(2026, 8, 16, tzinfo=timezone.utc),
+    )
+
+    recommendations = _service(now)._build_client_recommendations(
+        [client], {client.id: action}
+    )
+
+    assert recommendations == []
+
+
+def test_completed_recommendation_returns_after_new_activity() -> None:
+    now = datetime(2026, 8, 17, tzinfo=timezone.utc)
+    client = SimpleNamespace(
+        id=uuid4(),
+        full_name="Returning Client",
+        conversations=[
+            SimpleNamespace(
+                created_at=datetime(2026, 8, 2, tzinfo=timezone.utc)
+            )
+        ],
+    )
+    action = SimpleNamespace(
+        action=FollowupAction.COMPLETE,
+        snoozed_until=None,
+        created_at=datetime(2026, 8, 1, tzinfo=timezone.utc),
+    )
+
+    recommendations = _service(now)._build_client_recommendations(
+        [client], {client.id: action}
+    )
+
+    assert len(recommendations) == 1
+    assert recommendations[0].days_since_contact == 15
+
+
+async def test_records_snooze_action_with_expiration() -> None:
+    now = datetime(2026, 8, 17, tzinfo=timezone.utc)
+    client_id = uuid4()
+
+    class Clients:
+        async def get_profile(self, requested_id):
+            assert requested_id == client_id
+            return SimpleNamespace(id=requested_id)
+
+    class Repository:
+        saved = None
+
+        async def add_followup_action(self, action):
+            self.saved = action
+            return action
+
+    repository = Repository()
+    service = DashboardService(
+        conversation_service=SimpleNamespace(),
+        client_service=Clients(),
+        repository=repository,
+        clock=lambda: now,
+    )
+
+    result = await service.record_followup_action(
+        client_id,
+        FollowupActionRequest(action="snooze", snooze_days=3),
+    )
+
+    assert repository.saved.action == FollowupAction.SNOOZE
+    assert repository.saved.snoozed_until == datetime(
+        2026, 8, 20, tzinfo=timezone.utc
+    )
+    assert result.action == "snooze"
+    assert result.recorded_at == now
 
 
 def test_daily_brief_summarizes_dashboard_state() -> None:

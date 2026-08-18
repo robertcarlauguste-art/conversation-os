@@ -22,6 +22,7 @@ from app.models.base import Base
 # Add a line here whenever a new slice adds models.
 from app.client import models as client_models  # noqa: F401
 from app.conversation import models as conversation_models  # noqa: F401
+from app.dashboard import models as dashboard_models  # noqa: F401
 from app.memory import models as memory_models  # noqa: F401
 from app.transcription import models as transcription_models  # noqa: F401
 

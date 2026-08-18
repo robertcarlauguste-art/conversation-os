@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
+from pydantic import model_validator
 
 from app.client.schemas import ClientListItem
 from app.conversation.schemas import ConversationListItem
@@ -55,6 +56,26 @@ class DashboardClientRecommendation(BaseModel):
     days_since_contact: int | None = Field(default=None, ge=0)
     conversation_count: int = Field(ge=0)
     href: str
+
+
+class FollowupActionRequest(BaseModel):
+    action: Literal["complete", "snooze", "record_contact"]
+    snooze_days: int | None = Field(default=None, ge=1, le=30)
+
+    @model_validator(mode="after")
+    def validate_snooze_days(self) -> "FollowupActionRequest":
+        if self.action == "snooze" and self.snooze_days is None:
+            raise ValueError("snooze_days is required when snoozing")
+        if self.action != "snooze" and self.snooze_days is not None:
+            raise ValueError("snooze_days is only valid when snoozing")
+        return self
+
+
+class FollowupActionResult(BaseModel):
+    client_id: uuid.UUID
+    action: Literal["complete", "snooze", "record_contact"]
+    snoozed_until: datetime | None = None
+    recorded_at: datetime
 
 
 class DashboardResponse(BaseModel):

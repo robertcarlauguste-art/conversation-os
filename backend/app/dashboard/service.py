@@ -1,4 +1,5 @@
-from datetime import datetime, timezone
+import uuid
+from datetime import datetime, timedelta, timezone
 from typing import Callable
 
 from app.client.models import Client
@@ -14,7 +15,11 @@ from .schemas import (
     DashboardOverview,
     DashboardPriority,
     DashboardResponse,
+    FollowupActionRequest,
+    FollowupActionResult,
 )
+from .models import ClientFollowupAction, FollowupAction
+from .repository import DashboardRepository
 
 
 class DashboardService:
@@ -33,10 +38,12 @@ class DashboardService:
         self,
         conversation_service: ConversationService,
         client_service: ClientService,
+        repository: DashboardRepository | None = None,
         clock: Callable[[], datetime] | None = None,
     ) -> None:
         self._conversations = conversation_service
         self._clients = client_service
+        self._repository = repository
         self._clock = clock or (lambda: datetime.now(timezone.utc))
 
     @staticmethod
@@ -49,21 +56,64 @@ class DashboardService:
 
         return [f"{failed} conversations failed processing and need review."]
 
-    def _build_followups(self, clients: list[Client]) -> list[str]:
+    @staticmethod
+    def _followup_state(
+        client: Client,
+        latest_action: ClientFollowupAction | None,
+        now: datetime,
+    ) -> tuple[bool, datetime | None]:
+        latest_contact = (
+            max(
+                conversation.created_at
+                for conversation in client.conversations
+            )
+            if client.conversations
+            else None
+        )
+        if latest_action is None:
+            return False, latest_contact
+        if (
+            latest_action.action == FollowupAction.SNOOZE
+            and latest_action.snoozed_until is not None
+            and latest_action.snoozed_until > now
+        ):
+            return True, latest_contact
+        if latest_action.action == FollowupAction.RECORD_CONTACT:
+            if (
+                latest_contact is None
+                or latest_action.created_at > latest_contact
+            ):
+                latest_contact = latest_action.created_at
+        if (
+            latest_action.action == FollowupAction.COMPLETE
+            and (
+                latest_contact is None
+                or latest_contact <= latest_action.created_at
+            )
+        ):
+            return True, latest_contact
+        return False, latest_contact
+
+    def _build_followups(
+        self,
+        clients: list[Client],
+        latest_actions: dict[uuid.UUID, ClientFollowupAction] | None = None,
+    ) -> list[str]:
         now = self._clock()
         followups: list[str] = []
+        latest_actions = latest_actions or {}
 
         for client in clients:
-            if not client.conversations:
+            suppressed, latest = self._followup_state(
+                client, latest_actions.get(client.id), now
+            )
+            if suppressed:
+                continue
+            if latest is None:
                 followups.append(
                     f"Schedule a first conversation with {client.full_name}."
                 )
                 continue
-
-            latest = max(
-                conversation.created_at
-                for conversation in client.conversations
-            )
             days_since_contact = (now - latest).days
 
             if days_since_contact >= self.FOLLOWUP_AFTER_DAYS:
@@ -78,8 +128,10 @@ class DashboardService:
         self,
         failed: int,
         clients: list[Client],
+        latest_actions: dict[uuid.UUID, ClientFollowupAction] | None = None,
     ) -> list[DashboardPriority]:
         priorities: list[tuple[int, DashboardPriority]] = []
+        latest_actions = latest_actions or {}
 
         if failed:
             noun = "conversation" if failed == 1 else "conversations"
@@ -102,7 +154,12 @@ class DashboardService:
 
         now = self._clock()
         for client in clients:
-            if not client.conversations:
+            suppressed, latest = self._followup_state(
+                client, latest_actions.get(client.id), now
+            )
+            if suppressed:
+                continue
+            if latest is None:
                 priorities.append(
                     (
                         0,
@@ -118,10 +175,6 @@ class DashboardService:
                 )
                 continue
 
-            latest = max(
-                conversation.created_at
-                for conversation in client.conversations
-            )
             days_since_contact = (now - latest).days
             if days_since_contact >= self.FOLLOWUP_AFTER_DAYS:
                 priorities.append(
@@ -150,19 +203,24 @@ class DashboardService:
         ]
         return [priority.model_copy(update={"rank": rank}) for rank, priority in enumerate(ordered, 1)]
 
-    def _count_due_followups(self, clients: list[Client]) -> int:
+    def _count_due_followups(
+        self,
+        clients: list[Client],
+        latest_actions: dict[uuid.UUID, ClientFollowupAction] | None = None,
+    ) -> int:
         now = self._clock()
         due = 0
+        latest_actions = latest_actions or {}
 
         for client in clients:
-            if not client.conversations:
+            suppressed, latest = self._followup_state(
+                client, latest_actions.get(client.id), now
+            )
+            if suppressed:
+                continue
+            if latest is None:
                 due += 1
                 continue
-
-            latest = max(
-                conversation.created_at
-                for conversation in client.conversations
-            )
             if (now - latest).days >= self.FOLLOWUP_AFTER_DAYS:
                 due += 1
 
@@ -171,14 +229,23 @@ class DashboardService:
     def _build_client_recommendations(
         self,
         clients: list[Client],
+        latest_actions: dict[uuid.UUID, ClientFollowupAction] | None = None,
     ) -> list[DashboardClientRecommendation]:
         """Rank grounded client actions by follow-up urgency."""
         now = self._clock()
         recommendations: list[DashboardClientRecommendation] = []
+        latest_actions = latest_actions or {}
 
         for client in clients:
+            latest_action = latest_actions.get(client.id)
             conversation_count = len(client.conversations)
-            if conversation_count == 0:
+            suppressed, latest_conversation = self._followup_state(
+                client, latest_action, now
+            )
+            if suppressed:
+                continue
+
+            if latest_conversation is None:
                 recommendations.append(
                     DashboardClientRecommendation(
                         rank=1,
@@ -193,11 +260,7 @@ class DashboardService:
                 )
                 continue
 
-            latest = max(
-                conversation.created_at
-                for conversation in client.conversations
-            )
-            days_since_contact = max(0, (now - latest).days)
+            days_since_contact = max(0, (now - latest_conversation).days)
             if days_since_contact < self.FOLLOWUP_AFTER_DAYS:
                 continue
 
@@ -229,6 +292,37 @@ class DashboardService:
             item.model_copy(update={"rank": rank})
             for rank, item in enumerate(ordered, 1)
         ]
+
+    async def record_followup_action(
+        self,
+        client_id: uuid.UUID,
+        request: FollowupActionRequest,
+    ) -> FollowupActionResult:
+        if self._repository is None:
+            raise RuntimeError("Dashboard repository is required for actions")
+
+        await self._clients.get_profile(client_id)
+        now = self._clock()
+        action = FollowupAction(request.action.upper())
+        snoozed_until = (
+            now + timedelta(days=request.snooze_days)
+            if request.snooze_days is not None
+            else None
+        )
+        saved = await self._repository.add_followup_action(
+            ClientFollowupAction(
+                client_id=client_id,
+                action=action,
+                snoozed_until=snoozed_until,
+                created_at=now,
+            )
+        )
+        return FollowupActionResult(
+            client_id=client_id,
+            action=request.action,
+            snoozed_until=saved.snoozed_until,
+            recorded_at=saved.created_at,
+        )
 
     @staticmethod
     def _build_daily_brief(
@@ -283,6 +377,11 @@ class DashboardService:
     async def get_dashboard(self) -> DashboardResponse:
         conversations = await self._conversations.list_conversations()
         clients = await self._clients.list_client_profiles()
+        latest_actions = (
+            await self._repository.list_latest_followup_actions()
+            if self._repository is not None
+            else {}
+        )
 
         overview = DashboardOverview(
             clients=len(clients),
@@ -305,12 +404,17 @@ class DashboardService:
         )
 
         alerts = self._build_alerts(overview.failed)
-        followups = self._build_followups(clients)
-        priorities = self._build_priorities(overview.failed, clients)
-        client_recommendations = self._build_client_recommendations(clients)
+        followups = self._build_followups(clients, latest_actions)
+        priorities = self._build_priorities(
+            overview.failed, clients, latest_actions
+        )
+        client_recommendations = self._build_client_recommendations(
+            clients,
+            latest_actions,
+        )
         daily_brief = self._build_daily_brief(
             overview,
-            self._count_due_followups(clients),
+            self._count_due_followups(clients, latest_actions),
         )
 
         return DashboardResponse(
