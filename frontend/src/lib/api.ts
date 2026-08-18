@@ -223,3 +223,11 @@ export async function completeActionItem(actionItemId: string): Promise<ActionIt
   );
   return unwrap<ActionItemOut>(response);
 }
+
+export async function reopenActionItem(actionItemId: string): Promise<ActionItemOut> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/memories/action-items/${actionItemId}/reopen`,
+    { method: "POST" },
+  );
+  return unwrap<ActionItemOut>(response);
+}

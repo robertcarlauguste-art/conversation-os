@@ -36,6 +36,25 @@ async def complete_action_item(
     )
 
 
+@router.post(
+    "/action-items/{action_item_id}/reopen",
+    response_model=ApiResponse[ActionItemOut],
+)
+async def reopen_action_item(
+    action_item_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db_session),
+) -> ApiResponse[ActionItemOut]:
+    service = ActionItemService(MemoryRepository(session))
+    try:
+        action_item = await service.reopen(action_item_id)
+    except ActionItemNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return ApiResponse(
+        success=True,
+        data=ActionItemOut.model_validate(action_item),
+    )
+
+
 @router.get("", response_model=ApiResponse[list[MemoryListItem]])
 async def list_memories(
     session: AsyncSession = Depends(get_db_session),

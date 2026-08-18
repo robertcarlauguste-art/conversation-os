@@ -83,6 +83,20 @@ class ActionItemService:
             )
         return action_item
 
+    async def reopen(self, action_item_id: uuid.UUID) -> ActionItem:
+        action_item = await self.repository.get_action_item(action_item_id)
+        if action_item is None:
+            raise ActionItemNotFoundError(
+                f"Action item {action_item_id} not found."
+            )
+        if action_item.status != ActionStatus.OPEN:
+            action_item = await self.repository.set_action_item_status(
+                action_item,
+                ActionStatus.OPEN,
+                completed_at=None,
+            )
+        return action_item
+
 
 
 EXTRACTION_SYSTEM_PROMPT = """

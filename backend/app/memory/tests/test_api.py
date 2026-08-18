@@ -109,3 +109,28 @@ async def test_complete_action_item_404_when_missing() -> None:
         )
 
     assert response.status_code == 404
+
+
+async def test_reopen_completed_action_item(db_session: AsyncSession) -> None:
+    conversation = await _make_conversation_with_memory(db_session)
+    repo = MemoryRepository(db_session)
+    memory = await repo.get_by_conversation_id(conversation.id)
+    assert memory is not None
+    action_item = memory.action_items[0]
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        complete_response = await client.post(
+            f"/api/v1/memories/action-items/{action_item.id}/complete"
+        )
+        reopen_response = await client.post(
+            f"/api/v1/memories/action-items/{action_item.id}/reopen"
+        )
+
+    assert complete_response.status_code == 200
+    assert reopen_response.status_code == 200
+    assert reopen_response.json()["data"]["status"] == "OPEN"
+    assert reopen_response.json()["data"]["completed_at"] is None
+    await db_session.refresh(action_item)
+    assert action_item.status.value == "OPEN"
+    assert action_item.completed_at is None

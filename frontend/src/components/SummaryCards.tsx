@@ -7,6 +7,7 @@ import {
   completeActionItem,
   getDashboard,
   recordFollowupAction,
+  reopenActionItem,
 } from "@/lib/api";
 import type {
   DashboardBriefItem,
@@ -77,6 +78,12 @@ export function SummaryCards() {
     mutationFn: async (actionItemIds: string[]) => {
       await Promise.all(actionItemIds.map(completeActionItem));
     },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+  const reopenActionMutation = useMutation({
+    mutationFn: reopenActionItem,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
@@ -225,25 +232,39 @@ export function SummaryCards() {
         <div className="mt-4 flex flex-col gap-3">
           {recentActivity.length > 0 ? (
             recentActivity.map((activity) => (
-              <Link
+              <div
                 key={`${activity.action}-${activity.id}`}
-                href={activity.href}
-                className="grid gap-1 rounded-lg border border-line bg-paper p-4 hover:border-ink/30 sm:grid-cols-[1fr_auto]"
+                className="grid gap-3 rounded-lg border border-line bg-paper p-4 sm:grid-cols-[1fr_auto] sm:items-center"
               >
                 <span>
-                  <span className="block text-sm font-medium">
+                  <Link
+                    href={activity.href}
+                    className="block text-sm font-medium hover:underline"
+                  >
                     {activity.description}
-                  </span>
+                  </Link>
                   {activity.snoozed_until ? (
                     <span className="mt-1 block text-xs text-ink/50">
                       Snoozed until {formatDate(activity.snoozed_until)}
                     </span>
                   ) : null}
                 </span>
-                <span className="text-xs text-ink/50">
-                  {formatDate(activity.occurred_at)}
+                <span className="flex flex-col items-start gap-2 sm:items-end">
+                  <span className="text-xs text-ink/50">
+                    {formatDate(activity.occurred_at)}
+                  </span>
+                  {activity.action === "complete_action_item" ? (
+                    <button
+                      type="button"
+                      disabled={reopenActionMutation.isPending}
+                      onClick={() => reopenActionMutation.mutate(activity.id)}
+                      className="rounded-md border border-line bg-surface px-3 py-1.5 text-xs font-medium disabled:opacity-50"
+                    >
+                      Reopen
+                    </button>
+                  ) : null}
                 </span>
-              </Link>
+              </div>
             ))
           ) : (
             <p className="text-sm text-ink/50">
@@ -251,6 +272,13 @@ export function SummaryCards() {
             </p>
           )}
         </div>
+        {reopenActionMutation.isError ? (
+          <p role="alert" className="mt-3 text-sm text-red-700">
+            {reopenActionMutation.error instanceof Error
+              ? reopenActionMutation.error.message
+              : "The action item could not be reopened."}
+          </p>
+        ) : null}
       </section>
 
       <section className="rounded-xl border border-line bg-surface p-6">
