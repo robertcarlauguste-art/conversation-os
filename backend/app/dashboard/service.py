@@ -8,7 +8,7 @@ from app.conversation.enums import ConversationStatus
 from app.conversation.schemas import ConversationListItem
 from app.conversation.service import ConversationService
 
-from .schemas import DashboardOverview, DashboardResponse
+from .schemas import DashboardOverview, DashboardPriority, DashboardResponse
 
 
 class DashboardService:
@@ -68,6 +68,82 @@ class DashboardService:
 
         return followups[:5]
 
+    def _build_priorities(
+        self,
+        failed: int,
+        clients: list[Client],
+    ) -> list[DashboardPriority]:
+        priorities: list[tuple[int, DashboardPriority]] = []
+
+        if failed:
+            noun = "conversation" if failed == 1 else "conversations"
+            priorities.append(
+                (
+                    10_000,
+                    DashboardPriority(
+                        rank=1,
+                        severity="critical",
+                        category="processing",
+                        title=f"Review {failed} failed {noun}",
+                        description=(
+                            "Resolve processing failures before they hide "
+                            "client information or next actions."
+                        ),
+                        href="/conversations",
+                    ),
+                )
+            )
+
+        now = self._clock()
+        for client in clients:
+            if not client.conversations:
+                priorities.append(
+                    (
+                        0,
+                        DashboardPriority(
+                            rank=1,
+                            severity="medium",
+                            category="followup",
+                            title=f"Start a conversation with {client.full_name}",
+                            description="No conversations are linked to this client yet.",
+                            href=f"/clients/{client.id}",
+                        ),
+                    )
+                )
+                continue
+
+            latest = max(
+                conversation.created_at
+                for conversation in client.conversations
+            )
+            days_since_contact = (now - latest).days
+            if days_since_contact >= self.FOLLOWUP_AFTER_DAYS:
+                priorities.append(
+                    (
+                        days_since_contact,
+                        DashboardPriority(
+                            rank=1,
+                            severity="high",
+                            category="followup",
+                            title=f"Follow up with {client.full_name}",
+                            description=(
+                                f"The last conversation was {days_since_contact} days ago."
+                            ),
+                            href=f"/clients/{client.id}",
+                        ),
+                    )
+                )
+
+        ordered = [
+            priority
+            for _, priority in sorted(
+                priorities,
+                key=lambda item: item[0],
+                reverse=True,
+            )[:5]
+        ]
+        return [priority.model_copy(update={"rank": rank}) for rank, priority in enumerate(ordered, 1)]
+
     async def get_dashboard(self) -> DashboardResponse:
         conversations = await self._conversations.list_conversations()
         clients = await self._clients.list_client_profiles()
@@ -94,6 +170,7 @@ class DashboardService:
 
         alerts = self._build_alerts(overview.failed)
         followups = self._build_followups(clients)
+        priorities = self._build_priorities(overview.failed, clients)
 
         return DashboardResponse(
             overview=overview,
@@ -105,6 +182,7 @@ class DashboardService:
                 ConversationListItem.model_validate(conversation)
                 for conversation in conversations[:5]
             ],
+            priorities=priorities,
             alerts=alerts,
             followups=followups,
         )

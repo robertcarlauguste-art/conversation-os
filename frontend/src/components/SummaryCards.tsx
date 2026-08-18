@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { getDashboard } from "@/lib/api";
-import type { DashboardOverview } from "@/lib/types";
+import type { DashboardOverview, DashboardPriority } from "@/lib/types";
 
 const CARDS: { key: keyof DashboardOverview; label: string }[] = [
   { key: "clients", label: "Clients" },
@@ -12,6 +12,12 @@ const CARDS: { key: keyof DashboardOverview; label: string }[] = [
   { key: "completed", label: "Completed" },
   { key: "failed", label: "Failed" },
 ];
+
+const PRIORITY_STYLES: Record<DashboardPriority["severity"], string> = {
+  critical: "border-red-200 bg-red-50 text-red-900",
+  high: "border-amber-200 bg-amber-50 text-amber-900",
+  medium: "border-line bg-paper text-ink",
+};
 
 export function SummaryCards() {
   const dashboardQuery = useQuery({
@@ -24,6 +30,7 @@ export function SummaryCards() {
   const clients = dashboardQuery.data?.recent_clients ?? [];
   const alerts = dashboardQuery.data?.alerts ?? [];
   const followups = dashboardQuery.data?.followups ?? [];
+  const priorities = dashboardQuery.data?.priorities ?? [];
 
   return (
     <div className="flex flex-col gap-8">
@@ -43,6 +50,47 @@ export function SummaryCards() {
           </div>
         ))}
       </div>
+
+      <section className="rounded-xl border border-line bg-surface p-6">
+        <div>
+          <h2 className="text-lg font-semibold">Executive Priorities</h2>
+          <p className="mt-1 text-sm text-ink/50">
+            Recommended actions ranked by urgency and relationship impact.
+          </p>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-3">
+          {priorities.length > 0 ? (
+            priorities.map((priority) => {
+              const content = (
+                <>
+                  <span className="font-display text-2xl">{priority.rank}</span>
+                  <span>
+                    <span className="block font-semibold">{priority.title}</span>
+                    <span className="mt-1 block text-sm opacity-70">
+                      {priority.description}
+                    </span>
+                  </span>
+                </>
+              );
+
+              const className = `grid grid-cols-[2rem_1fr] gap-3 rounded-lg border p-4 ${PRIORITY_STYLES[priority.severity]}`;
+
+              return priority.href ? (
+                <Link key={`${priority.category}-${priority.rank}`} href={priority.href} className={className}>
+                  {content}
+                </Link>
+              ) : (
+                <div key={`${priority.category}-${priority.rank}`} className={className}>
+                  {content}
+                </div>
+              );
+            })
+          ) : (
+            <p className="text-sm text-ink/50">No priority actions right now.</p>
+          )}
+        </div>
+      </section>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-xl border border-line bg-surface p-6">

@@ -127,10 +127,20 @@ export interface DashboardOverview {
   failed: number;
 }
 
+export interface DashboardPriority {
+  rank: number;
+  severity: "critical" | "high" | "medium";
+  category: "processing" | "followup";
+  title: string;
+  description: string;
+  href: string | null;
+}
+
 export interface DashboardData {
   overview: DashboardOverview;
   recent_clients: ClientListItem[];
   recent_conversations: ConversationListItem[];
+  priorities: DashboardPriority[];
   alerts: string[];
   followups: string[];
 }
