@@ -48,6 +48,7 @@ def _dashboard_response() -> DashboardResponse:
         ],
         client_recommendations=[],
         next_actions=[],
+        recent_activity=[],
         alerts=[],
         followups=[],
     )

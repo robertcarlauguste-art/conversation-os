@@ -366,3 +366,33 @@ def test_daily_brief_reports_healthy_empty_states() -> None:
     assert brief[2].tone == "positive"
     assert brief[4].text == "No follow-ups are due."
     assert brief[4].tone == "positive"
+
+
+def test_builds_explainable_recent_activity() -> None:
+    now = datetime(2026, 8, 17, tzinfo=timezone.utc)
+    client_id = uuid4()
+    action_id = uuid4()
+    records = [
+        SimpleNamespace(
+            client_name="John",
+            action=SimpleNamespace(
+                id=action_id,
+                client_id=client_id,
+                action=FollowupAction.SNOOZE,
+                created_at=now,
+                snoozed_until=datetime(
+                    2026, 8, 18, tzinfo=timezone.utc
+                ),
+            ),
+        )
+    ]
+
+    activity = DashboardService._build_recent_activity(records)
+
+    assert len(activity) == 1
+    assert activity[0].id == action_id
+    assert activity[0].action == "snooze"
+    assert activity[0].description == (
+        "Snoozed the follow-up recommendation for John."
+    )
+    assert activity[0].href == f"/clients/{client_id}"

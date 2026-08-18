@@ -19,6 +19,12 @@ class OpenActionRecord:
     client_name: str | None
 
 
+@dataclass(frozen=True)
+class FollowupActivityRecord:
+    action: ClientFollowupAction
+    client_name: str
+
+
 class DashboardRepository:
     """
     Dashboard-specific data access.
@@ -74,4 +80,25 @@ class DashboardRepository:
                 client_name=client.full_name if client is not None else None,
             )
             for action_item, _memory, conversation, client in result.all()
+        ]
+
+    async def list_recent_followup_activity(
+        self,
+        limit: int = 10,
+    ) -> list[FollowupActivityRecord]:
+        result = await self.session.execute(
+            select(ClientFollowupAction, Client)
+            .join(Client, ClientFollowupAction.client_id == Client.id)
+            .order_by(
+                ClientFollowupAction.created_at.desc(),
+                ClientFollowupAction.id.desc(),
+            )
+            .limit(limit)
+        )
+        return [
+            FollowupActivityRecord(
+                action=action,
+                client_name=client.full_name,
+            )
+            for action, client in result.all()
         ]

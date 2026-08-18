@@ -11,6 +11,7 @@ from app.conversation.service import ConversationService
 
 from .schemas import (
     DashboardBriefItem,
+    DashboardActivityItem,
     DashboardClientRecommendation,
     DashboardNextAction,
     DashboardOverview,
@@ -20,7 +21,7 @@ from .schemas import (
     FollowupActionResult,
 )
 from .models import ClientFollowupAction, FollowupAction
-from .repository import DashboardRepository
+from .repository import DashboardRepository, FollowupActivityRecord
 
 
 class DashboardService:
@@ -360,6 +361,32 @@ class DashboardService:
         )
 
     @staticmethod
+    def _build_recent_activity(
+        records: list[FollowupActivityRecord],
+    ) -> list[DashboardActivityItem]:
+        descriptions = {
+            FollowupAction.COMPLETE: "Completed the follow-up recommendation",
+            FollowupAction.SNOOZE: "Snoozed the follow-up recommendation",
+            FollowupAction.RECORD_CONTACT: "Recorded client contact",
+        }
+        return [
+            DashboardActivityItem(
+                id=record.action.id,
+                client_id=record.action.client_id,
+                client_name=record.client_name,
+                action=record.action.action.value.casefold(),
+                description=(
+                    f"{descriptions[record.action.action]} for "
+                    f"{record.client_name}."
+                ),
+                occurred_at=record.action.created_at,
+                snoozed_until=record.action.snoozed_until,
+                href=f"/clients/{record.action.client_id}",
+            )
+            for record in records
+        ]
+
+    @staticmethod
     def _build_daily_brief(
         overview: DashboardOverview,
         due_followups: int,
@@ -419,6 +446,11 @@ class DashboardService:
         )
         open_action_records = (
             await self._repository.list_open_action_items()
+            if self._repository is not None
+            else []
+        )
+        activity_records = (
+            await self._repository.list_recent_followup_activity()
             if self._repository is not None
             else []
         )
@@ -484,6 +516,7 @@ class DashboardService:
             )
             for records in list(grouped_actions.values())[:10]
         ]
+        recent_activity = self._build_recent_activity(activity_records)
         daily_brief = self._build_daily_brief(
             overview,
             self._count_due_followups(clients, latest_actions),
@@ -503,6 +536,7 @@ class DashboardService:
             priorities=priorities,
             client_recommendations=client_recommendations,
             next_actions=next_actions,
+            recent_activity=recent_activity,
             alerts=alerts,
             followups=followups,
         )

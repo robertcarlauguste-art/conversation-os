@@ -13,6 +13,7 @@ import type {
   DashboardOverview,
   DashboardPriority,
 } from "@/lib/types";
+import { formatDate } from "@/lib/format";
 
 const CARDS: { key: keyof DashboardOverview; label: string }[] = [
   { key: "clients", label: "Clients" },
@@ -89,6 +90,7 @@ export function SummaryCards() {
   const priorities = dashboardQuery.data?.priorities ?? [];
   const clientRecommendations = dashboardQuery.data?.client_recommendations ?? [];
   const nextActions = dashboardQuery.data?.next_actions ?? [];
+  const recentActivity = dashboardQuery.data?.recent_activity ?? [];
   const dailyBrief = dashboardQuery.data?.daily_brief ?? [];
 
   if (dashboardQuery.isPending) {
@@ -210,6 +212,45 @@ export function SummaryCards() {
             </p>
           </div>
         ) : null}
+      </section>
+
+      <section className="rounded-xl border border-line bg-surface p-6">
+        <div>
+          <h2 className="text-lg font-semibold">Recent Activity</h2>
+          <p className="mt-1 text-sm text-ink/50">
+            A durable history of follow-up decisions and recorded contact.
+          </p>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-3">
+          {recentActivity.length > 0 ? (
+            recentActivity.map((activity) => (
+              <Link
+                key={activity.id}
+                href={activity.href}
+                className="grid gap-1 rounded-lg border border-line bg-paper p-4 hover:border-ink/30 sm:grid-cols-[1fr_auto]"
+              >
+                <span>
+                  <span className="block text-sm font-medium">
+                    {activity.description}
+                  </span>
+                  {activity.snoozed_until ? (
+                    <span className="mt-1 block text-xs text-ink/50">
+                      Snoozed until {formatDate(activity.snoozed_until)}
+                    </span>
+                  ) : null}
+                </span>
+                <span className="text-xs text-ink/50">
+                  {formatDate(activity.occurred_at)}
+                </span>
+              </Link>
+            ))
+          ) : (
+            <p className="text-sm text-ink/50">
+              Follow-up activity will appear after you take an action.
+            </p>
+          )}
+        </div>
       </section>
 
       <section className="rounded-xl border border-line bg-surface p-6">

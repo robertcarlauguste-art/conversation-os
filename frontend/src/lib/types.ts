@@ -177,6 +177,17 @@ export interface DashboardNextAction {
   href: string;
 }
 
+export interface DashboardActivityItem {
+  id: string;
+  client_id: string;
+  client_name: string;
+  action: "complete" | "snooze" | "record_contact";
+  description: string;
+  occurred_at: string;
+  snoozed_until: string | null;
+  href: string;
+}
+
 export type FollowupAction = "complete" | "snooze" | "record_contact";
 
 export interface FollowupActionResult {
@@ -194,6 +205,7 @@ export interface DashboardData {
   priorities: DashboardPriority[];
   client_recommendations: DashboardClientRecommendation[];
   next_actions: DashboardNextAction[];
+  recent_activity: DashboardActivityItem[];
   alerts: string[];
   followups: string[];
 }

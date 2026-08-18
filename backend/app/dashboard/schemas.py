@@ -73,6 +73,17 @@ class DashboardNextAction(BaseModel):
     href: str
 
 
+class DashboardActivityItem(BaseModel):
+    id: uuid.UUID
+    client_id: uuid.UUID
+    client_name: str
+    action: Literal["complete", "snooze", "record_contact"]
+    description: str
+    occurred_at: datetime
+    snoozed_until: datetime | None = None
+    href: str
+
+
 class FollowupActionRequest(BaseModel):
     action: Literal["complete", "snooze", "record_contact"]
     snooze_days: int | None = Field(default=None, ge=1, le=30)
@@ -101,5 +112,6 @@ class DashboardResponse(BaseModel):
     priorities: list[DashboardPriority]
     client_recommendations: list[DashboardClientRecommendation]
     next_actions: list[DashboardNextAction]
+    recent_activity: list[DashboardActivityItem]
     alerts: list[str]
     followups: list[str]

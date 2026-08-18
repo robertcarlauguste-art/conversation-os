@@ -55,6 +55,10 @@ class DashboardBriefingService:
                 item.model_dump(mode="json")
                 for item in dashboard.next_actions
             ],
+            "recent_activity": [
+                item.model_dump(mode="json")
+                for item in dashboard.recent_activity
+            ],
         }
         return (
             "Write a concise morning executive briefing from this JSON data. "
