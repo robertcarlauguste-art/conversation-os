@@ -150,12 +150,25 @@ export interface DashboardAIBriefing {
   generated_at: string;
 }
 
+export interface DashboardClientRecommendation {
+  rank: number;
+  client_id: string;
+  client_name: string;
+  urgency_score: number;
+  reason: string;
+  recommended_action: string;
+  days_since_contact: number | null;
+  conversation_count: number;
+  href: string;
+}
+
 export interface DashboardData {
   overview: DashboardOverview;
   recent_clients: ClientListItem[];
   recent_conversations: ConversationListItem[];
   daily_brief: DashboardBriefItem[];
   priorities: DashboardPriority[];
+  client_recommendations: DashboardClientRecommendation[];
   alerts: string[];
   followups: string[];
 }

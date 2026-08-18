@@ -46,6 +46,7 @@ def _dashboard_response() -> DashboardResponse:
                 href="/conversations",
             )
         ],
+        client_recommendations=[],
         alerts=[],
         followups=[],
     )

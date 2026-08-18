@@ -118,6 +118,76 @@ def test_priorities_rank_oldest_followup_first() -> None:
     assert priorities[1].title == "Follow up with Recent"
 
 
+def test_client_recommendations_rank_oldest_contact_first() -> None:
+    now = datetime(2026, 8, 17, tzinfo=timezone.utc)
+    oldest_id = uuid4()
+    clients = [
+        SimpleNamespace(
+            id=uuid4(),
+            full_name="Recent",
+            conversations=[
+                SimpleNamespace(
+                    created_at=datetime(2026, 8, 9, tzinfo=timezone.utc)
+                )
+            ],
+        ),
+        SimpleNamespace(
+            id=oldest_id,
+            full_name="Oldest",
+            conversations=[
+                SimpleNamespace(
+                    created_at=datetime(2026, 7, 28, tzinfo=timezone.utc)
+                ),
+                SimpleNamespace(
+                    created_at=datetime(2026, 8, 1, tzinfo=timezone.utc)
+                ),
+            ],
+        ),
+    ]
+
+    recommendations = _service(now)._build_client_recommendations(clients)
+
+    assert [item.rank for item in recommendations] == [1, 2]
+    assert recommendations[0].client_id == oldest_id
+    assert recommendations[0].days_since_contact == 16
+    assert recommendations[0].conversation_count == 2
+    assert recommendations[0].urgency_score == 66
+    assert recommendations[0].recommended_action == "Follow up today."
+
+
+def test_client_recommendations_include_first_conversation() -> None:
+    now = datetime(2026, 8, 17, tzinfo=timezone.utc)
+    client = SimpleNamespace(
+        id=uuid4(),
+        full_name="New Client",
+        conversations=[],
+    )
+
+    recommendations = _service(now)._build_client_recommendations([client])
+
+    assert len(recommendations) == 1
+    assert recommendations[0].days_since_contact is None
+    assert recommendations[0].urgency_score == 50
+    assert recommendations[0].recommended_action == (
+        "Schedule a first conversation."
+    )
+
+
+def test_client_recommendations_exclude_recent_contact() -> None:
+    now = datetime(2026, 8, 17, tzinfo=timezone.utc)
+    client = SimpleNamespace(
+        id=uuid4(),
+        full_name="Current Client",
+        conversations=[
+            SimpleNamespace(
+                created_at=datetime(2026, 8, 15, tzinfo=timezone.utc)
+            )
+        ],
+    )
+
+    assert _service(now)._build_client_recommendations([client]) == []
+
+
 def test_daily_brief_summarizes_dashboard_state() -> None:
     brief = DashboardService._build_daily_brief(
         DashboardOverview(

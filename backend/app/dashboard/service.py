@@ -10,6 +10,7 @@ from app.conversation.service import ConversationService
 
 from .schemas import (
     DashboardBriefItem,
+    DashboardClientRecommendation,
     DashboardOverview,
     DashboardPriority,
     DashboardResponse,
@@ -167,6 +168,68 @@ class DashboardService:
 
         return due
 
+    def _build_client_recommendations(
+        self,
+        clients: list[Client],
+    ) -> list[DashboardClientRecommendation]:
+        """Rank grounded client actions by follow-up urgency."""
+        now = self._clock()
+        recommendations: list[DashboardClientRecommendation] = []
+
+        for client in clients:
+            conversation_count = len(client.conversations)
+            if conversation_count == 0:
+                recommendations.append(
+                    DashboardClientRecommendation(
+                        rank=1,
+                        client_id=client.id,
+                        client_name=client.full_name,
+                        urgency_score=50,
+                        reason="No conversations are linked to this client yet.",
+                        recommended_action="Schedule a first conversation.",
+                        conversation_count=0,
+                        href=f"/clients/{client.id}",
+                    )
+                )
+                continue
+
+            latest = max(
+                conversation.created_at
+                for conversation in client.conversations
+            )
+            days_since_contact = max(0, (now - latest).days)
+            if days_since_contact < self.FOLLOWUP_AFTER_DAYS:
+                continue
+
+            recommendations.append(
+                DashboardClientRecommendation(
+                    rank=1,
+                    client_id=client.id,
+                    client_name=client.full_name,
+                    urgency_score=min(100, 50 + days_since_contact),
+                    reason=(
+                        f"Last conversation was {days_since_contact} days ago."
+                    ),
+                    recommended_action="Follow up today.",
+                    days_since_contact=days_since_contact,
+                    conversation_count=conversation_count,
+                    href=f"/clients/{client.id}",
+                )
+            )
+
+        ordered = sorted(
+            recommendations,
+            key=lambda item: (
+                -item.urgency_score,
+                item.client_name.casefold(),
+                str(item.client_id),
+            ),
+        )[:5]
+        return [
+            item.model_copy(update={"rank": rank})
+            for rank, item in enumerate(ordered, 1)
+        ]
+
     @staticmethod
     def _build_daily_brief(
         overview: DashboardOverview,
@@ -244,6 +307,7 @@ class DashboardService:
         alerts = self._build_alerts(overview.failed)
         followups = self._build_followups(clients)
         priorities = self._build_priorities(overview.failed, clients)
+        client_recommendations = self._build_client_recommendations(clients)
         daily_brief = self._build_daily_brief(
             overview,
             self._count_due_followups(clients),
@@ -261,6 +325,7 @@ class DashboardService:
             ],
             daily_brief=daily_brief,
             priorities=priorities,
+            client_recommendations=client_recommendations,
             alerts=alerts,
             followups=followups,
         )

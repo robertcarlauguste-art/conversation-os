@@ -59,6 +59,7 @@ export function SummaryCards() {
   const alerts = dashboardQuery.data?.alerts ?? [];
   const followups = dashboardQuery.data?.followups ?? [];
   const priorities = dashboardQuery.data?.priorities ?? [];
+  const clientRecommendations = dashboardQuery.data?.client_recommendations ?? [];
   const dailyBrief = dashboardQuery.data?.daily_brief ?? [];
 
   if (dashboardQuery.isPending) {
@@ -180,6 +181,46 @@ export function SummaryCards() {
             </p>
           </div>
         ) : null}
+      </section>
+
+      <section className="rounded-xl border border-line bg-surface p-6">
+        <div>
+          <h2 className="text-lg font-semibold">Who to Contact First</h2>
+          <p className="mt-1 text-sm text-ink/50">
+            Explainable recommendations ranked from stored conversation activity.
+          </p>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-3">
+          {clientRecommendations.length > 0 ? (
+            clientRecommendations.map((recommendation) => (
+              <Link
+                key={recommendation.client_id}
+                href={recommendation.href}
+                className="grid gap-3 rounded-lg border border-line bg-paper p-4 hover:border-ink/30 sm:grid-cols-[2.5rem_1fr_auto] sm:items-center"
+              >
+                <span className="font-display text-2xl text-ink/50">
+                  {recommendation.rank}
+                </span>
+                <span>
+                  <span className="block font-semibold">
+                    {recommendation.client_name}
+                  </span>
+                  <span className="mt-1 block text-sm text-ink/60">
+                    {recommendation.reason} {recommendation.recommended_action}
+                  </span>
+                </span>
+                <span className="text-xs font-medium uppercase tracking-wide text-amber-700">
+                  Urgency {recommendation.urgency_score}
+                </span>
+              </Link>
+            ))
+          ) : (
+            <p className="text-sm text-ink/50">
+              No client follow-ups are due right now.
+            </p>
+          )}
+        </div>
       </section>
 
       <section className="rounded-xl border border-line bg-surface p-6">

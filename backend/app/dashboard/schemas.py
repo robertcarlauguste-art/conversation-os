@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 from typing import Literal
 
@@ -44,11 +45,24 @@ class DashboardAIBriefing(BaseModel):
     generated_at: datetime
 
 
+class DashboardClientRecommendation(BaseModel):
+    rank: int = Field(ge=1)
+    client_id: uuid.UUID
+    client_name: str
+    urgency_score: int = Field(ge=0, le=100)
+    reason: str
+    recommended_action: str
+    days_since_contact: int | None = Field(default=None, ge=0)
+    conversation_count: int = Field(ge=0)
+    href: str
+
+
 class DashboardResponse(BaseModel):
     overview: DashboardOverview
     recent_clients: list[ClientListItem]
     recent_conversations: list[ConversationListItem]
     daily_brief: list[DashboardBriefItem]
     priorities: list[DashboardPriority]
+    client_recommendations: list[DashboardClientRecommendation]
     alerts: list[str]
     followups: list[str]
