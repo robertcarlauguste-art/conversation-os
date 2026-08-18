@@ -133,7 +133,7 @@ export function MemoryPanel({
         <SectionCard title="Action Items">
           <BulletList
             items={memory.action_items.map((a) =>
-              a.owner ? `${a.description} (${a.owner})` : a.description,
+              a.owner ? `${a.task} (${a.owner})` : a.task,
             )}
           />
         </SectionCard>

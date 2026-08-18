@@ -13,6 +13,8 @@ import json
 import logging
 import time
 import uuid
+from datetime import datetime, timezone
+from typing import Callable
 
 
 from app.memory.enums import MemoryType
@@ -59,8 +61,13 @@ class ActionItemNotFoundError(Exception):
 
 
 class ActionItemService:
-    def __init__(self, repository: MemoryRepository) -> None:
+    def __init__(
+        self,
+        repository: MemoryRepository,
+        clock: Callable[[], datetime] | None = None,
+    ) -> None:
         self.repository = repository
+        self._clock = clock or (lambda: datetime.now(timezone.utc))
 
     async def complete(self, action_item_id: uuid.UUID) -> ActionItem:
         action_item = await self.repository.get_action_item(action_item_id)
@@ -72,6 +79,7 @@ class ActionItemService:
             action_item = await self.repository.set_action_item_status(
                 action_item,
                 ActionStatus.COMPLETED,
+                completed_at=self._clock(),
             )
         return action_item
 

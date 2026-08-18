@@ -43,8 +43,10 @@ class MemoryRepository(BaseRepository[Memory]):
         self,
         action_item: ActionItem,
         status: ActionStatus,
+        completed_at=None,
     ) -> ActionItem:
         action_item.status = status
+        action_item.completed_at = completed_at
         await self.session.commit()
         await self.session.refresh(action_item)
         return action_item

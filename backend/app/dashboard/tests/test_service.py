@@ -396,3 +396,30 @@ def test_builds_explainable_recent_activity() -> None:
         "Snoozed the follow-up recommendation for John."
     )
     assert activity[0].href == f"/clients/{client_id}"
+
+
+def test_merges_completed_action_items_into_recent_activity() -> None:
+    now = datetime(2026, 8, 17, tzinfo=timezone.utc)
+    action_id = uuid4()
+    conversation_id = uuid4()
+    completed = [
+        SimpleNamespace(
+            action_item=SimpleNamespace(
+                id=action_id,
+                task="Send the property list",
+                completed_at=now,
+            ),
+            client_id=None,
+            client_name=None,
+            conversation_id=conversation_id,
+        )
+    ]
+
+    activity = DashboardService._build_recent_activity([], completed)
+
+    assert len(activity) == 1
+    assert activity[0].action == "complete_action_item"
+    assert activity[0].description == (
+        'Completed action item "Send the property list".'
+    )
+    assert activity[0].href == f"/conversations/{conversation_id}"

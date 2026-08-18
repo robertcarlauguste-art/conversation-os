@@ -239,6 +239,11 @@ class ActionItem(Base):
         nullable=False,
     )
 
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
     memory: Mapped["Memory"] = relationship(
         back_populates="action_items",
     )

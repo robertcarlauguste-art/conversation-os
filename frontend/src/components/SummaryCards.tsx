@@ -226,7 +226,7 @@ export function SummaryCards() {
           {recentActivity.length > 0 ? (
             recentActivity.map((activity) => (
               <Link
-                key={activity.id}
+                key={`${activity.action}-${activity.id}`}
                 href={activity.href}
                 className="grid gap-1 rounded-lg border border-line bg-paper p-4 hover:border-ink/30 sm:grid-cols-[1fr_auto]"
               >

@@ -93,8 +93,10 @@ async def test_complete_action_item(db_session: AsyncSession) -> None:
 
     assert response.status_code == 200
     assert response.json()["data"]["status"] == "COMPLETED"
+    assert response.json()["data"]["completed_at"] is not None
     await db_session.refresh(action_item)
     assert action_item.status.value == "COMPLETED"
+    assert action_item.completed_at is not None
 
 
 async def test_complete_action_item_404_when_missing() -> None:

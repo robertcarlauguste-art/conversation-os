@@ -75,9 +75,14 @@ class DashboardNextAction(BaseModel):
 
 class DashboardActivityItem(BaseModel):
     id: uuid.UUID
-    client_id: uuid.UUID
-    client_name: str
-    action: Literal["complete", "snooze", "record_contact"]
+    client_id: uuid.UUID | None = None
+    client_name: str | None = None
+    action: Literal[
+        "complete",
+        "snooze",
+        "record_contact",
+        "complete_action_item",
+    ]
     description: str
     occurred_at: datetime
     snoozed_until: datetime | None = None

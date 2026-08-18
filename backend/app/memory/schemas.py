@@ -162,6 +162,8 @@ class ActionItemOut(BaseModel):
 
     status: str
 
+    completed_at: datetime | None
+
 
 
 

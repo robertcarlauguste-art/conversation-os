@@ -58,8 +58,11 @@ export interface DecisionOut {
 
 export interface ActionItemOut {
   id: string;
-  description: string;
+  task: string;
+  due: string | null;
   owner: string | null;
+  status: string;
+  completed_at: string | null;
 }
 
 export interface PersonOut {
@@ -179,9 +182,9 @@ export interface DashboardNextAction {
 
 export interface DashboardActivityItem {
   id: string;
-  client_id: string;
-  client_name: string;
-  action: "complete" | "snooze" | "record_contact";
+  client_id: string | null;
+  client_name: string | null;
+  action: "complete" | "snooze" | "record_contact" | "complete_action_item";
   description: string;
   occurred_at: string;
   snoozed_until: string | null;
