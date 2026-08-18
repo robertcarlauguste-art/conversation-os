@@ -1,8 +1,8 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { getDashboard } from "@/lib/api";
+import { generateDashboardBriefing, getDashboard } from "@/lib/api";
 import type {
   DashboardBriefItem,
   DashboardOverview,
@@ -48,6 +48,9 @@ export function SummaryCards() {
   const dashboardQuery = useQuery({
     queryKey: ["dashboard"],
     queryFn: getDashboard,
+  });
+  const briefingMutation = useMutation({
+    mutationFn: generateDashboardBriefing,
   });
 
   const overview = dashboardQuery.data?.overview;
@@ -126,6 +129,57 @@ export function SummaryCards() {
             <p className="text-sm text-ink/50">No briefing data is available yet.</p>
           )}
         </div>
+      </section>
+
+      <section className="rounded-xl border border-line bg-surface p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">AI Morning Briefing</h2>
+            <p className="mt-1 text-sm text-ink/50">
+              A concise synthesis generated only when you request it.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => briefingMutation.mutate()}
+            disabled={briefingMutation.isPending}
+            className="rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white disabled:cursor-wait disabled:opacity-60"
+          >
+            {briefingMutation.isPending
+              ? "Generating..."
+              : briefingMutation.data
+                ? "Regenerate briefing"
+                : "Generate briefing"}
+          </button>
+        </div>
+
+        {briefingMutation.isError ? (
+          <div
+            role="alert"
+            className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4"
+          >
+            <p className="text-sm text-red-800">
+              {briefingMutation.error instanceof Error
+                ? briefingMutation.error.message
+                : "The briefing could not be generated."}
+            </p>
+          </div>
+        ) : null}
+
+        {briefingMutation.data ? (
+          <div className="mt-4 rounded-lg border border-line bg-paper p-5">
+            <p className="leading-7 text-ink">{briefingMutation.data.content}</p>
+            <p className="mt-3 text-xs uppercase tracking-wide text-ink/40">
+              {briefingMutation.data.source === "ai"
+                ? `AI generated${
+                    briefingMutation.data.model
+                      ? ` · ${briefingMutation.data.model}`
+                      : ""
+                  }`
+                : "Deterministic fallback"}
+            </p>
+          </div>
+        ) : null}
       </section>
 
       <section className="rounded-xl border border-line bg-surface p-6">

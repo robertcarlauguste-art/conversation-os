@@ -142,6 +142,14 @@ export interface DashboardBriefItem {
   tone: "neutral" | "positive" | "warning";
 }
 
+export interface DashboardAIBriefing {
+  content: string;
+  source: "ai" | "deterministic";
+  model: string | null;
+  fallback_reason: "not_configured" | "provider_error" | null;
+  generated_at: string;
+}
+
 export interface DashboardData {
   overview: DashboardOverview;
   recent_clients: ClientListItem[];

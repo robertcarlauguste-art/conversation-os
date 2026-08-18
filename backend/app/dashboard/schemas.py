@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -33,6 +34,14 @@ class DashboardBriefItem(BaseModel):
     ]
     text: str
     tone: Literal["neutral", "positive", "warning"]
+
+
+class DashboardAIBriefing(BaseModel):
+    content: str
+    source: Literal["ai", "deterministic"]
+    model: str | None = None
+    fallback_reason: Literal["not_configured", "provider_error"] | None = None
+    generated_at: datetime
 
 
 class DashboardResponse(BaseModel):

@@ -6,6 +6,7 @@ import type {
   ClientListItem,
   ConversationDetail,
   ConversationListItem,
+  DashboardAIBriefing,
   DashboardData,
   MemoryDetail,
   TranscriptDetail,
@@ -184,4 +185,11 @@ export async function getDashboard(): Promise<DashboardData> {
     cache: "no-store",
   });
   return unwrap<DashboardData>(response);
+}
+
+export async function generateDashboardBriefing(): Promise<DashboardAIBriefing> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/dashboard/briefing`, {
+    method: "POST",
+  });
+  return unwrap<DashboardAIBriefing>(response);
 }
