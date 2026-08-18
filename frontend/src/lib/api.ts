@@ -1,4 +1,5 @@
 import type {
+  ActionItemOut,
   ApiErrorBody,
   ApiResponse,
   ClientConversationItem,
@@ -213,4 +214,12 @@ export async function recordFollowupAction(
     },
   );
   return unwrap<FollowupActionResult>(response);
+}
+
+export async function completeActionItem(actionItemId: string): Promise<ActionItemOut> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/memories/action-items/${actionItemId}/complete`,
+    { method: "POST" },
+  );
+  return unwrap<ActionItemOut>(response);
 }

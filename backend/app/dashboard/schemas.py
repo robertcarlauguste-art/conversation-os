@@ -61,6 +61,8 @@ class DashboardClientRecommendation(BaseModel):
 
 class DashboardNextAction(BaseModel):
     id: uuid.UUID
+    action_item_ids: list[uuid.UUID]
+    source_count: int = Field(ge=1)
     task: str
     due: str | None = None
     owner: str | None = None

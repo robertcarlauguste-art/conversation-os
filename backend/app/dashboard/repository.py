@@ -55,7 +55,7 @@ class DashboardRepository:
         await self.session.refresh(action)
         return action
 
-    async def list_open_action_items(self, limit: int = 10) -> list[OpenActionRecord]:
+    async def list_open_action_items(self, limit: int = 100) -> list[OpenActionRecord]:
         result = await self.session.execute(
             select(ActionItem, Memory, Conversation, Client)
             .join(Memory, ActionItem.memory_id == Memory.id)

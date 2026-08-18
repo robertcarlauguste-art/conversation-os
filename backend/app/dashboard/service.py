@@ -428,6 +428,15 @@ class DashboardService:
                 open_action_counts[record.client_id] = (
                     open_action_counts.get(record.client_id, 0) + 1
                 )
+        grouped_actions: dict[tuple[str, str, str, str], list] = {}
+        for record in open_action_records:
+            key = (
+                " ".join(record.action_item.task.casefold().split()),
+                str(record.client_id or ""),
+                " ".join((record.action_item.owner or "").casefold().split()),
+                " ".join((record.action_item.due or "").casefold().split()),
+            )
+            grouped_actions.setdefault(key, []).append(record)
 
         overview = DashboardOverview(
             clients=len(clients),
@@ -461,17 +470,19 @@ class DashboardService:
         )
         next_actions = [
             DashboardNextAction(
-                id=record.action_item.id,
-                task=record.action_item.task,
-                due=record.action_item.due,
-                owner=record.action_item.owner,
-                client_id=record.client_id,
-                client_name=record.client_name,
-                conversation_id=record.conversation_id,
-                conversation_title=record.conversation_title,
-                href=f"/conversations/{record.conversation_id}",
+                id=records[0].action_item.id,
+                action_item_ids=[record.action_item.id for record in records],
+                source_count=len(records),
+                task=records[0].action_item.task,
+                due=records[0].action_item.due,
+                owner=records[0].action_item.owner,
+                client_id=records[0].client_id,
+                client_name=records[0].client_name,
+                conversation_id=records[0].conversation_id,
+                conversation_title=records[0].conversation_title,
+                href=f"/conversations/{records[0].conversation_id}",
             )
-            for record in open_action_records
+            for records in list(grouped_actions.values())[:10]
         ]
         daily_brief = self._build_daily_brief(
             overview,

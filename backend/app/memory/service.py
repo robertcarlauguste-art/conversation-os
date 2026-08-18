@@ -54,6 +54,28 @@ logger = logging.getLogger(
 )
 
 
+class ActionItemNotFoundError(Exception):
+    pass
+
+
+class ActionItemService:
+    def __init__(self, repository: MemoryRepository) -> None:
+        self.repository = repository
+
+    async def complete(self, action_item_id: uuid.UUID) -> ActionItem:
+        action_item = await self.repository.get_action_item(action_item_id)
+        if action_item is None:
+            raise ActionItemNotFoundError(
+                f"Action item {action_item_id} not found."
+            )
+        if action_item.status != ActionStatus.COMPLETED:
+            action_item = await self.repository.set_action_item_status(
+                action_item,
+                ActionStatus.COMPLETED,
+            )
+        return action_item
+
+
 
 EXTRACTION_SYSTEM_PROMPT = """
 You analyze a professional conversation transcript.

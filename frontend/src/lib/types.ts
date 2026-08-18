@@ -165,6 +165,8 @@ export interface DashboardClientRecommendation {
 
 export interface DashboardNextAction {
   id: string;
+  action_item_ids: string[];
+  source_count: number;
   task: string;
   due: string | null;
   owner: string | null;

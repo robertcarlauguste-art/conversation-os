@@ -10,10 +10,30 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db_session
 from app.memory.repository import MemoryRepository
-from app.memory.schemas import MemoryDetail, MemoryListItem
+from app.memory.schemas import ActionItemOut, MemoryDetail, MemoryListItem
+from app.memory.service import ActionItemNotFoundError, ActionItemService
 from app.schemas.envelope import ApiResponse
 
 router = APIRouter(prefix="/memories", tags=["memories"])
+
+
+@router.post(
+    "/action-items/{action_item_id}/complete",
+    response_model=ApiResponse[ActionItemOut],
+)
+async def complete_action_item(
+    action_item_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db_session),
+) -> ApiResponse[ActionItemOut]:
+    service = ActionItemService(MemoryRepository(session))
+    try:
+        action_item = await service.complete(action_item_id)
+    except ActionItemNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return ApiResponse(
+        success=True,
+        data=ActionItemOut.model_validate(action_item),
+    )
 
 
 @router.get("", response_model=ApiResponse[list[MemoryListItem]])

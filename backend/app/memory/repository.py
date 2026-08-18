@@ -3,7 +3,7 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.memory.models import Memory, Person
+from app.memory.models import ActionItem, ActionStatus, Memory, Person
 from app.repositories.base import BaseRepository
 
 
@@ -35,3 +35,16 @@ class MemoryRepository(BaseRepository[Memory]):
         if person is not None:
             person.client_id = client_id
             await self.session.commit()
+
+    async def get_action_item(self, action_item_id: uuid.UUID) -> ActionItem | None:
+        return await self.session.get(ActionItem, action_item_id)
+
+    async def set_action_item_status(
+        self,
+        action_item: ActionItem,
+        status: ActionStatus,
+    ) -> ActionItem:
+        action_item.status = status
+        await self.session.commit()
+        await self.session.refresh(action_item)
+        return action_item

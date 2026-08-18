@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import {
   generateDashboardBriefing,
+  completeActionItem,
   getDashboard,
   recordFollowupAction,
 } from "@/lib/api";
@@ -67,6 +68,14 @@ export function SummaryCards() {
       action: "complete" | "snooze" | "record_contact";
       snoozeDays?: number;
     }) => recordFollowupAction(clientId, action, snoozeDays),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+  const actionItemMutation = useMutation({
+    mutationFn: async (actionItemIds: string[]) => {
+      await Promise.all(actionItemIds.map(completeActionItem));
+    },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
@@ -214,24 +223,40 @@ export function SummaryCards() {
         <div className="mt-4 flex flex-col gap-3">
           {nextActions.length > 0 ? (
             nextActions.map((action) => (
-              <Link
+              <div
                 key={action.id}
-                href={action.href}
-                className="grid gap-2 rounded-lg border border-line bg-paper p-4 hover:border-ink/30 sm:grid-cols-[1fr_auto]"
+                className="grid gap-3 rounded-lg border border-line bg-paper p-4 sm:grid-cols-[1fr_auto] sm:items-center"
               >
                 <span>
-                  <span className="block font-medium">{action.task}</span>
+                  <Link href={action.href} className="block font-medium hover:underline">
+                    {action.task}
+                  </Link>
                   <span className="mt-1 block text-sm text-ink/50">
                     {action.client_name ??
                       action.conversation_title ??
                       "Unassigned conversation"}
                     {action.owner ? ` · Owner: ${action.owner}` : ""}
+                    {action.source_count > 1
+                      ? ` · ${action.source_count} identical source items`
+                      : ""}
                   </span>
                 </span>
-                <span className="text-sm text-ink/50">
-                  {action.due ? `Due ${action.due}` : "No due date"}
+                <span className="flex flex-col items-start gap-2 sm:items-end">
+                  <span className="text-sm text-ink/50">
+                    {action.due ? `Due ${action.due}` : "No due date"}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={actionItemMutation.isPending}
+                    onClick={() => actionItemMutation.mutate(action.action_item_ids)}
+                    className="rounded-md bg-ink px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+                  >
+                    {action.source_count > 1
+                      ? `Complete all ${action.source_count}`
+                      : "Complete"}
+                  </button>
                 </span>
-              </Link>
+              </div>
             ))
           ) : (
             <p className="text-sm text-ink/50">
@@ -239,6 +264,13 @@ export function SummaryCards() {
             </p>
           )}
         </div>
+        {actionItemMutation.isError ? (
+          <p role="alert" className="mt-3 text-sm text-red-700">
+            {actionItemMutation.error instanceof Error
+              ? actionItemMutation.error.message
+              : "The action item could not be completed."}
+          </p>
+        ) : null}
       </section>
 
       <section className="rounded-xl border border-line bg-surface p-6">

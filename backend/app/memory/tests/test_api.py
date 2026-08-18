@@ -76,3 +76,34 @@ async def test_get_memory_by_id(db_session: AsyncSession) -> None:
 
     assert response.status_code == 200
     assert response.json()["data"]["id"] == str(memory.id)
+
+
+async def test_complete_action_item(db_session: AsyncSession) -> None:
+    conversation = await _make_conversation_with_memory(db_session)
+    repo = MemoryRepository(db_session)
+    memory = await repo.get_by_conversation_id(conversation.id)
+    assert memory is not None
+    action_item = memory.action_items[0]
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            f"/api/v1/memories/action-items/{action_item.id}/complete"
+        )
+
+    assert response.status_code == 200
+    assert response.json()["data"]["status"] == "COMPLETED"
+    await db_session.refresh(action_item)
+    assert action_item.status.value == "COMPLETED"
+
+
+async def test_complete_action_item_404_when_missing() -> None:
+    import uuid
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            f"/api/v1/memories/action-items/{uuid.uuid4()}/complete"
+        )
+
+    assert response.status_code == 404
