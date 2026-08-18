@@ -190,6 +190,30 @@ def test_client_recommendations_exclude_recent_contact() -> None:
     assert _service(now)._build_client_recommendations([client]) == []
 
 
+def test_open_actions_make_recent_client_actionable() -> None:
+    now = datetime(2026, 8, 17, tzinfo=timezone.utc)
+    client = SimpleNamespace(
+        id=uuid4(),
+        full_name="Active Buyer",
+        conversations=[
+            SimpleNamespace(
+                created_at=datetime(2026, 8, 16, tzinfo=timezone.utc)
+            )
+        ],
+    )
+
+    recommendations = _service(now)._build_client_recommendations(
+        [client], open_action_counts={client.id: 2}
+    )
+
+    assert len(recommendations) == 1
+    assert recommendations[0].urgency_score == 80
+    assert recommendations[0].open_action_count == 2
+    assert recommendations[0].recommended_action == (
+        "Complete the next open action."
+    )
+
+
 def test_snoozed_recommendation_is_temporarily_excluded() -> None:
     now = datetime(2026, 8, 17, tzinfo=timezone.utc)
     client = SimpleNamespace(

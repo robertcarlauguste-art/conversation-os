@@ -12,6 +12,7 @@ from app.conversation.service import ConversationService
 from .schemas import (
     DashboardBriefItem,
     DashboardClientRecommendation,
+    DashboardNextAction,
     DashboardOverview,
     DashboardPriority,
     DashboardResponse,
@@ -230,14 +231,17 @@ class DashboardService:
         self,
         clients: list[Client],
         latest_actions: dict[uuid.UUID, ClientFollowupAction] | None = None,
+        open_action_counts: dict[uuid.UUID, int] | None = None,
     ) -> list[DashboardClientRecommendation]:
         """Rank grounded client actions by follow-up urgency."""
         now = self._clock()
         recommendations: list[DashboardClientRecommendation] = []
         latest_actions = latest_actions or {}
+        open_action_counts = open_action_counts or {}
 
         for client in clients:
             latest_action = latest_actions.get(client.id)
+            open_action_count = open_action_counts.get(client.id, 0)
             conversation_count = len(client.conversations)
             suppressed, latest_conversation = self._followup_state(
                 client, latest_action, now
@@ -255,27 +259,58 @@ class DashboardService:
                         reason="No conversations are linked to this client yet.",
                         recommended_action="Schedule a first conversation.",
                         conversation_count=0,
+                        open_action_count=open_action_count,
                         href=f"/clients/{client.id}",
                     )
                 )
                 continue
 
             days_since_contact = max(0, (now - latest_conversation).days)
-            if days_since_contact < self.FOLLOWUP_AFTER_DAYS:
+            if (
+                days_since_contact < self.FOLLOWUP_AFTER_DAYS
+                and open_action_count == 0
+            ):
                 continue
+
+            if days_since_contact < self.FOLLOWUP_AFTER_DAYS:
+                reason = (
+                    f"{open_action_count} open conversation "
+                    f"{'action requires' if open_action_count == 1 else 'actions require'} attention."
+                )
+                recommended_action = "Complete the next open action."
+                urgency_score = min(90, 70 + open_action_count * 5)
+            else:
+                action_context = (
+                    f" {open_action_count} open "
+                    f"{'action also needs' if open_action_count == 1 else 'actions also need'} attention."
+                    if open_action_count
+                    else ""
+                )
+                reason = (
+                    f"Last conversation was {days_since_contact} days ago."
+                    f"{action_context}"
+                )
+                recommended_action = (
+                    "Follow up and address the open action."
+                    if open_action_count
+                    else "Follow up today."
+                )
+                urgency_score = min(
+                    100,
+                    50 + days_since_contact + open_action_count * 5,
+                )
 
             recommendations.append(
                 DashboardClientRecommendation(
                     rank=1,
                     client_id=client.id,
                     client_name=client.full_name,
-                    urgency_score=min(100, 50 + days_since_contact),
-                    reason=(
-                        f"Last conversation was {days_since_contact} days ago."
-                    ),
-                    recommended_action="Follow up today.",
+                    urgency_score=urgency_score,
+                    reason=reason,
+                    recommended_action=recommended_action,
                     days_since_contact=days_since_contact,
                     conversation_count=conversation_count,
+                    open_action_count=open_action_count,
                     href=f"/clients/{client.id}",
                 )
             )
@@ -382,6 +417,17 @@ class DashboardService:
             if self._repository is not None
             else {}
         )
+        open_action_records = (
+            await self._repository.list_open_action_items()
+            if self._repository is not None
+            else []
+        )
+        open_action_counts: dict[uuid.UUID, int] = {}
+        for record in open_action_records:
+            if record.client_id is not None:
+                open_action_counts[record.client_id] = (
+                    open_action_counts.get(record.client_id, 0) + 1
+                )
 
         overview = DashboardOverview(
             clients=len(clients),
@@ -411,7 +457,22 @@ class DashboardService:
         client_recommendations = self._build_client_recommendations(
             clients,
             latest_actions,
+            open_action_counts,
         )
+        next_actions = [
+            DashboardNextAction(
+                id=record.action_item.id,
+                task=record.action_item.task,
+                due=record.action_item.due,
+                owner=record.action_item.owner,
+                client_id=record.client_id,
+                client_name=record.client_name,
+                conversation_id=record.conversation_id,
+                conversation_title=record.conversation_title,
+                href=f"/conversations/{record.conversation_id}",
+            )
+            for record in open_action_records
+        ]
         daily_brief = self._build_daily_brief(
             overview,
             self._count_due_followups(clients, latest_actions),
@@ -430,6 +491,7 @@ class DashboardService:
             daily_brief=daily_brief,
             priorities=priorities,
             client_recommendations=client_recommendations,
+            next_actions=next_actions,
             alerts=alerts,
             followups=followups,
         )

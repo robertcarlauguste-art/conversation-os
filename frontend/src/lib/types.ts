@@ -159,6 +159,19 @@ export interface DashboardClientRecommendation {
   recommended_action: string;
   days_since_contact: number | null;
   conversation_count: number;
+  open_action_count: number;
+  href: string;
+}
+
+export interface DashboardNextAction {
+  id: string;
+  task: string;
+  due: string | null;
+  owner: string | null;
+  client_id: string | null;
+  client_name: string | null;
+  conversation_id: string;
+  conversation_title: string | null;
   href: string;
 }
 
@@ -178,6 +191,7 @@ export interface DashboardData {
   daily_brief: DashboardBriefItem[];
   priorities: DashboardPriority[];
   client_recommendations: DashboardClientRecommendation[];
+  next_actions: DashboardNextAction[];
   alerts: string[];
   followups: string[];
 }

@@ -79,6 +79,7 @@ export function SummaryCards() {
   const followups = dashboardQuery.data?.followups ?? [];
   const priorities = dashboardQuery.data?.priorities ?? [];
   const clientRecommendations = dashboardQuery.data?.client_recommendations ?? [];
+  const nextActions = dashboardQuery.data?.next_actions ?? [];
   const dailyBrief = dashboardQuery.data?.daily_brief ?? [];
 
   if (dashboardQuery.isPending) {
@@ -200,6 +201,44 @@ export function SummaryCards() {
             </p>
           </div>
         ) : null}
+      </section>
+
+      <section className="rounded-xl border border-line bg-surface p-6">
+        <div>
+          <h2 className="text-lg font-semibold">Next Actions</h2>
+          <p className="mt-1 text-sm text-ink/50">
+            Open commitments extracted from processed conversations.
+          </p>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-3">
+          {nextActions.length > 0 ? (
+            nextActions.map((action) => (
+              <Link
+                key={action.id}
+                href={action.href}
+                className="grid gap-2 rounded-lg border border-line bg-paper p-4 hover:border-ink/30 sm:grid-cols-[1fr_auto]"
+              >
+                <span>
+                  <span className="block font-medium">{action.task}</span>
+                  <span className="mt-1 block text-sm text-ink/50">
+                    {action.client_name ??
+                      action.conversation_title ??
+                      "Unassigned conversation"}
+                    {action.owner ? ` · Owner: ${action.owner}` : ""}
+                  </span>
+                </span>
+                <span className="text-sm text-ink/50">
+                  {action.due ? `Due ${action.due}` : "No due date"}
+                </span>
+              </Link>
+            ))
+          ) : (
+            <p className="text-sm text-ink/50">
+              No open conversation actions need attention.
+            </p>
+          )}
+        </div>
       </section>
 
       <section className="rounded-xl border border-line bg-surface p-6">

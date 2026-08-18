@@ -55,6 +55,19 @@ class DashboardClientRecommendation(BaseModel):
     recommended_action: str
     days_since_contact: int | None = Field(default=None, ge=0)
     conversation_count: int = Field(ge=0)
+    open_action_count: int = Field(default=0, ge=0)
+    href: str
+
+
+class DashboardNextAction(BaseModel):
+    id: uuid.UUID
+    task: str
+    due: str | None = None
+    owner: str | None = None
+    client_id: uuid.UUID | None = None
+    client_name: str | None = None
+    conversation_id: uuid.UUID
+    conversation_title: str | None = None
     href: str
 
 
@@ -85,5 +98,6 @@ class DashboardResponse(BaseModel):
     daily_brief: list[DashboardBriefItem]
     priorities: list[DashboardPriority]
     client_recommendations: list[DashboardClientRecommendation]
+    next_actions: list[DashboardNextAction]
     alerts: list[str]
     followups: list[str]

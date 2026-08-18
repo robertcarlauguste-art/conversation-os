@@ -1,9 +1,22 @@
 import uuid
+from dataclasses import dataclass
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .models import ClientFollowupAction
+from app.client.models import Client
+from app.conversation.models import Conversation
+from app.memory.models import ActionItem, ActionStatus, Memory
+
+
+@dataclass(frozen=True)
+class OpenActionRecord:
+    action_item: ActionItem
+    conversation_id: uuid.UUID
+    conversation_title: str | None
+    client_id: uuid.UUID | None
+    client_name: str | None
 
 
 class DashboardRepository:
@@ -41,3 +54,24 @@ class DashboardRepository:
         await self.session.commit()
         await self.session.refresh(action)
         return action
+
+    async def list_open_action_items(self, limit: int = 10) -> list[OpenActionRecord]:
+        result = await self.session.execute(
+            select(ActionItem, Memory, Conversation, Client)
+            .join(Memory, ActionItem.memory_id == Memory.id)
+            .join(Conversation, Memory.conversation_id == Conversation.id)
+            .outerjoin(Client, Conversation.client_id == Client.id)
+            .where(ActionItem.status == ActionStatus.OPEN)
+            .order_by(ActionItem.created_at.desc(), ActionItem.id.desc())
+            .limit(limit)
+        )
+        return [
+            OpenActionRecord(
+                action_item=action_item,
+                conversation_id=conversation.id,
+                conversation_title=conversation.title,
+                client_id=client.id if client is not None else None,
+                client_name=client.full_name if client is not None else None,
+            )
+            for action_item, _memory, conversation, client in result.all()
+        ]
