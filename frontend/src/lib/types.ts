@@ -118,3 +118,19 @@ export interface ClientConversationItem {
   status: string;
   created_at: string;
 }
+
+export interface DashboardOverview {
+  clients: number;
+  conversations: number;
+  completed: number;
+  processing: number;
+  failed: number;
+}
+
+export interface DashboardData {
+  overview: DashboardOverview;
+  recent_clients: ClientListItem[];
+  recent_conversations: ConversationListItem[];
+  alerts: string[];
+  followups: string[];
+}

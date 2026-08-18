@@ -33,7 +33,7 @@ async def test_add_memory_with_children_and_get(db_session: AsyncSession) -> Non
         confidence=0.9,
         source="fake-model",
         decisions=[Decision(description="Decision A")],
-        action_items=[ActionItem(description="Do the thing", owner=None)],
+        action_items=[ActionItem(task="Do the thing", due=None, owner=None)],
         people=[Person(name="Jane Doe", role=None)],
     )
     await repo.add(memory)

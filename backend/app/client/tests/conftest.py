@@ -18,8 +18,10 @@ async def db_session() -> AsyncGenerator[AsyncSession]:
     await engine.dispose()
 
 
-@pytest_asyncio.fixture(autouse=True)
-async def _clean_client_tables(db_session: AsyncSession) -> AsyncGenerator[None]:
+@pytest_asyncio.fixture
+async def _clean_client_tables(
+    db_session: AsyncSession,
+) -> AsyncGenerator[None]:
     """
     ClientService.find_or_create/record_facts call commit()
     internally (matching the rest of the codebase's service pattern),

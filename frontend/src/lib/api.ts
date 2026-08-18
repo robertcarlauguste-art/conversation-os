@@ -6,6 +6,7 @@ import type {
   ClientListItem,
   ConversationDetail,
   ConversationListItem,
+  DashboardData,
   MemoryDetail,
   TranscriptDetail,
 } from "./types";
@@ -176,4 +177,11 @@ export async function unlinkConversationFromClient(
     const body = (await response.json().catch(() => ({}))) as Partial<ApiErrorBody>;
     throw new ApiError(body.detail ?? "Couldn't unlink this conversation.");
   }
+}
+
+export async function getDashboard(): Promise<DashboardData> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/dashboard`, {
+    cache: "no-store",
+  });
+  return unwrap<DashboardData>(response);
 }

@@ -15,8 +15,30 @@ from app.providers.transcription_provider import TranscriptionProvider, Transcri
 FAKE_EXTRACTION_JSON = """{
   "summary": "The buyer and agent discussed offer terms and next steps.",
   "decisions": ["Offer at asking price with a 30-day close"],
-  "action_items": ["Send updated pre-approval letter", "Schedule inspection"],
-  "people": ["Jane Buyer", "Sam Agent"],
+  "action_items": [
+    {
+      "task": "Send updated pre-approval letter",
+      "due": null,
+      "assignee": "Sam Agent"
+    },
+    {
+      "task": "Schedule inspection",
+      "due": null,
+      "assignee": "Sam Agent"
+    }
+  ],
+  "people": [
+    {
+      "name": "Jane Buyer",
+      "role": "buyer",
+      "entity_type": "CLIENT"
+    },
+    {
+      "name": "Sam Agent",
+      "role": "agent",
+      "entity_type": "AGENT"
+    }
+  ],
   "topics": ["financing", "offer terms", "timeline"],
   "confidence": 0.87
 }"""

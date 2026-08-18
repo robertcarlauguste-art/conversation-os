@@ -1,9 +1,14 @@
 import uuid
 
+import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.client.repository import ClientRepository
 from app.client.service import ClientService
+from app.memory.models import PersonType
+
+
+pytestmark = pytest.mark.usefixtures("_clean_client_tables")
 
 
 async def test_find_or_create_creates_new_client_when_no_match(db_session: AsyncSession) -> None:
@@ -11,7 +16,10 @@ async def test_find_or_create_creates_new_client_when_no_match(db_session: Async
     conversation_id = uuid.uuid4()
 
     client, was_created = await service.find_or_create(
-        name="Jane Smith", role="buyer", conversation_id=conversation_id
+        name="Jane Smith",
+        role="buyer",
+        entity_type=PersonType.CLIENT,
+        conversation_id=conversation_id,
     )
 
     assert was_created is True
@@ -24,10 +32,11 @@ async def test_find_or_create_matches_same_name_and_role(db_session: AsyncSessio
     conv_a, conv_b = uuid.uuid4(), uuid.uuid4()
 
     first_client, first_created = await service.find_or_create(
-        name="Jane Smith", role="buyer", conversation_id=conv_a
+        name="Jane Smith", role="buyer", entity_type=PersonType.CLIENT, conversation_id=conv_a
     )
     second_client, second_created = await service.find_or_create(
-        name="jane smith", role="Buyer", conversation_id=conv_b  # different case, must still match
+        name="jane smith", role="Buyer", entity_type=PersonType.CLIENT,
+        conversation_id=conv_b  # different case, must still match
     )
 
     assert first_created is True
@@ -43,10 +52,10 @@ async def test_find_or_create_does_not_match_same_name_different_role(
     conv_a, conv_b = uuid.uuid4(), uuid.uuid4()
 
     buyer_client, _ = await service.find_or_create(
-        name="Jane Smith", role="buyer", conversation_id=conv_a
+        name="Jane Smith", role="buyer", entity_type=PersonType.CLIENT, conversation_id=conv_a
     )
     seller_client, seller_created = await service.find_or_create(
-        name="Jane Smith", role="seller", conversation_id=conv_b
+        name="Jane Smith", role="seller", entity_type=PersonType.CLIENT, conversation_id=conv_b
     )
 
     assert seller_created is True
@@ -63,10 +72,10 @@ async def test_find_or_create_does_not_auto_match_without_role(db_session: Async
     conv_a, conv_b = uuid.uuid4(), uuid.uuid4()
 
     first_client, _ = await service.find_or_create(
-        name="Jane Smith", role=None, conversation_id=conv_a
+        name="Jane Smith", role=None, entity_type=PersonType.CLIENT, conversation_id=conv_a
     )
     second_client, second_created = await service.find_or_create(
-        name="Jane Smith", role=None, conversation_id=conv_b
+        name="Jane Smith", role=None, entity_type=PersonType.CLIENT, conversation_id=conv_b
     )
 
     assert second_created is True
@@ -101,7 +110,8 @@ async def test_record_facts_persists_with_full_provenance(db_session: AsyncSessi
 
     service = ClientService(ClientRepository(db_session))
     client, _ = await service.find_or_create(
-        name="Jane Smith", role="buyer", conversation_id=conversation.id
+        name="Jane Smith", role="buyer", entity_type=PersonType.CLIENT,
+        conversation_id=conversation.id
     )
 
     facts = await service.record_facts(
@@ -125,7 +135,8 @@ async def test_record_facts_rejects_blank_fact_text(db_session: AsyncSession) ->
 
     service = ClientService(ClientRepository(db_session))
     client, _ = await service.find_or_create(
-        name="Jane Smith", role="buyer", conversation_id=uuid.uuid4()
+        name="Jane Smith", role="buyer", entity_type=PersonType.CLIENT,
+        conversation_id=uuid.uuid4()
     )
 
     try:

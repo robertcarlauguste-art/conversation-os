@@ -2,46 +2,28 @@
 
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { listClients, listConversations } from "@/lib/api";
-import type { ConversationStatus } from "@/lib/types";
+import { getDashboard } from "@/lib/api";
+import type { DashboardOverview } from "@/lib/types";
 
-const CARDS: { key: ConversationStatus | "TOTAL" | "CLIENTS"; label: string }[] = [
-  { key: "CLIENTS", label: "Clients" },
-  { key: "TOTAL", label: "Conversations" },
-  { key: "PROCESSING", label: "Processing" },
-  { key: "COMPLETED", label: "Completed" },
-  { key: "FAILED", label: "Failed" },
+const CARDS: { key: keyof DashboardOverview; label: string }[] = [
+  { key: "clients", label: "Clients" },
+  { key: "conversations", label: "Conversations" },
+  { key: "processing", label: "Processing" },
+  { key: "completed", label: "Completed" },
+  { key: "failed", label: "Failed" },
 ];
 
 export function SummaryCards() {
-  const conversationsQuery = useQuery({
-    queryKey: ["conversations"],
-    queryFn: listConversations,
+  const dashboardQuery = useQuery({
+    queryKey: ["dashboard"],
+    queryFn: getDashboard,
   });
 
-  const clientsQuery = useQuery({
-    queryKey: ["clients"],
-    queryFn: listClients,
-  });
-
-  const conversations = conversationsQuery.data ?? [];
-  const clients = clientsQuery.data ?? [];
-
-  const counts: Record<string, number> = {
-    CLIENTS: clients.length,
-    TOTAL: conversations.length,
-  };
-
-  for (const status of [
-    "UPLOADED",
-    "QUEUED",
-    "PROCESSING",
-    "COMPLETED",
-    "FAILED",
-  ]) {
-    counts[status] =
-      conversations.filter((c) => c.status === status).length;
-  }
+  const overview = dashboardQuery.data?.overview;
+  const conversations = dashboardQuery.data?.recent_conversations ?? [];
+  const clients = dashboardQuery.data?.recent_clients ?? [];
+  const alerts = dashboardQuery.data?.alerts ?? [];
+  const followups = dashboardQuery.data?.followups ?? [];
 
   return (
     <div className="flex flex-col gap-8">
@@ -56,10 +38,48 @@ export function SummaryCards() {
             </p>
 
             <p className="mt-2 font-display text-3xl text-ink">
-              {counts[card.key] ?? 0}
+              {overview?.[card.key] ?? 0}
             </p>
           </div>
         ))}
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <section className="rounded-xl border border-line bg-surface p-6">
+          <h2 className="text-lg font-semibold">Alerts</h2>
+          <div className="mt-4 flex flex-col gap-3">
+            {alerts.length > 0 ? (
+              alerts.map((alert) => (
+                <div
+                  key={alert}
+                  className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800"
+                >
+                  {alert}
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-ink/50">No alerts need attention.</p>
+            )}
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-line bg-surface p-6">
+          <h2 className="text-lg font-semibold">Follow-up Queue</h2>
+          <div className="mt-4 flex flex-col gap-3">
+            {followups.length > 0 ? (
+              followups.map((followup) => (
+                <div
+                  key={followup}
+                  className="rounded-lg border border-line bg-paper p-3 text-sm text-ink"
+                >
+                  {followup}
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-ink/50">No follow-ups are due.</p>
+            )}
+          </div>
+        </section>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -74,7 +94,7 @@ export function SummaryCards() {
                 className="flex items-center justify-between rounded-lg border border-line p-3 hover:bg-paper"
               >
                 <span>
-                  {conversation.title ?? conversation.filename}
+                  {conversation.title ?? "Untitled conversation"}
                 </span>
 
                 <span className="text-xs text-ink/50">

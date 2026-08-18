@@ -118,7 +118,10 @@ class ExtractionResult(BaseModel):
     )
 
 
-    confidence: float
+    confidence: float = Field(
+        ge=0,
+        le=1,
+    )
 
 
 

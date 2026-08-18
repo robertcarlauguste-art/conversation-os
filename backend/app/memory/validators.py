@@ -11,6 +11,10 @@ Persistence → Database
 from app.memory.schemas import ExtractionResult
 
 
+MAX_SUMMARY_LENGTH = 5000
+MAX_ACTION_ITEMS = 50
+
+
 class MemoryValidationError(Exception):
     """
     Raised when extracted memory data fails validation.
@@ -41,7 +45,14 @@ def validate_extraction(
     if not extraction.summary.strip():
 
         raise MemoryValidationError(
-            "Summary cannot be empty"
+            "Summary cannot be blank"
+        )
+
+
+    if len(extraction.summary) > MAX_SUMMARY_LENGTH:
+
+        raise MemoryValidationError(
+            f"Summary exceeds {MAX_SUMMARY_LENGTH} characters"
         )
 
 
@@ -66,13 +77,20 @@ def validate_extraction(
     )
 
 
+    if len(extraction.action_items) > MAX_ACTION_ITEMS:
+
+        raise MemoryValidationError(
+            f"action_items exceeds maximum of {MAX_ACTION_ITEMS}"
+        )
+
+
     # Rich action items
     for item in extraction.action_items:
 
         if not item.task.strip():
 
             raise MemoryValidationError(
-                "Action item task cannot be empty"
+                "action_items contains blank entry"
             )
 
 
@@ -82,5 +100,5 @@ def validate_extraction(
         if not person.name.strip():
 
             raise MemoryValidationError(
-                "Person name cannot be empty"
+                "people contains blank entry"
             )
