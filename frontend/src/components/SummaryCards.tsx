@@ -29,6 +29,21 @@ const BRIEF_MARKERS: Record<DashboardBriefItem["tone"], string> = {
   warning: "bg-amber-500",
 };
 
+function DashboardSkeleton() {
+  return (
+    <div aria-label="Loading dashboard" className="flex animate-pulse flex-col gap-8">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        {CARDS.map((card) => (
+          <div key={card.key} className="h-28 rounded-xl bg-ink/5" />
+        ))}
+      </div>
+      <div className="h-40 rounded-xl bg-ink/5" />
+      <div className="h-64 rounded-xl bg-ink/5" />
+      <span className="sr-only">Loading dashboard data...</span>
+    </div>
+  );
+}
+
 export function SummaryCards() {
   const dashboardQuery = useQuery({
     queryKey: ["dashboard"],
@@ -42,6 +57,34 @@ export function SummaryCards() {
   const followups = dashboardQuery.data?.followups ?? [];
   const priorities = dashboardQuery.data?.priorities ?? [];
   const dailyBrief = dashboardQuery.data?.daily_brief ?? [];
+
+  if (dashboardQuery.isPending) {
+    return <DashboardSkeleton />;
+  }
+
+  if (dashboardQuery.isError) {
+    return (
+      <section
+        role="alert"
+        className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-900"
+      >
+        <h2 className="text-lg font-semibold">Dashboard unavailable</h2>
+        <p className="mt-2 text-sm text-red-800">
+          {dashboardQuery.error instanceof Error
+            ? dashboardQuery.error.message
+            : "ConversationOS could not load your dashboard."}
+        </p>
+        <button
+          type="button"
+          onClick={() => void dashboardQuery.refetch()}
+          disabled={dashboardQuery.isFetching}
+          className="mt-4 rounded-lg bg-red-800 px-4 py-2 text-sm font-medium text-white disabled:cursor-wait disabled:opacity-60"
+        >
+          {dashboardQuery.isFetching ? "Retrying..." : "Try again"}
+        </button>
+      </section>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-8">
@@ -69,15 +112,19 @@ export function SummaryCards() {
         </p>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          {dailyBrief.map((item) => (
-            <div key={item.category} className="flex items-start gap-3 rounded-lg bg-paper p-3">
-              <span
-                aria-hidden="true"
-                className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${BRIEF_MARKERS[item.tone]}`}
-              />
-              <span className="text-sm leading-5 text-ink">{item.text}</span>
-            </div>
-          ))}
+          {dailyBrief.length > 0 ? (
+            dailyBrief.map((item) => (
+              <div key={item.category} className="flex items-start gap-3 rounded-lg bg-paper p-3">
+                <span
+                  aria-hidden="true"
+                  className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${BRIEF_MARKERS[item.tone]}`}
+                />
+                <span className="text-sm leading-5 text-ink">{item.text}</span>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-ink/50">No briefing data is available yet.</p>
+          )}
         </div>
       </section>
 
@@ -165,21 +212,22 @@ export function SummaryCards() {
           <h2 className="text-lg font-semibold">Recent Conversations</h2>
 
           <div className="mt-4 flex flex-col gap-3">
-            {conversations.slice(0, 5).map((conversation) => (
-              <Link
-                key={conversation.id}
-                href={`/conversations/${conversation.id}`}
-                className="flex items-center justify-between rounded-lg border border-line p-3 hover:bg-paper"
-              >
-                <span>
-                  {conversation.title ?? "Untitled conversation"}
-                </span>
-
-                <span className="text-xs text-ink/50">
-                  {conversation.status}
-                </span>
-              </Link>
-            ))}
+            {conversations.length > 0 ? (
+              conversations.slice(0, 5).map((conversation) => (
+                <Link
+                  key={conversation.id}
+                  href={`/conversations/${conversation.id}`}
+                  className="flex items-center justify-between rounded-lg border border-line p-3 hover:bg-paper"
+                >
+                  <span>{conversation.title ?? "Untitled conversation"}</span>
+                  <span className="text-xs text-ink/50">{conversation.status}</span>
+                </Link>
+              ))
+            ) : (
+              <p className="text-sm text-ink/50">
+                Upload a conversation to begin building your briefing.
+              </p>
+            )}
           </div>
         </div>
 
@@ -187,21 +235,24 @@ export function SummaryCards() {
           <h2 className="text-lg font-semibold">Recent Clients</h2>
 
           <div className="mt-4 flex flex-col gap-3">
-            {clients.slice(0, 5).map((client) => (
-              <Link
-                key={client.id}
-                href={`/clients/${client.id}`}
-                className="rounded-lg border border-line p-3 hover:bg-paper"
-              >
-                <div className="font-medium">
-                  {client.full_name}
-                </div>
-
-                <div className="text-sm text-ink/50">
-                  {client.email ?? "No email"}
-                </div>
-              </Link>
-            ))}
+            {clients.length > 0 ? (
+              clients.slice(0, 5).map((client) => (
+                <Link
+                  key={client.id}
+                  href={`/clients/${client.id}`}
+                  className="rounded-lg border border-line p-3 hover:bg-paper"
+                >
+                  <div className="font-medium">{client.full_name}</div>
+                  <div className="text-sm text-ink/50">
+                    {client.email ?? "No email"}
+                  </div>
+                </Link>
+              ))
+            ) : (
+              <p className="text-sm text-ink/50">
+                Clients will appear after conversation processing identifies them.
+              </p>
+            )}
           </div>
         </div>
       </div>
