@@ -23,10 +23,23 @@ class DashboardPriority(BaseModel):
     href: str | None = None
 
 
+class DashboardBriefItem(BaseModel):
+    category: Literal[
+        "conversations",
+        "processing",
+        "attention",
+        "clients",
+        "followups",
+    ]
+    text: str
+    tone: Literal["neutral", "positive", "warning"]
+
+
 class DashboardResponse(BaseModel):
     overview: DashboardOverview
     recent_clients: list[ClientListItem]
     recent_conversations: list[ConversationListItem]
+    daily_brief: list[DashboardBriefItem]
     priorities: list[DashboardPriority]
     alerts: list[str]
     followups: list[str]

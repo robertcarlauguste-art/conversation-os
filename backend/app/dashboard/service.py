@@ -8,7 +8,12 @@ from app.conversation.enums import ConversationStatus
 from app.conversation.schemas import ConversationListItem
 from app.conversation.service import ConversationService
 
-from .schemas import DashboardOverview, DashboardPriority, DashboardResponse
+from .schemas import (
+    DashboardBriefItem,
+    DashboardOverview,
+    DashboardPriority,
+    DashboardResponse,
+)
 
 
 class DashboardService:
@@ -144,6 +149,74 @@ class DashboardService:
         ]
         return [priority.model_copy(update={"rank": rank}) for rank, priority in enumerate(ordered, 1)]
 
+    def _count_due_followups(self, clients: list[Client]) -> int:
+        now = self._clock()
+        due = 0
+
+        for client in clients:
+            if not client.conversations:
+                due += 1
+                continue
+
+            latest = max(
+                conversation.created_at
+                for conversation in client.conversations
+            )
+            if (now - latest).days >= self.FOLLOWUP_AFTER_DAYS:
+                due += 1
+
+        return due
+
+    @staticmethod
+    def _build_daily_brief(
+        overview: DashboardOverview,
+        due_followups: int,
+    ) -> list[DashboardBriefItem]:
+        conversation_noun = (
+            "conversation" if overview.conversations == 1 else "conversations"
+        )
+        client_noun = "client" if overview.clients == 1 else "clients"
+        followup_noun = "follow-up" if due_followups == 1 else "follow-ups"
+
+        attention_text = (
+            f"{overview.failed} require attention."
+            if overview.failed
+            else "No processing failures need attention."
+        )
+        followup_text = (
+            f"{due_followups} {followup_noun} due."
+            if due_followups
+            else "No follow-ups are due."
+        )
+
+        return [
+            DashboardBriefItem(
+                category="conversations",
+                text=f"{overview.conversations} {conversation_noun} stored.",
+                tone="neutral",
+            ),
+            DashboardBriefItem(
+                category="processing",
+                text=f"{overview.completed} successfully processed.",
+                tone="positive",
+            ),
+            DashboardBriefItem(
+                category="attention",
+                text=attention_text,
+                tone="warning" if overview.failed else "positive",
+            ),
+            DashboardBriefItem(
+                category="clients",
+                text=f"{overview.clients} {client_noun} tracked.",
+                tone="neutral",
+            ),
+            DashboardBriefItem(
+                category="followups",
+                text=followup_text,
+                tone="warning" if due_followups else "positive",
+            ),
+        ]
+
     async def get_dashboard(self) -> DashboardResponse:
         conversations = await self._conversations.list_conversations()
         clients = await self._clients.list_client_profiles()
@@ -171,6 +244,10 @@ class DashboardService:
         alerts = self._build_alerts(overview.failed)
         followups = self._build_followups(clients)
         priorities = self._build_priorities(overview.failed, clients)
+        daily_brief = self._build_daily_brief(
+            overview,
+            self._count_due_followups(clients),
+        )
 
         return DashboardResponse(
             overview=overview,
@@ -182,6 +259,7 @@ class DashboardService:
                 ConversationListItem.model_validate(conversation)
                 for conversation in conversations[:5]
             ],
+            daily_brief=daily_brief,
             priorities=priorities,
             alerts=alerts,
             followups=followups,

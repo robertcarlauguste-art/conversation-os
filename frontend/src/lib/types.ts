@@ -136,10 +136,17 @@ export interface DashboardPriority {
   href: string | null;
 }
 
+export interface DashboardBriefItem {
+  category: "conversations" | "processing" | "attention" | "clients" | "followups";
+  text: string;
+  tone: "neutral" | "positive" | "warning";
+}
+
 export interface DashboardData {
   overview: DashboardOverview;
   recent_clients: ClientListItem[];
   recent_conversations: ConversationListItem[];
+  daily_brief: DashboardBriefItem[];
   priorities: DashboardPriority[];
   alerts: string[];
   followups: string[];

@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 from app.dashboard.service import DashboardService
+from app.dashboard.schemas import DashboardOverview
 
 
 def _service(now: datetime) -> DashboardService:
@@ -115,3 +116,44 @@ def test_priorities_rank_oldest_followup_first() -> None:
 
     assert priorities[0].title == "Follow up with Oldest"
     assert priorities[1].title == "Follow up with Recent"
+
+
+def test_daily_brief_summarizes_dashboard_state() -> None:
+    brief = DashboardService._build_daily_brief(
+        DashboardOverview(
+            clients=1,
+            conversations=22,
+            completed=9,
+            processing=0,
+            failed=13,
+        ),
+        due_followups=1,
+    )
+
+    assert [item.text for item in brief] == [
+        "22 conversations stored.",
+        "9 successfully processed.",
+        "13 require attention.",
+        "1 client tracked.",
+        "1 follow-up due.",
+    ]
+    assert brief[2].tone == "warning"
+    assert brief[4].tone == "warning"
+
+
+def test_daily_brief_reports_healthy_empty_states() -> None:
+    brief = DashboardService._build_daily_brief(
+        DashboardOverview(
+            clients=0,
+            conversations=0,
+            completed=0,
+            processing=0,
+            failed=0,
+        ),
+        due_followups=0,
+    )
+
+    assert brief[2].text == "No processing failures need attention."
+    assert brief[2].tone == "positive"
+    assert brief[4].text == "No follow-ups are due."
+    assert brief[4].tone == "positive"

@@ -3,7 +3,11 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { getDashboard } from "@/lib/api";
-import type { DashboardOverview, DashboardPriority } from "@/lib/types";
+import type {
+  DashboardBriefItem,
+  DashboardOverview,
+  DashboardPriority,
+} from "@/lib/types";
 
 const CARDS: { key: keyof DashboardOverview; label: string }[] = [
   { key: "clients", label: "Clients" },
@@ -19,6 +23,12 @@ const PRIORITY_STYLES: Record<DashboardPriority["severity"], string> = {
   medium: "border-line bg-paper text-ink",
 };
 
+const BRIEF_MARKERS: Record<DashboardBriefItem["tone"], string> = {
+  neutral: "bg-ink/30",
+  positive: "bg-emerald-500",
+  warning: "bg-amber-500",
+};
+
 export function SummaryCards() {
   const dashboardQuery = useQuery({
     queryKey: ["dashboard"],
@@ -31,6 +41,7 @@ export function SummaryCards() {
   const alerts = dashboardQuery.data?.alerts ?? [];
   const followups = dashboardQuery.data?.followups ?? [];
   const priorities = dashboardQuery.data?.priorities ?? [];
+  const dailyBrief = dashboardQuery.data?.daily_brief ?? [];
 
   return (
     <div className="flex flex-col gap-8">
@@ -50,6 +61,25 @@ export function SummaryCards() {
           </div>
         ))}
       </div>
+
+      <section className="rounded-xl border border-line bg-surface p-6">
+        <h2 className="text-lg font-semibold">Today&apos;s Brief</h2>
+        <p className="mt-1 text-sm text-ink/50">
+          A concise view of what happened and what needs attention.
+        </p>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          {dailyBrief.map((item) => (
+            <div key={item.category} className="flex items-start gap-3 rounded-lg bg-paper p-3">
+              <span
+                aria-hidden="true"
+                className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${BRIEF_MARKERS[item.tone]}`}
+              />
+              <span className="text-sm leading-5 text-ink">{item.text}</span>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <section className="rounded-xl border border-line bg-surface p-6">
         <div>
