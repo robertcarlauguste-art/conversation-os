@@ -8,3 +8,4 @@ ADR that supersedes it (in whole or in part).
 - [002 - Repository Structure](./002-repository-structure.md) — routing/events guidance superseded by 004
 - [003 - Domain Organization](./003-domain-organization.md)
 - [004 - Vertical Slice Architecture (Hybrid)](./004-vertical-slice-architecture.md)
+- [005 - Client Identity & Matching Strategy](./005-client-matching-strategy.md)

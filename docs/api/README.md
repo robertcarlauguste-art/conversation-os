@@ -9,21 +9,68 @@ shapes, not this file.
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/api/v1/conversations` | Upload an audio file (multipart `file` field, optional `title` query param) |
+| `POST` | `/api/v1/conversations` | Upload an audio file (multipart `file` field, optional `title` query param) — as of Sprint 2, also triggers the full processing pipeline |
 | `GET` | `/api/v1/conversations` | List conversations, newest first |
 | `GET` | `/api/v1/conversations/{id}` | Get one conversation's detail |
 | `DELETE` | `/api/v1/conversations/{id}` | Delete the record and its stored file (204 on success) |
 | `GET` | `/health` | Liveness check — always `{"status": "ok"}` |
 | `GET` | `/version` | App name / version / environment |
 
+## Sprint 2 endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/v1/transcriptions/by-conversation/{conversation_id}` | Get the transcript for a conversation (404 if not yet processed) |
+| `GET` | `/api/v1/memories` | List all memories, newest first |
+| `GET` | `/api/v1/memories/{id}` | Get one memory by its own id |
+| `GET` | `/api/v1/memories/by-conversation/{conversation_id}` | Get the memory for a conversation (404 if not yet processed) |
+
+Both are read-only — memories and transcripts are created by
+`ConversationProcessingOrchestrator`, not by a direct API call.
+
+## Sprint 3 endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/v1/clients` | List clients, most recently updated first |
+| `GET` | `/api/v1/clients/{id}` | Client profile with remembered facts |
+| `GET` | `/api/v1/clients/{id}/conversations` | Conversations linked to a client |
+| `POST` | `/api/v1/clients/{client_id}/conversations/{conversation_id}` | Manually link — the one non-orchestrator write in this API surface, for correcting a wrong or missing automatic match |
+| `DELETE` | `/api/v1/clients/{client_id}/conversations/{conversation_id}` | Manually unlink |
+
+## Sprint 4 endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/v1/dashboard` | Return overview counts, recent clients and conversations, alerts, follow-ups, ranked recommendations, open tasks, and recent activity |
+| `POST` | `/api/v1/dashboard/briefing` | Generate the morning briefing on demand; deterministic dashboard data remains available if the AI provider fails |
+| `POST` | `/api/v1/dashboard/recommendations/{client_id}/actions` | Persist `record_contact`, `snooze`, or `complete` for a recommendation |
+| `POST` | `/api/v1/memories/action-items/{action_item_id}/complete` | Mark an extracted action item complete and record `completed_at` |
+| `POST` | `/api/v1/memories/action-items/{action_item_id}/reopen` | Return a completed action item to the open queue |
+
+Follow-up ranking is deterministic and explainable. A client becomes due after
+seven days without a conversation. Clients with no conversation start at
+urgency 50; stale clients add elapsed days and five points per open action;
+recent clients with open actions start at 70. Scores are capped, ties are
+stable, and the dashboard returns at most five recommendations. Processing
+failures remain the first executive priority because they can conceal client
+context and next actions.
+
 All business endpoints (i.e. everything under `/api/v1`) return
 `{ "success": bool, "data": ... }` on success. Errors return FastAPI's
 standard `{ "detail": "..." }` shape with an appropriate status code —
 `422` for validation failures (bad file type, oversized file, empty
-file), `404` for a missing conversation.
+file), `404` for a missing conversation/memory/transcript. Note that a
+processing *failure* (e.g. a missing API key, a bad LLM response)
+does **not** surface as an HTTP error on the upload endpoint — the
+upload itself still returns `200` with `status: "FAILED"` in the body,
+since the file/record were persisted successfully even if downstream
+processing wasn't. See `Sprint2.md` for the full reasoning.
 
-See [`docs/features/conversation-intake.md`](../features/conversation-intake.md)
-for the full upload workflow this API supports, and
+See [`docs/features/conversation-intake.md`](../features/conversation-intake.md),
+[`docs/features/memory-intelligence.md`](../features/memory-intelligence.md),
+and [`docs/features/relationship-memory.md`](../features/relationship-memory.md)
+for the full workflows, and
 [ADR-004](../adr/004-vertical-slice-architecture.md) for why each
 slice (e.g. `conversation/`) owns its own route file rather than
 routes living in a single global module.

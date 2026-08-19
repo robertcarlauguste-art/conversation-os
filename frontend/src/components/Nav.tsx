@@ -7,6 +7,7 @@ import { WaveformMark } from "./WaveformMark";
 const LINKS = [
   { href: "/", label: "Dashboard" },
   { href: "/conversations", label: "Conversations" },
+  { href: "/clients", label: "Clients" },
 ];
 
 export function Nav() {
@@ -14,12 +15,12 @@ export function Nav() {
 
   return (
     <header className="border-b border-line bg-surface">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+      <div className="mx-auto flex max-w-6xl flex-col items-start gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <Link href="/" className="flex items-center gap-2.5 text-ink">
           <WaveformMark className="h-5 w-auto text-accent" />
           <span className="font-display text-lg tracking-tight">ConversationOS</span>
         </Link>
-        <nav className="flex items-center gap-1">
+        <nav className="flex w-full items-center justify-between gap-1 sm:w-auto sm:justify-start">
           {LINKS.map((link) => {
             const isActive =
               link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);

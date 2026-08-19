@@ -1,15 +1,13 @@
 """
 Conversation domain events.
 
-`ConversationUploaded` is the first domain event in the system. It
-has no consumers yet — future sprints (transcription, in particular)
-will subscribe to it. For now, emitting it means logging it in a
-structured, greppable way, so the event's existence is visible in
-logs even before anything listens for it.
-
-If a second slice needs to publish/subscribe to events, promote the
-publish mechanism to a shared `app/orchestrator` or event-bus module
-rather than duplicating this pattern per slice — noted in ADR-004.
+`ConversationUploaded` was the first domain event, with no consumers
+at the time. Sprint 2's orchestrator (app/orchestrator/
+conversation_processing.py) is its first real consumer, and adds two
+more lifecycle events here: `ConversationProcessingStarted` and
+`ConversationProcessed`. Still no message broker — emitting means
+logging in a structured, greppable way, called directly by the
+orchestrator in sequence.
 """
 
 import logging
@@ -27,6 +25,18 @@ class ConversationUploaded:
     occurred_at: datetime
 
 
+@dataclass(frozen=True)
+class ConversationProcessingStarted:
+    conversation_id: uuid.UUID
+    occurred_at: datetime
+
+
+@dataclass(frozen=True)
+class ConversationProcessed:
+    conversation_id: uuid.UUID
+    occurred_at: datetime
+
+
 def emit_conversation_uploaded(conversation_id: uuid.UUID, filename: str) -> ConversationUploaded:
     event = ConversationUploaded(
         conversation_id=conversation_id,
@@ -38,4 +48,20 @@ def emit_conversation_uploaded(conversation_id: uuid.UUID, filename: str) -> Con
         event.conversation_id,
         event.filename,
     )
+    return event
+
+
+def emit_conversation_processing_started(
+    conversation_id: uuid.UUID,
+) -> ConversationProcessingStarted:
+    event = ConversationProcessingStarted(
+        conversation_id=conversation_id, occurred_at=datetime.now(UTC)
+    )
+    logger.info("event=ConversationProcessingStarted conversation_id=%s", event.conversation_id)
+    return event
+
+
+def emit_conversation_processed(conversation_id: uuid.UUID) -> ConversationProcessed:
+    event = ConversationProcessed(conversation_id=conversation_id, occurred_at=datetime.now(UTC))
+    logger.info("event=ConversationProcessed conversation_id=%s", event.conversation_id)
     return event

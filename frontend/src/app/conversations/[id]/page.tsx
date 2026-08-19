@@ -6,12 +6,8 @@ import { use } from "react";
 import { getConversation } from "@/lib/api";
 import { formatDate, formatDuration, formatFileSize } from "@/lib/format";
 import { StatusBadge } from "@/components/StatusBadge";
-
-const PLACEHOLDER_SECTIONS = [
-  { title: "Transcript", note: "Coming in Sprint 2" },
-  { title: "Knowledge", note: "Coming in Sprint 3" },
-  { title: "Tasks", note: "Coming in Sprint 4" },
-];
+import { MemoryPanel } from "@/components/MemoryPanel";
+import { ClientField } from "@/components/ClientField";
 
 export default function ConversationDetailPage({
   params,
@@ -23,6 +19,12 @@ export default function ConversationDetailPage({
   const { data, isLoading, isError } = useQuery({
     queryKey: ["conversations", id],
     queryFn: () => getConversation(id),
+    // Sprint 2: status can change from PROCESSING to COMPLETED/FAILED
+    // shortly after upload — keep it current while that's in flight.
+    refetchInterval: (query) =>
+      query.state.data?.status === "PROCESSING" || query.state.data?.status === "UPLOADED"
+        ? 3000
+        : false,
   });
 
   if (isLoading) {
@@ -59,19 +61,13 @@ export default function ConversationDetailPage({
         <Field label="File Size" value={formatFileSize(data.file_size)} />
         <Field label="Duration" value={formatDuration(data.duration_seconds)} />
         <Field label="Source" value={data.source} />
+        <Field
+          label="Client"
+          value={<ClientField conversationId={data.id} clientId={data.client_id} />}
+        />
       </dl>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        {PLACEHOLDER_SECTIONS.map((section) => (
-          <div
-            key={section.title}
-            className="rounded-xl border border-dashed border-line bg-surface p-6 text-center"
-          >
-            <p className="text-sm font-medium text-ink">{section.title}</p>
-            <p className="mt-1 text-xs text-ink/40">{section.note}</p>
-          </div>
-        ))}
-      </div>
+      <MemoryPanel conversationId={data.id} status={data.status} />
     </div>
   );
 }

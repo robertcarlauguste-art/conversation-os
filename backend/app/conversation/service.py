@@ -106,3 +106,31 @@ class ConversationService(BaseService[ConversationRepository]):
         conversation = await self.get_conversation(conversation_id)
         await self._storage.delete(conversation.storage_path)
         await self.repository.delete_by_id(conversation_id)
+
+    async def update_status(
+        self, conversation_id: uuid.UUID, status: ConversationStatus
+    ) -> Conversation:
+        """
+        Used by app/orchestrator/conversation_processing.py to move a
+        conversation through UPLOADED → PROCESSING → COMPLETED/FAILED
+        as the Sprint 2 pipeline runs. Added this sprint — Sprint 1
+        only ever set status once, at upload.
+        """
+        conversation = await self.get_conversation(conversation_id)
+        conversation.status = status
+        await self.repository.commit()
+        return conversation
+
+    async def update_client(
+        self, conversation_id: uuid.UUID, client_id: uuid.UUID | None
+    ) -> Conversation:
+        """
+        Sprint 3: sets which client this conversation is primarily
+        about. Called automatically by the orchestrator's
+        reconciliation stage, and manually via client/api.py's
+        link/unlink endpoints (US-105) — `client_id=None` unlinks.
+        """
+        conversation = await self.get_conversation(conversation_id)
+        conversation.client_id = client_id
+        await self.repository.commit()
+        return conversation

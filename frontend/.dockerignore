@@ -1,3 +1,5 @@
 node_modules
 .next
+.npm-cache
+tsconfig.tsbuildinfo
 .git

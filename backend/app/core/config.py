@@ -58,6 +58,11 @@ class Settings(BaseSettings):
         )
     )
 
+    # AI pipeline (Sprint 2 — memory & intelligence)
+    anthropic_model: str = Field(default="claude-sonnet-5")
+    openai_whisper_model: str = Field(default="whisper-1")
+    ai_request_timeout_seconds: float = Field(default=60.0)
+
 
 @lru_cache
 def get_settings() -> Settings:

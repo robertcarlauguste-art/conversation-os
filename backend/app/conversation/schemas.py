@@ -47,5 +47,6 @@ class ConversationDetail(BaseModel):
     duration_seconds: int | None
     status: ConversationStatus
     source: ConversationSource
+    client_id: uuid.UUID | None
     created_at: datetime
     updated_at: datetime

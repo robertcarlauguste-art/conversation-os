@@ -34,3 +34,12 @@ class ConversationRepository(BaseRepository[Conversation]):
             sql_delete(Conversation).where(Conversation.id == conversation_id)
         )
         await self.session.commit()
+
+    async def list_by_client_id(self, client_id: uuid.UUID) -> list[Conversation]:
+        """Sprint 3 — supports GET /clients/{id}/conversations (US-104)."""
+        result = await self.session.execute(
+            select(Conversation)
+            .where(Conversation.client_id == client_id)
+            .order_by(Conversation.created_at.desc())
+        )
+        return list(result.scalars().all())

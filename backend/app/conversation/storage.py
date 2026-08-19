@@ -7,9 +7,11 @@ swapping to Supabase Storage or S3 later means adding one new class,
 not touching `service.py`.
 
 This lives inside the conversation slice for now since it's the only
-consumer. If a second slice needs file storage, this should move to
-a shared location (e.g. `app/shared/storage.py`) rather than being
-duplicated — noted as a Sprint 2+ consideration in the ADR.
+owner. The transcription slice imports this module directly to read
+stored audio (see transcription/service.py) — cross-slice import,
+tracked as TD-001 rather than resolved this sprint. That docstring
+note above turned out to be exactly right: a second slice needing
+storage is precisely the trigger condition it named.
 """
 
 import uuid
@@ -25,6 +27,11 @@ class StorageBackend(ABC):
     @abstractmethod
     async def save(self, *, filename: str, content: bytes) -> str:
         """Persist `content` and return a backend-specific storage path/key."""
+        raise NotImplementedError
+
+    @abstractmethod
+    async def read(self, storage_path: str) -> bytes:
+        """Read back previously stored content."""
         raise NotImplementedError
 
     @abstractmethod
@@ -53,6 +60,10 @@ class LocalStorageBackend(StorageBackend):
         async with aiofiles.open(destination, "wb") as f:
             await f.write(content)
         return str(destination)
+
+    async def read(self, storage_path: str) -> bytes:
+        async with aiofiles.open(storage_path, "rb") as f:
+            return await f.read()
 
     async def delete(self, storage_path: str) -> None:
         path = Path(storage_path)

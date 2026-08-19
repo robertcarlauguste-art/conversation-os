@@ -14,7 +14,11 @@ Adding a new slice means one new `include_router` call here.
 from fastapi import APIRouter
 
 from app.api.system import router as system_router
+from app.client.api import router as client_router
 from app.conversation.api import router as conversation_router
+from app.dashboard.api import router as dashboard_router
+from app.memory.api import router as memory_router
+from app.transcription.api import router as transcription_router
 
 api_router = APIRouter()
 
@@ -23,4 +27,27 @@ api_router = APIRouter()
 api_router.include_router(system_router)
 
 # Business API surface is versioned.
-api_router.include_router(conversation_router, prefix="/api/v1")
+api_router.include_router(
+    conversation_router,
+    prefix="/api/v1",
+)
+
+api_router.include_router(
+    transcription_router,
+    prefix="/api/v1",
+)
+
+api_router.include_router(
+    memory_router,
+    prefix="/api/v1",
+)
+
+api_router.include_router(
+    client_router,
+    prefix="/api/v1",
+)
+
+api_router.include_router(
+    dashboard_router,
+    prefix="/api/v1",
+)

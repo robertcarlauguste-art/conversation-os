@@ -7,13 +7,20 @@ validators.py, persistence in repository.py, decisions in service.py.
 
 Mounted by app/api/router.py (the composition root) under /api/v1 —
 this module only defines routes relative to its own prefix.
+
+Sprint 2 note: upload triggers the full processing pipeline
+(transcription + memory extraction) synchronously, inside this
+request — see TD-003 in Sprint2.md for why that's a deliberate,
+tracked tradeoff rather than a background job.
 """
 
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.conversation.enums import ConversationStatus
 from app.conversation.repository import ConversationRepository
 from app.conversation.schemas import (
     ConversationCreateData,
@@ -25,7 +32,10 @@ from app.conversation.storage import LocalStorageBackend, StorageBackend
 from app.conversation.validators import ValidationError
 from app.core.config import Settings, get_settings
 from app.core.database import get_db_session
+from app.orchestrator.dependencies import build_conversation_processing_orchestrator
 from app.schemas.envelope import ApiResponse
+
+logger = logging.getLogger("conversation_os.conversation")
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 
@@ -53,6 +63,9 @@ async def upload_conversation(
     file: UploadFile,
     title: str | None = None,
     service: ConversationService = Depends(get_conversation_service),
+    session: AsyncSession = Depends(get_db_session),
+    storage: StorageBackend = Depends(get_storage_backend),
+    settings: Settings = Depends(get_settings),
 ) -> ApiResponse[ConversationCreateData]:
     content = await file.read()
     try:
@@ -64,6 +77,21 @@ async def upload_conversation(
         )
     except ValidationError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    # Upload has already succeeded at this point (file stored, row
+    # persisted) — a processing failure below must not turn into an
+    # HTTP error for the upload itself, only into status=FAILED.
+    try:
+        orchestrator = build_conversation_processing_orchestrator(session, storage, settings)
+        await orchestrator.run(conversation.id)
+    except Exception:
+        logger.warning(
+            "conversation_processing_failed_during_upload conversation_id=%s",
+            conversation.id,
+            exc_info=True,
+        )
+        if conversation.status not in (ConversationStatus.COMPLETED, ConversationStatus.FAILED):
+            await service.update_status(conversation.id, ConversationStatus.FAILED)
 
     return ApiResponse(
         success=True,

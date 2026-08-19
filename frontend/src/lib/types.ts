@@ -24,6 +24,7 @@ export interface ConversationDetail {
   duration_seconds: number | null;
   status: ConversationStatus;
   source: ConversationSource;
+  client_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -35,4 +36,179 @@ export interface ApiResponse<T> {
 
 export interface ApiErrorBody {
   detail: string;
+}
+
+export type TranscriptionStatus = "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+
+export interface TranscriptDetail {
+  id: string;
+  conversation_id: string;
+  text: string | null;
+  language: string | null;
+  status: TranscriptionStatus;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DecisionOut {
+  id: string;
+  description: string;
+}
+
+export interface ActionItemOut {
+  id: string;
+  task: string;
+  due: string | null;
+  owner: string | null;
+  status: string;
+  completed_at: string | null;
+}
+
+export interface PersonOut {
+  id: string;
+  name: string;
+  role: string | null;
+}
+
+export interface MemoryDetail {
+  id: string;
+  conversation_id: string;
+  title: string | null;
+  summary: string;
+  memory_type: string;
+  topics: string[];
+  confidence: number;
+  source: string;
+  decisions: DecisionOut[];
+  action_items: ActionItemOut[];
+  people: PersonOut[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClientFactOut {
+  id: string;
+  fact_text: string;
+  source_conversation_id: string;
+  source_memory_id: string;
+  confidence: number | null;
+  created_at: string;
+}
+
+export interface ClientListItem {
+  id: string;
+  full_name: string;
+  email: string | null;
+  phone: string | null;
+  created_at: string;
+}
+
+export interface ClientDetail {
+  id: string;
+  full_name: string;
+  email: string | null;
+  phone: string | null;
+  facts: ClientFactOut[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClientConversationItem {
+  id: string;
+  title: string | null;
+  filename: string;
+  status: string;
+  created_at: string;
+}
+
+export interface DashboardOverview {
+  clients: number;
+  conversations: number;
+  completed: number;
+  processing: number;
+  failed: number;
+}
+
+export interface DashboardPriority {
+  rank: number;
+  severity: "critical" | "high" | "medium";
+  category: "processing" | "followup";
+  title: string;
+  description: string;
+  href: string | null;
+}
+
+export interface DashboardBriefItem {
+  category: "conversations" | "processing" | "attention" | "clients" | "followups";
+  text: string;
+  tone: "neutral" | "positive" | "warning";
+}
+
+export interface DashboardAIBriefing {
+  content: string;
+  source: "ai" | "deterministic";
+  model: string | null;
+  fallback_reason: "not_configured" | "provider_error" | null;
+  generated_at: string;
+}
+
+export interface DashboardClientRecommendation {
+  rank: number;
+  client_id: string;
+  client_name: string;
+  urgency_score: number;
+  reason: string;
+  recommended_action: string;
+  days_since_contact: number | null;
+  conversation_count: number;
+  open_action_count: number;
+  href: string;
+}
+
+export interface DashboardNextAction {
+  id: string;
+  action_item_ids: string[];
+  source_count: number;
+  task: string;
+  due: string | null;
+  owner: string | null;
+  client_id: string | null;
+  client_name: string | null;
+  conversation_id: string;
+  conversation_title: string | null;
+  href: string;
+}
+
+export interface DashboardActivityItem {
+  id: string;
+  client_id: string | null;
+  client_name: string | null;
+  action: "complete" | "snooze" | "record_contact" | "complete_action_item";
+  description: string;
+  occurred_at: string;
+  snoozed_until: string | null;
+  href: string;
+}
+
+export type FollowupAction = "complete" | "snooze" | "record_contact";
+
+export interface FollowupActionResult {
+  client_id: string;
+  action: FollowupAction;
+  snoozed_until: string | null;
+  recorded_at: string;
+}
+
+export interface DashboardData {
+  overview: DashboardOverview;
+  recent_clients: ClientListItem[];
+  recent_conversations: ConversationListItem[];
+  daily_brief: DashboardBriefItem[];
+  priorities: DashboardPriority[];
+  client_recommendations: DashboardClientRecommendation[];
+  next_actions: DashboardNextAction[];
+  recent_activity: DashboardActivityItem[];
+  alerts: string[];
+  followups: string[];
 }

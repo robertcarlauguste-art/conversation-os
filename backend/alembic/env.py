@@ -6,7 +6,10 @@ each file records one change (add a wall, move a door) so the schema
 can be rebuilt from scratch or rolled back step by step. Sprint 0
 only records the "empty lot survey" — no rooms (tables) built yet.
 """
+
 import asyncio
+import selectors
+import sys
 from logging.config import fileConfig
 
 from alembic import context
@@ -17,7 +20,11 @@ from app.models.base import Base
 
 # Import every domain's models so they register on Base.metadata.
 # Add a line here whenever a new slice adds models.
+from app.client import models as client_models  # noqa: F401
 from app.conversation import models as conversation_models  # noqa: F401
+from app.dashboard import models as dashboard_models  # noqa: F401
+from app.memory import models as memory_models  # noqa: F401
+from app.transcription import models as transcription_models  # noqa: F401
 
 config = context.config
 
@@ -32,25 +39,50 @@ target_metadata = Base.metadata
 
 def run_migrations_offline() -> None:
     url = config.get_main_option("sqlalchemy.url")
-    context.configure(url=url, target_metadata=target_metadata, literal_binds=True)
+    context.configure(
+        url=url,
+        target_metadata=target_metadata,
+        literal_binds=True,
+    )
+
     with context.begin_transaction():
         context.run_migrations()
 
 
 def do_run_migrations(connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata)
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+    )
+
     with context.begin_transaction():
         context.run_migrations()
 
 
 async def run_migrations_online() -> None:
-    connectable: AsyncEngine = create_async_engine(config.get_main_option("sqlalchemy.url"))
+    url = config.get_main_option("sqlalchemy.url")
+    if url is None:
+        raise RuntimeError("sqlalchemy.url is not configured")
+
+    connectable: AsyncEngine = create_async_engine(
+        url,
+    )
+
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
+
     await connectable.dispose()
 
 
 if context.is_offline_mode():
     run_migrations_offline()
 else:
-    asyncio.run(run_migrations_online())
+    if sys.platform == "win32":
+        asyncio.run(
+            run_migrations_online(),
+            loop_factory=lambda: asyncio.SelectorEventLoop(
+                selectors.SelectSelector()
+            ),
+        )
+    else:
+        asyncio.run(run_migrations_online())

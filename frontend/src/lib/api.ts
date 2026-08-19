@@ -1,4 +1,19 @@
-import type { ApiErrorBody, ApiResponse, ConversationDetail, ConversationListItem } from "./types";
+import type {
+  ActionItemOut,
+  ApiErrorBody,
+  ApiResponse,
+  ClientConversationItem,
+  ClientDetail,
+  ClientListItem,
+  ConversationDetail,
+  ConversationListItem,
+  DashboardAIBriefing,
+  DashboardData,
+  FollowupAction,
+  FollowupActionResult,
+  MemoryDetail,
+  TranscriptDetail,
+} from "./types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -18,16 +33,58 @@ async function unwrap<T>(response: Response): Promise<T> {
   return (body as ApiResponse<T>).data;
 }
 
+// ===== DEBUG VERSION =====
 export async function listConversations(): Promise<ConversationListItem[]> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/conversations`, { cache: "no-store" });
-  return unwrap<ConversationListItem[]>(response);
+  console.log("Fetching:", `${API_BASE_URL}/api/v1/conversations`);
+
+  const response = await fetch(`${API_BASE_URL}/api/v1/conversations`, {
+    cache: "no-store",
+  });
+
+  console.log("HTTP Status:", response.status);
+
+  const body = await response.json();
+
+  console.log("Response Body:", body);
+
+  if (!response.ok) {
+    console.error("Backend returned an error:", body);
+    throw new Error(JSON.stringify(body));
+  }
+
+  return body.data;
 }
+// =========================
 
 export async function getConversation(id: string): Promise<ConversationDetail> {
   const response = await fetch(`${API_BASE_URL}/api/v1/conversations/${id}`, {
     cache: "no-store",
   });
   return unwrap<ConversationDetail>(response);
+}
+
+/** Returns null on 404 — no memory yet is a normal state, not an error. */
+export async function getMemoryByConversation(
+  conversationId: string,
+): Promise<MemoryDetail | null> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/memories/by-conversation/${conversationId}`,
+    { cache: "no-store" },
+  );
+  if (response.status === 404) return null;
+  return unwrap<MemoryDetail>(response);
+}
+
+/** Returns null on 404 — no transcript yet is a normal state, not an error. */
+export async function getTranscriptByConversation(
+  conversationId: string,
+): Promise<TranscriptDetail | null> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/transcriptions/by-conversation/${conversationId}`,
+    { cache: "no-store" },
+  );
+  if (response.status === 404) return null;
+  return unwrap<TranscriptDetail>(response);
 }
 
 export async function deleteConversation(id: string): Promise<void> {
@@ -79,4 +136,98 @@ export function uploadConversation(
     formData.append("file", file);
     xhr.send(formData);
   });
+}
+
+export async function listClients(): Promise<ClientListItem[]> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/clients`, { cache: "no-store" });
+  return unwrap<ClientListItem[]>(response);
+}
+
+export async function getClient(id: string): Promise<ClientDetail> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/clients/${id}`, { cache: "no-store" });
+  return unwrap<ClientDetail>(response);
+}
+
+export async function getClientConversations(id: string): Promise<ClientConversationItem[]> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/clients/${id}/conversations`, {
+    cache: "no-store",
+  });
+  return unwrap<ClientConversationItem[]>(response);
+}
+
+export async function linkConversationToClient(
+  clientId: string,
+  conversationId: string,
+): Promise<void> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/clients/${clientId}/conversations/${conversationId}`,
+    { method: "POST" },
+  );
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as Partial<ApiErrorBody>;
+    throw new ApiError(body.detail ?? "Couldn't link this conversation.");
+  }
+}
+
+export async function unlinkConversationFromClient(
+  clientId: string,
+  conversationId: string,
+): Promise<void> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/clients/${clientId}/conversations/${conversationId}`,
+    { method: "DELETE" },
+  );
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as Partial<ApiErrorBody>;
+    throw new ApiError(body.detail ?? "Couldn't unlink this conversation.");
+  }
+}
+
+export async function getDashboard(): Promise<DashboardData> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/dashboard`, {
+    cache: "no-store",
+  });
+  return unwrap<DashboardData>(response);
+}
+
+export async function generateDashboardBriefing(): Promise<DashboardAIBriefing> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/dashboard/briefing`, {
+    method: "POST",
+  });
+  return unwrap<DashboardAIBriefing>(response);
+}
+
+export async function recordFollowupAction(
+  clientId: string,
+  action: FollowupAction,
+  snoozeDays?: number,
+): Promise<FollowupActionResult> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/dashboard/recommendations/${clientId}/actions`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action,
+        ...(snoozeDays ? { snooze_days: snoozeDays } : {}),
+      }),
+    },
+  );
+  return unwrap<FollowupActionResult>(response);
+}
+
+export async function completeActionItem(actionItemId: string): Promise<ActionItemOut> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/memories/action-items/${actionItemId}/complete`,
+    { method: "POST" },
+  );
+  return unwrap<ActionItemOut>(response);
+}
+
+export async function reopenActionItem(actionItemId: string): Promise<ActionItemOut> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/v1/memories/action-items/${actionItemId}/reopen`,
+    { method: "POST" },
+  );
+  return unwrap<ActionItemOut>(response);
 }
