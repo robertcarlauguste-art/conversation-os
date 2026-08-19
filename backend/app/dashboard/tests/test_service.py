@@ -1,11 +1,10 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from uuid import uuid4
 
-from app.dashboard.service import DashboardService
-from app.dashboard.schemas import DashboardOverview
-from app.dashboard.schemas import FollowupActionRequest
 from app.dashboard.models import FollowupAction
+from app.dashboard.schemas import DashboardOverview, FollowupActionRequest
+from app.dashboard.service import DashboardService
 
 
 def _service(now: datetime) -> DashboardService:
@@ -17,27 +16,19 @@ def _service(now: datetime) -> DashboardService:
 
 
 def test_builds_failed_processing_alert() -> None:
-    service = _service(datetime(2026, 8, 17, tzinfo=timezone.utc))
+    service = _service(datetime(2026, 8, 17, tzinfo=UTC))
 
-    assert service._build_alerts(2) == [
-        "2 conversations failed processing and need review."
-    ]
-    assert service._build_alerts(1) == [
-        "1 conversation failed processing and needs review."
-    ]
+    assert service._build_alerts(2) == ["2 conversations failed processing and need review."]
+    assert service._build_alerts(1) == ["1 conversation failed processing and needs review."]
     assert service._build_alerts(0) == []
 
 
 def test_builds_followup_for_stale_client() -> None:
-    now = datetime(2026, 8, 17, tzinfo=timezone.utc)
+    now = datetime(2026, 8, 17, tzinfo=UTC)
     client = SimpleNamespace(
         id=uuid4(),
         full_name="John",
-        conversations=[
-            SimpleNamespace(
-                created_at=datetime(2026, 8, 9, tzinfo=timezone.utc)
-            )
-        ],
+        conversations=[SimpleNamespace(created_at=datetime(2026, 8, 9, tzinfo=UTC))],
     )
 
     assert _service(now)._build_followups([client]) == [
@@ -46,40 +37,30 @@ def test_builds_followup_for_stale_client() -> None:
 
 
 def test_builds_followup_for_client_without_conversations() -> None:
-    now = datetime(2026, 8, 17, tzinfo=timezone.utc)
+    now = datetime(2026, 8, 17, tzinfo=UTC)
     client = SimpleNamespace(id=uuid4(), full_name="Sarah", conversations=[])
 
-    assert _service(now)._build_followups([client]) == [
-        "Schedule a first conversation with Sarah."
-    ]
+    assert _service(now)._build_followups([client]) == ["Schedule a first conversation with Sarah."]
 
 
 def test_does_not_build_followup_for_recent_contact() -> None:
-    now = datetime(2026, 8, 17, tzinfo=timezone.utc)
+    now = datetime(2026, 8, 17, tzinfo=UTC)
     client = SimpleNamespace(
         id=uuid4(),
         full_name="Mike",
-        conversations=[
-            SimpleNamespace(
-                created_at=datetime(2026, 8, 15, tzinfo=timezone.utc)
-            )
-        ],
+        conversations=[SimpleNamespace(created_at=datetime(2026, 8, 15, tzinfo=UTC))],
     )
 
     assert _service(now)._build_followups([client]) == []
 
 
 def test_priorities_rank_failures_before_stale_followups() -> None:
-    now = datetime(2026, 8, 17, tzinfo=timezone.utc)
+    now = datetime(2026, 8, 17, tzinfo=UTC)
     client_id = uuid4()
     client = SimpleNamespace(
         id=client_id,
         full_name="John",
-        conversations=[
-            SimpleNamespace(
-                created_at=datetime(2026, 8, 9, tzinfo=timezone.utc)
-            )
-        ],
+        conversations=[SimpleNamespace(created_at=datetime(2026, 8, 9, tzinfo=UTC))],
     )
 
     priorities = _service(now)._build_priorities(3, [client])
@@ -92,25 +73,17 @@ def test_priorities_rank_failures_before_stale_followups() -> None:
 
 
 def test_priorities_rank_oldest_followup_first() -> None:
-    now = datetime(2026, 8, 17, tzinfo=timezone.utc)
+    now = datetime(2026, 8, 17, tzinfo=UTC)
     clients = [
         SimpleNamespace(
             id=uuid4(),
             full_name="Recent",
-            conversations=[
-                SimpleNamespace(
-                    created_at=datetime(2026, 8, 9, tzinfo=timezone.utc)
-                )
-            ],
+            conversations=[SimpleNamespace(created_at=datetime(2026, 8, 9, tzinfo=UTC))],
         ),
         SimpleNamespace(
             id=uuid4(),
             full_name="Oldest",
-            conversations=[
-                SimpleNamespace(
-                    created_at=datetime(2026, 8, 1, tzinfo=timezone.utc)
-                )
-            ],
+            conversations=[SimpleNamespace(created_at=datetime(2026, 8, 1, tzinfo=UTC))],
         ),
     ]
 
@@ -121,28 +94,20 @@ def test_priorities_rank_oldest_followup_first() -> None:
 
 
 def test_client_recommendations_rank_oldest_contact_first() -> None:
-    now = datetime(2026, 8, 17, tzinfo=timezone.utc)
+    now = datetime(2026, 8, 17, tzinfo=UTC)
     oldest_id = uuid4()
     clients = [
         SimpleNamespace(
             id=uuid4(),
             full_name="Recent",
-            conversations=[
-                SimpleNamespace(
-                    created_at=datetime(2026, 8, 9, tzinfo=timezone.utc)
-                )
-            ],
+            conversations=[SimpleNamespace(created_at=datetime(2026, 8, 9, tzinfo=UTC))],
         ),
         SimpleNamespace(
             id=oldest_id,
             full_name="Oldest",
             conversations=[
-                SimpleNamespace(
-                    created_at=datetime(2026, 7, 28, tzinfo=timezone.utc)
-                ),
-                SimpleNamespace(
-                    created_at=datetime(2026, 8, 1, tzinfo=timezone.utc)
-                ),
+                SimpleNamespace(created_at=datetime(2026, 7, 28, tzinfo=UTC)),
+                SimpleNamespace(created_at=datetime(2026, 8, 1, tzinfo=UTC)),
             ],
         ),
     ]
@@ -158,7 +123,7 @@ def test_client_recommendations_rank_oldest_contact_first() -> None:
 
 
 def test_client_recommendations_include_first_conversation() -> None:
-    now = datetime(2026, 8, 17, tzinfo=timezone.utc)
+    now = datetime(2026, 8, 17, tzinfo=UTC)
     client = SimpleNamespace(
         id=uuid4(),
         full_name="New Client",
@@ -170,36 +135,26 @@ def test_client_recommendations_include_first_conversation() -> None:
     assert len(recommendations) == 1
     assert recommendations[0].days_since_contact is None
     assert recommendations[0].urgency_score == 50
-    assert recommendations[0].recommended_action == (
-        "Schedule a first conversation."
-    )
+    assert recommendations[0].recommended_action == ("Schedule a first conversation.")
 
 
 def test_client_recommendations_exclude_recent_contact() -> None:
-    now = datetime(2026, 8, 17, tzinfo=timezone.utc)
+    now = datetime(2026, 8, 17, tzinfo=UTC)
     client = SimpleNamespace(
         id=uuid4(),
         full_name="Current Client",
-        conversations=[
-            SimpleNamespace(
-                created_at=datetime(2026, 8, 15, tzinfo=timezone.utc)
-            )
-        ],
+        conversations=[SimpleNamespace(created_at=datetime(2026, 8, 15, tzinfo=UTC))],
     )
 
     assert _service(now)._build_client_recommendations([client]) == []
 
 
 def test_open_actions_make_recent_client_actionable() -> None:
-    now = datetime(2026, 8, 17, tzinfo=timezone.utc)
+    now = datetime(2026, 8, 17, tzinfo=UTC)
     client = SimpleNamespace(
         id=uuid4(),
         full_name="Active Buyer",
-        conversations=[
-            SimpleNamespace(
-                created_at=datetime(2026, 8, 16, tzinfo=timezone.utc)
-            )
-        ],
+        conversations=[SimpleNamespace(created_at=datetime(2026, 8, 16, tzinfo=UTC))],
     )
 
     recommendations = _service(now)._build_client_recommendations(
@@ -209,13 +164,11 @@ def test_open_actions_make_recent_client_actionable() -> None:
     assert len(recommendations) == 1
     assert recommendations[0].urgency_score == 80
     assert recommendations[0].open_action_count == 2
-    assert recommendations[0].recommended_action == (
-        "Complete the next open action."
-    )
+    assert recommendations[0].recommended_action == ("Complete the next open action.")
 
 
 def test_snoozed_recommendation_is_temporarily_excluded() -> None:
-    now = datetime(2026, 8, 17, tzinfo=timezone.utc)
+    now = datetime(2026, 8, 17, tzinfo=UTC)
     client = SimpleNamespace(
         id=uuid4(),
         full_name="Snoozed Client",
@@ -223,75 +176,57 @@ def test_snoozed_recommendation_is_temporarily_excluded() -> None:
     )
     action = SimpleNamespace(
         action=FollowupAction.SNOOZE,
-        snoozed_until=datetime(2026, 8, 18, tzinfo=timezone.utc),
+        snoozed_until=datetime(2026, 8, 18, tzinfo=UTC),
         created_at=now,
     )
 
-    recommendations = _service(now)._build_client_recommendations(
-        [client], {client.id: action}
-    )
+    recommendations = _service(now)._build_client_recommendations([client], {client.id: action})
 
     assert recommendations == []
     assert _service(now)._build_followups([client], {client.id: action}) == []
-    assert _service(now)._build_priorities(
-        0, [client], {client.id: action}
-    ) == []
-    assert _service(now)._count_due_followups(
-        [client], {client.id: action}
-    ) == 0
+    assert _service(now)._build_priorities(0, [client], {client.id: action}) == []
+    assert _service(now)._count_due_followups([client], {client.id: action}) == 0
 
 
 def test_recorded_contact_resets_followup_clock() -> None:
-    now = datetime(2026, 8, 17, tzinfo=timezone.utc)
+    now = datetime(2026, 8, 17, tzinfo=UTC)
     client = SimpleNamespace(
         id=uuid4(),
         full_name="Contacted Client",
-        conversations=[
-            SimpleNamespace(
-                created_at=datetime(2026, 8, 1, tzinfo=timezone.utc)
-            )
-        ],
+        conversations=[SimpleNamespace(created_at=datetime(2026, 8, 1, tzinfo=UTC))],
     )
     action = SimpleNamespace(
         action=FollowupAction.RECORD_CONTACT,
         snoozed_until=None,
-        created_at=datetime(2026, 8, 16, tzinfo=timezone.utc),
+        created_at=datetime(2026, 8, 16, tzinfo=UTC),
     )
 
-    recommendations = _service(now)._build_client_recommendations(
-        [client], {client.id: action}
-    )
+    recommendations = _service(now)._build_client_recommendations([client], {client.id: action})
 
     assert recommendations == []
 
 
 def test_completed_recommendation_returns_after_new_activity() -> None:
-    now = datetime(2026, 8, 17, tzinfo=timezone.utc)
+    now = datetime(2026, 8, 17, tzinfo=UTC)
     client = SimpleNamespace(
         id=uuid4(),
         full_name="Returning Client",
-        conversations=[
-            SimpleNamespace(
-                created_at=datetime(2026, 8, 2, tzinfo=timezone.utc)
-            )
-        ],
+        conversations=[SimpleNamespace(created_at=datetime(2026, 8, 2, tzinfo=UTC))],
     )
     action = SimpleNamespace(
         action=FollowupAction.COMPLETE,
         snoozed_until=None,
-        created_at=datetime(2026, 8, 1, tzinfo=timezone.utc),
+        created_at=datetime(2026, 8, 1, tzinfo=UTC),
     )
 
-    recommendations = _service(now)._build_client_recommendations(
-        [client], {client.id: action}
-    )
+    recommendations = _service(now)._build_client_recommendations([client], {client.id: action})
 
     assert len(recommendations) == 1
     assert recommendations[0].days_since_contact == 15
 
 
 async def test_records_snooze_action_with_expiration() -> None:
-    now = datetime(2026, 8, 17, tzinfo=timezone.utc)
+    now = datetime(2026, 8, 17, tzinfo=UTC)
     client_id = uuid4()
 
     class Clients:
@@ -320,9 +255,7 @@ async def test_records_snooze_action_with_expiration() -> None:
     )
 
     assert repository.saved.action == FollowupAction.SNOOZE
-    assert repository.saved.snoozed_until == datetime(
-        2026, 8, 20, tzinfo=timezone.utc
-    )
+    assert repository.saved.snoozed_until == datetime(2026, 8, 20, tzinfo=UTC)
     assert result.action == "snooze"
     assert result.recorded_at == now
 
@@ -369,7 +302,7 @@ def test_daily_brief_reports_healthy_empty_states() -> None:
 
 
 def test_builds_explainable_recent_activity() -> None:
-    now = datetime(2026, 8, 17, tzinfo=timezone.utc)
+    now = datetime(2026, 8, 17, tzinfo=UTC)
     client_id = uuid4()
     action_id = uuid4()
     records = [
@@ -380,9 +313,7 @@ def test_builds_explainable_recent_activity() -> None:
                 client_id=client_id,
                 action=FollowupAction.SNOOZE,
                 created_at=now,
-                snoozed_until=datetime(
-                    2026, 8, 18, tzinfo=timezone.utc
-                ),
+                snoozed_until=datetime(2026, 8, 18, tzinfo=UTC),
             ),
         )
     ]
@@ -392,14 +323,12 @@ def test_builds_explainable_recent_activity() -> None:
     assert len(activity) == 1
     assert activity[0].id == action_id
     assert activity[0].action == "snooze"
-    assert activity[0].description == (
-        "Snoozed the follow-up recommendation for John."
-    )
+    assert activity[0].description == ("Snoozed the follow-up recommendation for John.")
     assert activity[0].href == f"/clients/{client_id}"
 
 
 def test_merges_completed_action_items_into_recent_activity() -> None:
-    now = datetime(2026, 8, 17, tzinfo=timezone.utc)
+    now = datetime(2026, 8, 17, tzinfo=UTC)
     action_id = uuid4()
     conversation_id = uuid4()
     completed = [
@@ -419,7 +348,5 @@ def test_merges_completed_action_items_into_recent_activity() -> None:
 
     assert len(activity) == 1
     assert activity[0].action == "complete_action_item"
-    assert activity[0].description == (
-        'Completed action item "Send the property list".'
-    )
+    assert activity[0].description == ('Completed action item "Send the property list".')
     assert activity[0].href == f"/conversations/{conversation_id}"

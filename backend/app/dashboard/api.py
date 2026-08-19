@@ -23,7 +23,6 @@ from .schemas import (
 )
 from .service import DashboardService
 
-
 router = APIRouter(
     prefix="/dashboard",
     tags=["dashboard"],
@@ -31,12 +30,8 @@ router = APIRouter(
 
 
 def get_dashboard_service(
-    conversation_service: ConversationService = Depends(
-        get_conversation_service
-    ),
-    client_service: ClientService = Depends(
-        get_client_service
-    ),
+    conversation_service: ConversationService = Depends(get_conversation_service),
+    client_service: ClientService = Depends(get_client_service),
     session: AsyncSession = Depends(get_db_session),
 ) -> DashboardService:
     """

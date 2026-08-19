@@ -57,9 +57,7 @@ class OpenAIWhisperProvider(TranscriptionProvider):
         body = response.json()
 
         if response.status_code != 200:
-            raise RuntimeError(
-                f"OpenAI error {response.status_code}: {body}"
-            )
+            raise RuntimeError(f"OpenAI error {response.status_code}: {body}")
 
         return TranscriptionResult(
             text=body["text"],

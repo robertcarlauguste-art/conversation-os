@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.dashboard.briefing import DashboardBriefingService
 from app.dashboard.schemas import (
@@ -9,8 +9,7 @@ from app.dashboard.schemas import (
 )
 from app.providers.ai_provider import AICompletionResult, AIMessage, AIProvider
 
-
-NOW = datetime(2026, 8, 17, 12, tzinfo=timezone.utc)
+NOW = datetime(2026, 8, 17, 12, tzinfo=UTC)
 
 
 def _dashboard_response() -> DashboardResponse:

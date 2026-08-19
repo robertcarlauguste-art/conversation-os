@@ -4,10 +4,11 @@ from dataclasses import dataclass
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .models import ClientFollowupAction
 from app.client.models import Client
 from app.conversation.models import Conversation
 from app.memory.models import ActionItem, ActionStatus, Memory
+
+from .models import ClientFollowupAction
 
 
 @dataclass(frozen=True)

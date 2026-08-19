@@ -149,5 +149,5 @@ class ClientFact(Base):
 
 
 # Imported at the bottom to avoid circular imports.
-from app.conversation.models import Conversation
-from app.memory.models import Person
+from app.conversation.models import Conversation  # noqa: E402
+from app.memory.models import Person  # noqa: E402

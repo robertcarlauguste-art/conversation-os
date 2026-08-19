@@ -2,8 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
-from pydantic import model_validator
+from pydantic import BaseModel, Field, model_validator
 
 from app.client.schemas import ClientListItem
 from app.conversation.schemas import ConversationListItem

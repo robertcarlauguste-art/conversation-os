@@ -18,7 +18,6 @@ This module validates that structure before anything reaches
 the database.
 """
 
-
 import uuid
 from datetime import datetime
 
@@ -29,8 +28,6 @@ from pydantic import (
 )
 
 from app.memory.models import PersonType
-
-
 
 # ============================================================
 # LLM EXTRACTION SCHEMAS
@@ -55,7 +52,6 @@ class ExtractedActionItem(BaseModel):
     due: str | None = None
 
     assignee: str | None = None
-
 
 
 class ExtractedPerson(BaseModel):
@@ -88,42 +84,25 @@ class ExtractedPerson(BaseModel):
     entity_type: PersonType = PersonType.UNKNOWN
 
 
-
 class ExtractionResult(BaseModel):
     """
     Final validated structure returned from LLM extraction.
     """
 
-
     summary: str
 
+    decisions: list[str] = Field(default_factory=list)
 
-    decisions: list[str] = Field(
-        default_factory=list
-    )
+    action_items: list[ExtractedActionItem] = Field(default_factory=list)
 
+    people: list[ExtractedPerson] = Field(default_factory=list)
 
-    action_items: list[ExtractedActionItem] = Field(
-        default_factory=list
-    )
-
-
-    people: list[ExtractedPerson] = Field(
-        default_factory=list
-    )
-
-
-    topics: list[str] = Field(
-        default_factory=list
-    )
-
+    topics: list[str] = Field(default_factory=list)
 
     confidence: float = Field(
         ge=0,
         le=1,
     )
-
-
 
 
 # ============================================================
@@ -133,24 +112,16 @@ class ExtractionResult(BaseModel):
 
 class DecisionOut(BaseModel):
 
-    model_config = ConfigDict(
-        from_attributes=True
-    )
-
+    model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
 
     description: str
 
 
-
-
 class ActionItemOut(BaseModel):
 
-    model_config = ConfigDict(
-        from_attributes=True
-    )
-
+    model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
 
@@ -165,14 +136,9 @@ class ActionItemOut(BaseModel):
     completed_at: datetime | None
 
 
-
-
 class PersonOut(BaseModel):
 
-    model_config = ConfigDict(
-        from_attributes=True
-    )
-
+    model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
 
@@ -185,75 +151,49 @@ class PersonOut(BaseModel):
     client_id: uuid.UUID | None
 
 
-
-
 class MemoryDetail(BaseModel):
 
-    model_config = ConfigDict(
-        from_attributes=True
-    )
-
+    model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
 
     conversation_id: uuid.UUID
 
-
     title: str | None
-
 
     summary: str
 
-
     memory_type: str
-
 
     topics: list[str]
 
-
     confidence: float
-
 
     source: str
 
-
     decisions: list[DecisionOut]
-
 
     action_items: list[ActionItemOut]
 
-
     people: list[PersonOut]
 
-
     created_at: datetime
-
 
     updated_at: datetime
 
 
-
-
 class MemoryListItem(BaseModel):
 
-    model_config = ConfigDict(
-        from_attributes=True
-    )
-
+    model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
 
-
     conversation_id: uuid.UUID
-
 
     title: str | None
 
-
     summary: str
 
-
     confidence: float
-
 
     created_at: datetime

@@ -5,12 +5,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.client.models import Client, ClientFact
 from app.client.repository import ClientRepository
-
-
-pytestmark = pytest.mark.usefixtures("_clean_client_tables")
 from app.conversation.enums import ConversationSource, ConversationStatus
 from app.conversation.models import Conversation
 from app.memory.models import Memory
+
+pytestmark = pytest.mark.usefixtures("_clean_client_tables")
 
 
 async def _make_conversation_and_memory(session: AsyncSession) -> tuple[Conversation, Memory]:

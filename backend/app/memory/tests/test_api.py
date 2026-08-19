@@ -87,9 +87,7 @@ async def test_complete_action_item(db_session: AsyncSession) -> None:
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        response = await client.post(
-            f"/api/v1/memories/action-items/{action_item.id}/complete"
-        )
+        response = await client.post(f"/api/v1/memories/action-items/{action_item.id}/complete")
 
     assert response.status_code == 200
     assert response.json()["data"]["status"] == "COMPLETED"
@@ -104,9 +102,7 @@ async def test_complete_action_item_404_when_missing() -> None:
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        response = await client.post(
-            f"/api/v1/memories/action-items/{uuid.uuid4()}/complete"
-        )
+        response = await client.post(f"/api/v1/memories/action-items/{uuid.uuid4()}/complete")
 
     assert response.status_code == 404
 

@@ -30,9 +30,7 @@ from app.client.validators import validate_fact_text
 from app.memory.models import PersonType
 from app.services.base import BaseService
 
-logger = logging.getLogger(
-    "conversation_os.client"
-)
+logger = logging.getLogger("conversation_os.client")
 
 
 class ClientNotFoundError(Exception):
@@ -44,6 +42,7 @@ class InvalidClientEntityError(Exception):
     Raised when attempting to create a client
     from a non-client entity.
     """
+
     pass
 
 
@@ -70,7 +69,6 @@ class ClientService(BaseService[ClientRepository]):
             "buyer": "buyer",
             "customer": "buyer",
             "client": "buyer",
-
             # Agent variations
             "realtor": "agent",
             "real estate agent": "agent",
@@ -102,15 +100,12 @@ class ClientService(BaseService[ClientRepository]):
 
         if entity_type != PersonType.CLIENT:
             logger.info(
-                "client_reconciliation_skipped "
-                "name=%s entity_type=%s",
+                "client_reconciliation_skipped " "name=%s entity_type=%s",
                 name,
                 entity_type,
             )
 
-            raise InvalidClientEntityError(
-                f"{entity_type} cannot become a client"
-            )
+            raise InvalidClientEntityError(f"{entity_type} cannot become a client")
 
         normalized_name = name.strip().lower()
         normalized_role = self._normalize_role(role)
@@ -128,8 +123,7 @@ class ClientService(BaseService[ClientRepository]):
                 )
 
                 logger.info(
-                    "client_matched "
-                    "client_id=%s conversation_id=%s",
+                    "client_matched " "client_id=%s conversation_id=%s",
                     existing.id,
                     conversation_id,
                 )
@@ -150,8 +144,7 @@ class ClientService(BaseService[ClientRepository]):
         )
 
         logger.info(
-            "client_created "
-            "client_id=%s conversation_id=%s",
+            "client_created " "client_id=%s conversation_id=%s",
             client.id,
             conversation_id,
         )
@@ -214,14 +207,10 @@ class ClientService(BaseService[ClientRepository]):
         Returns one client with all related objects eagerly loaded.
         """
 
-        client = await self.repository.get_with_facts(
-            client_id
-        )
+        client = await self.repository.get_with_facts(client_id)
 
         if client is None:
-            raise ClientNotFoundError(
-                f"Client {client_id} not found."
-            )
+            raise ClientNotFoundError(f"Client {client_id} not found.")
 
         return client
 

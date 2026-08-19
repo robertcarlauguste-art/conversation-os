@@ -1,6 +1,7 @@
 import uuid
-from datetime import datetime, timedelta, timezone
-from typing import Callable
+from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
+from typing import Literal
 
 from app.client.models import Client
 from app.client.schemas import ClientListItem
@@ -9,9 +10,15 @@ from app.conversation.enums import ConversationStatus
 from app.conversation.schemas import ConversationListItem
 from app.conversation.service import ConversationService
 
+from .models import ClientFollowupAction, FollowupAction
+from .repository import (
+    CompletedActionRecord,
+    DashboardRepository,
+    FollowupActivityRecord,
+)
 from .schemas import (
-    DashboardBriefItem,
     DashboardActivityItem,
+    DashboardBriefItem,
     DashboardClientRecommendation,
     DashboardNextAction,
     DashboardOverview,
@@ -19,12 +26,6 @@ from .schemas import (
     DashboardResponse,
     FollowupActionRequest,
     FollowupActionResult,
-)
-from .models import ClientFollowupAction, FollowupAction
-from .repository import (
-    CompletedActionRecord,
-    DashboardRepository,
-    FollowupActivityRecord,
 )
 
 
@@ -50,7 +51,7 @@ class DashboardService:
         self._conversations = conversation_service
         self._clients = client_service
         self._repository = repository
-        self._clock = clock or (lambda: datetime.now(timezone.utc))
+        self._clock = clock or (lambda: datetime.now(UTC))
 
     @staticmethod
     def _build_alerts(failed: int) -> list[str]:
@@ -69,10 +70,7 @@ class DashboardService:
         now: datetime,
     ) -> tuple[bool, datetime | None]:
         latest_contact = (
-            max(
-                conversation.created_at
-                for conversation in client.conversations
-            )
+            max(conversation.created_at for conversation in client.conversations)
             if client.conversations
             else None
         )
@@ -85,17 +83,10 @@ class DashboardService:
         ):
             return True, latest_contact
         if latest_action.action == FollowupAction.RECORD_CONTACT:
-            if (
-                latest_contact is None
-                or latest_action.created_at > latest_contact
-            ):
+            if latest_contact is None or latest_action.created_at > latest_contact:
                 latest_contact = latest_action.created_at
-        if (
-            latest_action.action == FollowupAction.COMPLETE
-            and (
-                latest_contact is None
-                or latest_contact <= latest_action.created_at
-            )
+        if latest_action.action == FollowupAction.COMPLETE and (
+            latest_contact is None or latest_contact <= latest_action.created_at
         ):
             return True, latest_contact
         return False, latest_contact
@@ -110,15 +101,11 @@ class DashboardService:
         latest_actions = latest_actions or {}
 
         for client in clients:
-            suppressed, latest = self._followup_state(
-                client, latest_actions.get(client.id), now
-            )
+            suppressed, latest = self._followup_state(client, latest_actions.get(client.id), now)
             if suppressed:
                 continue
             if latest is None:
-                followups.append(
-                    f"Schedule a first conversation with {client.full_name}."
-                )
+                followups.append(f"Schedule a first conversation with {client.full_name}.")
                 continue
             days_since_contact = (now - latest).days
 
@@ -160,9 +147,7 @@ class DashboardService:
 
         now = self._clock()
         for client in clients:
-            suppressed, latest = self._followup_state(
-                client, latest_actions.get(client.id), now
-            )
+            suppressed, latest = self._followup_state(client, latest_actions.get(client.id), now)
             if suppressed:
                 continue
             if latest is None:
@@ -207,7 +192,9 @@ class DashboardService:
                 reverse=True,
             )[:5]
         ]
-        return [priority.model_copy(update={"rank": rank}) for rank, priority in enumerate(ordered, 1)]
+        return [
+            priority.model_copy(update={"rank": rank}) for rank, priority in enumerate(ordered, 1)
+        ]
 
     def _count_due_followups(
         self,
@@ -219,9 +206,7 @@ class DashboardService:
         latest_actions = latest_actions or {}
 
         for client in clients:
-            suppressed, latest = self._followup_state(
-                client, latest_actions.get(client.id), now
-            )
+            suppressed, latest = self._followup_state(client, latest_actions.get(client.id), now)
             if suppressed:
                 continue
             if latest is None:
@@ -248,9 +233,7 @@ class DashboardService:
             latest_action = latest_actions.get(client.id)
             open_action_count = open_action_counts.get(client.id, 0)
             conversation_count = len(client.conversations)
-            suppressed, latest_conversation = self._followup_state(
-                client, latest_action, now
-            )
+            suppressed, latest_conversation = self._followup_state(client, latest_action, now)
             if suppressed:
                 continue
 
@@ -271,30 +254,24 @@ class DashboardService:
                 continue
 
             days_since_contact = max(0, (now - latest_conversation).days)
-            if (
-                days_since_contact < self.FOLLOWUP_AFTER_DAYS
-                and open_action_count == 0
-            ):
+            if days_since_contact < self.FOLLOWUP_AFTER_DAYS and open_action_count == 0:
                 continue
 
             if days_since_contact < self.FOLLOWUP_AFTER_DAYS:
-                reason = (
-                    f"{open_action_count} open conversation "
-                    f"{'action requires' if open_action_count == 1 else 'actions require'} attention."
-                )
+                action_subject = "action requires" if open_action_count == 1 else "actions require"
+                reason = f"{open_action_count} open conversation " f"{action_subject} attention."
                 recommended_action = "Complete the next open action."
                 urgency_score = min(90, 70 + open_action_count * 5)
             else:
+                action_subject = (
+                    "action also needs" if open_action_count == 1 else "actions also need"
+                )
                 action_context = (
-                    f" {open_action_count} open "
-                    f"{'action also needs' if open_action_count == 1 else 'actions also need'} attention."
+                    f" {open_action_count} open {action_subject} attention."
                     if open_action_count
                     else ""
                 )
-                reason = (
-                    f"Last conversation was {days_since_contact} days ago."
-                    f"{action_context}"
-                )
+                reason = f"Last conversation was {days_since_contact} days ago." f"{action_context}"
                 recommended_action = (
                     "Follow up and address the open action."
                     if open_action_count
@@ -328,10 +305,7 @@ class DashboardService:
                 str(item.client_id),
             ),
         )[:5]
-        return [
-            item.model_copy(update={"rank": rank})
-            for rank, item in enumerate(ordered, 1)
-        ]
+        return [item.model_copy(update={"rank": rank}) for rank, item in enumerate(ordered, 1)]
 
     async def record_followup_action(
         self,
@@ -345,9 +319,7 @@ class DashboardService:
         now = self._clock()
         action = FollowupAction(request.action.upper())
         snoozed_until = (
-            now + timedelta(days=request.snooze_days)
-            if request.snooze_days is not None
-            else None
+            now + timedelta(days=request.snooze_days) if request.snooze_days is not None else None
         )
         saved = await self._repository.add_followup_action(
             ClientFollowupAction(
@@ -374,16 +346,21 @@ class DashboardService:
             FollowupAction.SNOOZE: "Snoozed the follow-up recommendation",
             FollowupAction.RECORD_CONTACT: "Recorded client contact",
         }
+        action_names: dict[
+            FollowupAction,
+            Literal["complete", "snooze", "record_contact"],
+        ] = {
+            FollowupAction.COMPLETE: "complete",
+            FollowupAction.SNOOZE: "snooze",
+            FollowupAction.RECORD_CONTACT: "record_contact",
+        }
         activity = [
             DashboardActivityItem(
                 id=record.action.id,
                 client_id=record.action.client_id,
                 client_name=record.client_name,
-                action=record.action.action.value.casefold(),
-                description=(
-                    f"{descriptions[record.action.action]} for "
-                    f"{record.client_name}."
-                ),
+                action=action_names[record.action.action],
+                description=(f"{descriptions[record.action.action]} for " f"{record.client_name}."),
                 occurred_at=record.action.created_at,
                 snoozed_until=record.action.snoozed_until,
                 href=f"/clients/{record.action.client_id}",
@@ -391,15 +368,15 @@ class DashboardService:
             for record in records
         ]
         for record in completed_actions or []:
+            if record.action_item.completed_at is None:
+                continue
             activity.append(
                 DashboardActivityItem(
                     id=record.action_item.id,
                     client_id=record.client_id,
                     client_name=record.client_name,
                     action="complete_action_item",
-                    description=(
-                        f'Completed action item "{record.action_item.task}".'
-                    ),
+                    description=(f'Completed action item "{record.action_item.task}".'),
                     occurred_at=record.action_item.completed_at,
                     href=f"/conversations/{record.conversation_id}",
                 )
@@ -415,9 +392,7 @@ class DashboardService:
         overview: DashboardOverview,
         due_followups: int,
     ) -> list[DashboardBriefItem]:
-        conversation_noun = (
-            "conversation" if overview.conversations == 1 else "conversations"
-        )
+        conversation_noun = "conversation" if overview.conversations == 1 else "conversations"
         client_noun = "client" if overview.clients == 1 else "clients"
         followup_noun = "follow-up" if due_followups == 1 else "follow-ups"
 
@@ -427,9 +402,7 @@ class DashboardService:
             else "No processing failures need attention."
         )
         followup_text = (
-            f"{due_followups} {followup_noun} due."
-            if due_followups
-            else "No follow-ups are due."
+            f"{due_followups} {followup_noun} due." if due_followups else "No follow-ups are due."
         )
 
         return [
@@ -469,9 +442,7 @@ class DashboardService:
             else {}
         )
         open_action_records = (
-            await self._repository.list_open_action_items()
-            if self._repository is not None
-            else []
+            await self._repository.list_open_action_items() if self._repository is not None else []
         )
         activity_records = (
             await self._repository.list_recent_followup_activity()
@@ -521,9 +492,7 @@ class DashboardService:
 
         alerts = self._build_alerts(overview.failed)
         followups = self._build_followups(clients, latest_actions)
-        priorities = self._build_priorities(
-            overview.failed, clients, latest_actions
-        )
+        priorities = self._build_priorities(overview.failed, clients, latest_actions)
         client_recommendations = self._build_client_recommendations(
             clients,
             latest_actions,
@@ -556,10 +525,7 @@ class DashboardService:
 
         return DashboardResponse(
             overview=overview,
-            recent_clients=[
-                ClientListItem.model_validate(client)
-                for client in clients[:5]
-            ],
+            recent_clients=[ClientListItem.model_validate(client) for client in clients[:5]],
             recent_conversations=[
                 ConversationListItem.model_validate(conversation)
                 for conversation in conversations[:5]

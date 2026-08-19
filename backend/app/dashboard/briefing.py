@@ -1,13 +1,12 @@
 import json
 import logging
-from datetime import datetime, timezone
-from typing import Callable
+from collections.abc import Callable
+from datetime import UTC, datetime
 
 from app.providers.ai_provider import AIMessage, AIProvider
 
 from .schemas import DashboardAIBriefing, DashboardResponse
 from .service import DashboardService
-
 
 logger = logging.getLogger("conversation_os.dashboard.briefing")
 
@@ -26,39 +25,25 @@ class DashboardBriefingService:
         self._dashboard = dashboard_service
         self._ai = ai_provider
         self._model = model
-        self._clock = clock or (lambda: datetime.now(timezone.utc))
+        self._clock = clock or (lambda: datetime.now(UTC))
 
     @staticmethod
     def _fallback(dashboard: DashboardResponse) -> str:
         facts = " ".join(item.text for item in dashboard.daily_brief)
         if dashboard.priorities:
-            return (
-                f"{facts} Start with this priority: "
-                f"{dashboard.priorities[0].title}."
-            )
+            return f"{facts} Start with this priority: " f"{dashboard.priorities[0].title}."
         return f"{facts} No priority actions require attention right now."
 
     @staticmethod
     def _prompt(dashboard: DashboardResponse) -> str:
         payload = {
-            "daily_brief": [
-                item.model_dump(mode="json") for item in dashboard.daily_brief
-            ],
-            "priorities": [
-                item.model_dump(mode="json") for item in dashboard.priorities
-            ],
+            "daily_brief": [item.model_dump(mode="json") for item in dashboard.daily_brief],
+            "priorities": [item.model_dump(mode="json") for item in dashboard.priorities],
             "client_recommendations": [
-                item.model_dump(mode="json")
-                for item in dashboard.client_recommendations
+                item.model_dump(mode="json") for item in dashboard.client_recommendations
             ],
-            "next_actions": [
-                item.model_dump(mode="json")
-                for item in dashboard.next_actions
-            ],
-            "recent_activity": [
-                item.model_dump(mode="json")
-                for item in dashboard.recent_activity
-            ],
+            "next_actions": [item.model_dump(mode="json") for item in dashboard.next_actions],
+            "recent_activity": [item.model_dump(mode="json") for item in dashboard.recent_activity],
         }
         return (
             "Write a concise morning executive briefing from this JSON data. "

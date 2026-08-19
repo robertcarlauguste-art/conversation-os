@@ -32,9 +32,7 @@ router = APIRouter(
 def get_client_service(
     session: AsyncSession = Depends(get_db_session),
 ) -> ClientService:
-    return ClientService(
-        ClientRepository(session)
-    )
+    return ClientService(ClientRepository(session))
 
 
 @router.get(
@@ -49,10 +47,7 @@ async def list_clients(
 
     return ApiResponse(
         success=True,
-        data=[
-            ClientListItem.model_validate(client)
-            for client in clients
-        ],
+        data=[ClientListItem.model_validate(client) for client in clients],
     )
 
 
@@ -101,9 +96,7 @@ async def get_client_conversations(
 
     conversation_repo = ConversationRepository(session)
 
-    conversations = await conversation_repo.list_by_client_id(
-        client_id
-    )
+    conversations = await conversation_repo.list_by_client_id(client_id)
 
     return ApiResponse(
         success=True,
@@ -142,9 +135,7 @@ async def link_conversation(
 
     conversation_repo = ConversationRepository(session)
 
-    conversation = await conversation_repo.get(
-        conversation_id
-    )
+    conversation = await conversation_repo.get(conversation_id)
 
     if conversation is None:
         raise HTTPException(
@@ -169,9 +160,7 @@ async def unlink_conversation(
 
     conversation_repo = ConversationRepository(session)
 
-    conversation = await conversation_repo.get(
-        conversation_id
-    )
+    conversation = await conversation_repo.get(conversation_id)
 
     if conversation is None:
         raise HTTPException(

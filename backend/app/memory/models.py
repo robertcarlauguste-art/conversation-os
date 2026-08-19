@@ -42,7 +42,7 @@ from app.memory.enums import MemoryType
 from app.models.base import Base
 
 
-class PersonType(str, PyEnum):
+class PersonType(str, PyEnum):  # noqa: UP042
     """
     Classification of extracted people/entities.
     """
@@ -55,7 +55,7 @@ class PersonType(str, PyEnum):
     UNKNOWN = "UNKNOWN"
 
 
-class ActionStatus(str, PyEnum):
+class ActionStatus(str, PyEnum):  # noqa: UP042
     """
     Lifecycle state for extracted tasks.
     """
@@ -312,4 +312,4 @@ class Person(Base):
 
 
 # Imported at the bottom to avoid circular imports.
-from app.client.models import Client
+from app.client.models import Client  # noqa: E402

@@ -13,17 +13,14 @@ import json
 import logging
 import time
 import uuid
-from datetime import datetime, timezone
-from typing import Callable
-
+from collections.abc import Callable
+from datetime import UTC, datetime
 
 from app.memory.enums import MemoryType
-
 from app.memory.events import (
     emit_action_items_extracted,
     emit_memory_created,
 )
-
 from app.memory.models import (
     ActionItem,
     ActionStatus,
@@ -32,28 +29,19 @@ from app.memory.models import (
     Person,
     PersonType,
 )
-
 from app.memory.repository import MemoryRepository
-
 from app.memory.schemas import ExtractionResult
-
 from app.memory.validators import (
     MemoryValidationError,
     validate_extraction,
 )
-
 from app.providers.ai_provider import (
     AIMessage,
     AIProvider,
 )
-
 from app.services.base import BaseService
 
-
-
-logger = logging.getLogger(
-    "conversation_os.memory"
-)
+logger = logging.getLogger("conversation_os.memory")
 
 
 class ActionItemNotFoundError(Exception):
@@ -67,14 +55,12 @@ class ActionItemService:
         clock: Callable[[], datetime] | None = None,
     ) -> None:
         self.repository = repository
-        self._clock = clock or (lambda: datetime.now(timezone.utc))
+        self._clock = clock or (lambda: datetime.now(UTC))
 
     async def complete(self, action_item_id: uuid.UUID) -> ActionItem:
         action_item = await self.repository.get_action_item(action_item_id)
         if action_item is None:
-            raise ActionItemNotFoundError(
-                f"Action item {action_item_id} not found."
-            )
+            raise ActionItemNotFoundError(f"Action item {action_item_id} not found.")
         if action_item.status != ActionStatus.COMPLETED:
             action_item = await self.repository.set_action_item_status(
                 action_item,
@@ -86,9 +72,7 @@ class ActionItemService:
     async def reopen(self, action_item_id: uuid.UUID) -> ActionItem:
         action_item = await self.repository.get_action_item(action_item_id)
         if action_item is None:
-            raise ActionItemNotFoundError(
-                f"Action item {action_item_id} not found."
-            )
+            raise ActionItemNotFoundError(f"Action item {action_item_id} not found.")
         if action_item.status != ActionStatus.OPEN:
             action_item = await self.repository.set_action_item_status(
                 action_item,
@@ -96,7 +80,6 @@ class ActionItemService:
                 completed_at=None,
             )
         return action_item
-
 
 
 EXTRACTION_SYSTEM_PROMPT = """
@@ -204,7 +187,6 @@ Rules:
 """
 
 
-
 class ExtractionError(Exception):
     """
     Raised when the LLM response cannot be parsed
@@ -212,11 +194,7 @@ class ExtractionError(Exception):
     """
 
 
-
-class MemoryService(
-    BaseService[MemoryRepository]
-):
-
+class MemoryService(BaseService[MemoryRepository]):
 
     def __init__(
         self,
@@ -230,8 +208,6 @@ class MemoryService(
         self._ai_provider = ai_provider
         self._model = model
 
-
-
     async def extract_and_persist(
         self,
         *,
@@ -239,16 +215,12 @@ class MemoryService(
         transcript_text: str,
     ) -> Memory | None:
 
-
         start = time.perf_counter()
-
 
         logger.info(
             "extraction_started conversation_id=%s",
             conversation_id,
         )
-
-
 
         if not transcript_text or not transcript_text.strip():
 
@@ -258,8 +230,6 @@ class MemoryService(
             )
 
             return None
-
-
 
         try:
 
@@ -273,58 +243,35 @@ class MemoryService(
                 system=EXTRACTION_SYSTEM_PROMPT,
             )
 
-
-
             logger.info(
                 "claude_raw_response conversation_id=%s response=%r",
                 conversation_id,
                 completion.content,
             )
 
-
-
             content = completion.content.strip()
-
-
 
             if content.startswith("```"):
 
-                content = (
-                    content
-                    .replace("```json", "")
-                    .replace("```", "")
-                    .strip()
-                )
-
-
+                content = content.replace("```json", "").replace("```", "").strip()
 
             try:
 
                 raw = json.loads(content)
 
-
             except json.JSONDecodeError as exc:
 
                 raise ExtractionError(
-                    f"LLM response was not valid JSON: {exc}. "
-                    f"Raw response: {content[:500]}"
+                    f"LLM response was not valid JSON: {exc}. " f"Raw response: {content[:500]}"
                 ) from exc
 
+            extraction = ExtractionResult.model_validate(raw)
 
-
-            extraction = ExtractionResult.model_validate(
-                raw
-            )
-
-
-            validate_extraction(
-                extraction
-            )
-
-
+            validate_extraction(extraction)
 
             logger.info(
-                "memory_extracted conversation_id=%s decisions=%s action_items=%s people=%s topics=%s confidence=%.2f",
+                "memory_extracted conversation_id=%s decisions=%s "
+                "action_items=%s people=%s topics=%s confidence=%.2f",
                 conversation_id,
                 len(extraction.decisions),
                 len(extraction.action_items),
@@ -332,8 +279,6 @@ class MemoryService(
                 len(extraction.topics),
                 extraction.confidence,
             )
-
-
 
             for person in extraction.people:
 
@@ -344,22 +289,16 @@ class MemoryService(
                     person.entity_type,
                 )
 
-
-
             memory = await self._persist(
                 conversation_id=conversation_id,
                 extraction=extraction,
                 source=completion.model,
             )
 
-
-
             emit_memory_created(
                 conversation_id,
                 memory.id,
             )
-
-
 
             emit_action_items_extracted(
                 conversation_id,
@@ -367,13 +306,7 @@ class MemoryService(
                 len(memory.action_items),
             )
 
-
-
-            duration_ms = (
-                time.perf_counter() - start
-            ) * 1000
-
-
+            duration_ms = (time.perf_counter() - start) * 1000
 
             logger.info(
                 "extraction_completed conversation_id=%s memory_id=%s duration_ms=%.2f",
@@ -382,24 +315,14 @@ class MemoryService(
                 duration_ms,
             )
 
-
-
             return memory
-
-
-
 
         except (
             ExtractionError,
             MemoryValidationError,
         ) as exc:
 
-
-            duration_ms = (
-                time.perf_counter() - start
-            ) * 1000
-
-
+            duration_ms = (time.perf_counter() - start) * 1000
 
             logger.warning(
                 "extraction_failed conversation_id=%s duration_ms=%.2f error=%s",
@@ -408,24 +331,16 @@ class MemoryService(
                 str(exc),
             )
 
-
             raise
-
-
-
-
 
     def _safe_person_type(
         self,
         value: PersonType | str | None,
     ) -> PersonType:
 
-
         if not value:
 
             return PersonType.UNKNOWN
-
-
 
         if isinstance(
             value,
@@ -434,22 +349,13 @@ class MemoryService(
 
             return value
 
-
-
         try:
 
-            return PersonType(
-                value.upper()
-            )
-
+            return PersonType(value.upper())
 
         except ValueError:
 
             return PersonType.UNKNOWN
-
-
-
-
 
     async def _persist(
         self,
@@ -459,120 +365,57 @@ class MemoryService(
         source: str,
     ) -> Memory:
 
-
-
         memory = Memory(
-
             conversation_id=conversation_id,
-
             summary=extraction.summary,
-
             memory_type=MemoryType.CONVERSATION_SUMMARY,
-
             topics=extraction.topics,
-
             confidence=extraction.confidence,
-
             source=source,
-
-
-            decisions=[
-                Decision(
-                    description=d
-                )
-                for d in extraction.decisions
-            ],
-
-
+            decisions=[Decision(description=d) for d in extraction.decisions],
             action_items=[
-
                 ActionItem(
-
                     task=item.task,
-
                     due=item.due,
-
                     owner=item.assignee,
-
                     status=ActionStatus.OPEN,
-
                 )
-
                 for item in extraction.action_items
-
             ],
-
-
-
             people=[
-
                 Person(
-
                     name=person.name,
-
                     role=person.role,
-
-                    entity_type=self._safe_person_type(
-                        person.entity_type
-                    ),
-
+                    entity_type=self._safe_person_type(person.entity_type),
                 )
-
                 for person in extraction.people
-
             ],
-
-
         )
 
-
-
-        await self.repository.add(
-            memory
-        )
-
+        await self.repository.add(memory)
 
         await self.repository.commit()
 
-
-
         return memory
-
-
-
-
 
     async def get_by_conversation_id(
         self,
         conversation_id: uuid.UUID,
     ) -> Memory | None:
 
-
-        return await self.repository.get_by_conversation_id(
-            conversation_id
-        )
-
-
-
-
+        return await self.repository.get_by_conversation_id(conversation_id)
 
     async def list_memories(
         self,
     ) -> list[Memory]:
 
-
         return await self.repository.list_all()
-
-
-
-
 
     async def link_person_to_client(
         self,
         person_id: uuid.UUID,
         client_id: uuid.UUID,
     ) -> None:
-
 
         await self.repository.set_person_client(
             person_id,

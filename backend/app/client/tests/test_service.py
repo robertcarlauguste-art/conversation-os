@@ -7,7 +7,6 @@ from app.client.repository import ClientRepository
 from app.client.service import ClientService
 from app.memory.models import PersonType
 
-
 pytestmark = pytest.mark.usefixtures("_clean_client_tables")
 
 
@@ -35,8 +34,10 @@ async def test_find_or_create_matches_same_name_and_role(db_session: AsyncSessio
         name="Jane Smith", role="buyer", entity_type=PersonType.CLIENT, conversation_id=conv_a
     )
     second_client, second_created = await service.find_or_create(
-        name="jane smith", role="Buyer", entity_type=PersonType.CLIENT,
-        conversation_id=conv_b  # different case, must still match
+        name="jane smith",
+        role="Buyer",
+        entity_type=PersonType.CLIENT,
+        conversation_id=conv_b,  # different case, must still match
     )
 
     assert first_created is True
@@ -110,8 +111,10 @@ async def test_record_facts_persists_with_full_provenance(db_session: AsyncSessi
 
     service = ClientService(ClientRepository(db_session))
     client, _ = await service.find_or_create(
-        name="Jane Smith", role="buyer", entity_type=PersonType.CLIENT,
-        conversation_id=conversation.id
+        name="Jane Smith",
+        role="buyer",
+        entity_type=PersonType.CLIENT,
+        conversation_id=conversation.id,
     )
 
     facts = await service.record_facts(
@@ -135,8 +138,7 @@ async def test_record_facts_rejects_blank_fact_text(db_session: AsyncSession) ->
 
     service = ClientService(ClientRepository(db_session))
     client, _ = await service.find_or_create(
-        name="Jane Smith", role="buyer", entity_type=PersonType.CLIENT,
-        conversation_id=uuid.uuid4()
+        name="Jane Smith", role="buyer", entity_type=PersonType.CLIENT, conversation_id=uuid.uuid4()
     )
 
     try:

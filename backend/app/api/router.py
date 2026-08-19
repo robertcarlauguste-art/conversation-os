@@ -20,7 +20,6 @@ from app.dashboard.api import router as dashboard_router
 from app.memory.api import router as memory_router
 from app.transcription.api import router as transcription_router
 
-
 api_router = APIRouter()
 
 # System routes (/health, /version) stay unprefixed — operational

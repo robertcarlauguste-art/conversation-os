@@ -35,18 +35,12 @@ def test_rejects_oversized_summary() -> None:
 
 def test_rejects_too_many_action_items() -> None:
     with pytest.raises(MemoryValidationError, match="action_items"):
-        validate_extraction(
-            _extraction(
-                action_items=[{"task": f"item {i}"} for i in range(51)]
-            )
-        )
+        validate_extraction(_extraction(action_items=[{"task": f"item {i}"} for i in range(51)]))
 
 
 def test_rejects_blank_entry_in_list() -> None:
     with pytest.raises(MemoryValidationError, match="blank entry"):
-        validate_extraction(
-            _extraction(people=[{"name": "Jane Doe"}, {"name": "   "}])
-        )
+        validate_extraction(_extraction(people=[{"name": "Jane Doe"}, {"name": "   "}]))
 
 
 def test_confidence_out_of_range_rejected_by_schema() -> None:

@@ -11,7 +11,6 @@ from app.conversation.models import Conversation
 from app.main import app
 from app.memory.models import PersonType
 
-
 pytestmark = pytest.mark.usefixtures("_clean_client_tables")
 
 
@@ -34,8 +33,7 @@ async def _make_conversation(session: AsyncSession, **overrides) -> Conversation
 async def test_list_clients_includes_created(db_session: AsyncSession) -> None:
     service = ClientService(ClientRepository(db_session))
     client, _ = await service.find_or_create(
-        name="Jane Smith", role="buyer", entity_type=PersonType.CLIENT,
-        conversation_id=uuid.uuid4()
+        name="Jane Smith", role="buyer", entity_type=PersonType.CLIENT, conversation_id=uuid.uuid4()
     )
 
     transport = ASGITransport(app=app)
@@ -71,8 +69,10 @@ async def test_get_client_returns_facts(db_session: AsyncSession) -> None:
     await db_session.commit()
 
     client, _ = await service.find_or_create(
-        name="Jane Smith", role="buyer", entity_type=PersonType.CLIENT,
-        conversation_id=conversation.id
+        name="Jane Smith",
+        role="buyer",
+        entity_type=PersonType.CLIENT,
+        conversation_id=conversation.id,
     )
     await service.record_facts(
         client_id=client.id,
@@ -95,8 +95,7 @@ async def test_get_client_returns_facts(db_session: AsyncSession) -> None:
 async def test_link_and_unlink_conversation(db_session: AsyncSession) -> None:
     service = ClientService(ClientRepository(db_session))
     client, _ = await service.find_or_create(
-        name="Jane Smith", role="buyer", entity_type=PersonType.CLIENT,
-        conversation_id=uuid.uuid4()
+        name="Jane Smith", role="buyer", entity_type=PersonType.CLIENT, conversation_id=uuid.uuid4()
     )
     conversation = await _make_conversation(db_session)
 
@@ -125,12 +124,10 @@ async def test_link_and_unlink_conversation(db_session: AsyncSession) -> None:
 async def test_unlink_wrong_client_returns_404(db_session: AsyncSession) -> None:
     service = ClientService(ClientRepository(db_session))
     client_a, _ = await service.find_or_create(
-        name="Jane Smith", role="buyer", entity_type=PersonType.CLIENT,
-        conversation_id=uuid.uuid4()
+        name="Jane Smith", role="buyer", entity_type=PersonType.CLIENT, conversation_id=uuid.uuid4()
     )
     client_b, _ = await service.find_or_create(
-        name="John Doe", role="seller", entity_type=PersonType.CLIENT,
-        conversation_id=uuid.uuid4()
+        name="John Doe", role="seller", entity_type=PersonType.CLIENT, conversation_id=uuid.uuid4()
     )
     conversation = await _make_conversation(db_session, client_id=client_a.id)
 

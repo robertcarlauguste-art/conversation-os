@@ -119,4 +119,4 @@ class Conversation(Base):
 
 
 # Imported at the bottom to avoid circular imports.
-from app.client.models import Client
+from app.client.models import Client  # noqa: E402
