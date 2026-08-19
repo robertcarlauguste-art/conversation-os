@@ -38,6 +38,24 @@ Both are read-only — memories and transcripts are created by
 | `POST` | `/api/v1/clients/{client_id}/conversations/{conversation_id}` | Manually link — the one non-orchestrator write in this API surface, for correcting a wrong or missing automatic match |
 | `DELETE` | `/api/v1/clients/{client_id}/conversations/{conversation_id}` | Manually unlink |
 
+## Sprint 4 endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/v1/dashboard` | Return overview counts, recent clients and conversations, alerts, follow-ups, ranked recommendations, open tasks, and recent activity |
+| `POST` | `/api/v1/dashboard/briefing` | Generate the morning briefing on demand; deterministic dashboard data remains available if the AI provider fails |
+| `POST` | `/api/v1/dashboard/recommendations/{client_id}/actions` | Persist `record_contact`, `snooze`, or `complete` for a recommendation |
+| `POST` | `/api/v1/memories/action-items/{action_item_id}/complete` | Mark an extracted action item complete and record `completed_at` |
+| `POST` | `/api/v1/memories/action-items/{action_item_id}/reopen` | Return a completed action item to the open queue |
+
+Follow-up ranking is deterministic and explainable. A client becomes due after
+seven days without a conversation. Clients with no conversation start at
+urgency 50; stale clients add elapsed days and five points per open action;
+recent clients with open actions start at 70. Scores are capped, ties are
+stable, and the dashboard returns at most five recommendations. Processing
+failures remain the first executive priority because they can conceal client
+context and next actions.
+
 All business endpoints (i.e. everything under `/api/v1`) return
 `{ "success": bool, "data": ... }` on success. Errors return FastAPI's
 standard `{ "detail": "..." }` shape with an appropriate status code —

@@ -7,16 +7,15 @@ customer: Realtors. The architecture is designed to generalize to
 insurance, legal, recruiting, and financial advisors without a
 rewrite.
 
-**This is Sprint 3: Relationship Memory.** ConversationOS now recognizes
-returning clients across conversations (when a corroborating attribute is
-present — see the important caveat in `Sprint3.md`) and builds a durable
-profile of remembered facts per client, viewable at `/clients`. See
-[`Sprint3.md`](./Sprint3.md) for the full writeup, including a significant
-finding about automatic matching's current real-world effectiveness.
+**Sprint 4: Executive Command Center is complete.** The dashboard now combines
+conversation health, client follow-ups, explainable contact recommendations,
+open commitments, recent activity, and an on-demand AI morning briefing in one
+operational view. Follow-up actions and task completion are durable and
+auditable. See [`Sprint4.md`](./Sprint4.md) for the implementation and rules.
 
 ## Stack
 
-- **Frontend:** Next.js 15, React, TypeScript, TailwindCSS, TanStack Query
+- **Frontend:** Next.js 16, React, TypeScript, TailwindCSS, TanStack Query
 - **Backend:** Python 3.13, FastAPI, uv, Pydantic v2, SQLAlchemy 2, Alembic
 - **AI:** Anthropic Claude (extraction), OpenAI Whisper (transcription)
 - **Infra:** PostgreSQL 16 + pgvector, Redis, Docker Compose, GitHub Actions
@@ -121,12 +120,11 @@ cd backend
 alembic upgrade head
 ```
 
-Four migrations so far: `0001` enables `pgvector`; `0002` creates
-`conversations`; `0003` creates `transcripts`, `memories`,
-`decisions`, `action_items`, and `people`; `0004` creates `clients`
-and `client_facts`, and adds `client_id` to `conversations`/`people`
-(this sprint). **`0004` is the first migration with a verified
-`downgrade` path** — both directions tested.
+The migration chain now runs through Sprint 4: `0001` enables `pgvector`;
+`0002` creates conversations; `0003` creates extracted-memory tables; `0004`
+adds clients and client facts; `31c729384386` expands structured memory
+entities; `0005` adds durable follow-up history; and `0006` adds action-item
+completion timestamps. Run `alembic upgrade head` before starting the backend.
 
 ## Database schema
 
@@ -201,6 +199,11 @@ delete, **not nullable**), `confidence` (nullable), `created_at`
 | `GET` | `/api/v1/clients/{id}/conversations` | Conversations linked to a client |
 | `POST` | `/api/v1/clients/{client_id}/conversations/{conversation_id}` | Manually link (correcting a match) |
 | `DELETE` | `/api/v1/clients/{client_id}/conversations/{conversation_id}` | Manually unlink |
+| `GET` | `/api/v1/dashboard` | Unified command-center payload |
+| `POST` | `/api/v1/dashboard/briefing` | Generate an on-demand AI morning briefing |
+| `POST` | `/api/v1/dashboard/recommendations/{client_id}/actions` | Record, snooze, or complete a follow-up recommendation |
+| `POST` | `/api/v1/memories/action-items/{action_item_id}/complete` | Complete an extracted action item |
+| `POST` | `/api/v1/memories/action-items/{action_item_id}/reopen` | Reopen a completed action item |
 | `GET` | `/health` / `/version` | Operational endpoints |
 
 Full interactive docs at `/docs`. Every business response uses
@@ -297,7 +300,7 @@ See `Sprint3.md` for the full reconciliation pipeline.
 
 ## Next sprint
 
-Sprint 4 is open — highest-priority candidate is TD-006 (extend
-extraction to capture a matchable attribute per person, without which
-Relationship Memory's automatic matching stays inert against real
-conversations). See `Sprint3.md`'s Recommendations for the rest.
+Sprint 5 should focus on production readiness: authentication and tenant
+isolation, background processing with retries, queue pagination, and stronger
+client identity resolution. Sprint 4's command center is complete and provides
+the product surface those capabilities will support.

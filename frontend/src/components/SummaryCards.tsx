@@ -15,6 +15,7 @@ import type {
   DashboardPriority,
 } from "@/lib/types";
 import { formatDate } from "@/lib/format";
+import { useToast } from "./Toast";
 
 const CARDS: { key: keyof DashboardOverview; label: string }[] = [
   { key: "clients", label: "Clients" },
@@ -53,6 +54,7 @@ function DashboardSkeleton() {
 
 export function SummaryCards() {
   const queryClient = useQueryClient();
+  const { notify } = useToast();
   const dashboardQuery = useQuery({
     queryKey: ["dashboard"],
     queryFn: getDashboard,
@@ -72,20 +74,25 @@ export function SummaryCards() {
     }) => recordFollowupAction(clientId, action, snoozeDays),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      notify("Follow-up updated.", "success");
     },
   });
   const actionItemMutation = useMutation({
     mutationFn: async (actionItemIds: string[]) => {
-      await Promise.all(actionItemIds.map(completeActionItem));
+      await Promise.all(
+        actionItemIds.map((actionItemId) => completeActionItem(actionItemId)),
+      );
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      notify("Action item completed.", "success");
     },
   });
   const reopenActionMutation = useMutation({
     mutationFn: reopenActionItem,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      notify("Action item reopened.", "success");
     },
   });
 
