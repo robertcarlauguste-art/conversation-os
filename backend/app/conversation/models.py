@@ -17,6 +17,7 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
+    Text,
     func,
 )
 from sqlalchemy.dialects.postgresql import UUID
@@ -40,6 +41,10 @@ class Conversation(Base):
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
+    )
+
+    owner_id: Mapped[str] = mapped_column(
+        String(255), nullable=False, index=True, default="dev_user"
     )
 
     title: Mapped[str | None] = mapped_column(
@@ -110,6 +115,15 @@ class Conversation(Base):
         server_default=func.now(),
         onupdate=func.now(),
         nullable=False,
+    )
+
+    processing_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    processing_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    processing_started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    processing_completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
     )
 
     client: Mapped["Client | None"] = relationship(

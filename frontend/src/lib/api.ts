@@ -14,6 +14,7 @@ import type {
   MemoryDetail,
   TranscriptDetail,
 } from "./types";
+import { authenticatedFetch, getAccessToken } from "./auth-token";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -33,31 +34,30 @@ async function unwrap<T>(response: Response): Promise<T> {
   return (body as ApiResponse<T>).data;
 }
 
-// ===== DEBUG VERSION =====
-export async function listConversations(): Promise<ConversationListItem[]> {
-  console.log("Fetching:", `${API_BASE_URL}/api/v1/conversations`);
+export interface ConversationListOptions {
+  limit?: number;
+  offset?: number;
+  search?: string;
+  status?: string;
+}
 
-  const response = await fetch(`${API_BASE_URL}/api/v1/conversations`, {
+export async function listConversations(
+  options: ConversationListOptions = {},
+): Promise<ConversationListItem[]> {
+  const params = new URLSearchParams();
+  if (options.limit) params.set("limit", String(options.limit));
+  if (options.offset) params.set("offset", String(options.offset));
+  if (options.search) params.set("search", options.search);
+  if (options.status) params.set("status", options.status);
+  const query = params.size ? `?${params}` : "";
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/conversations${query}`, {
     cache: "no-store",
   });
-
-  console.log("HTTP Status:", response.status);
-
-  const body = await response.json();
-
-  console.log("Response Body:", body);
-
-  if (!response.ok) {
-    console.error("Backend returned an error:", body);
-    throw new Error(JSON.stringify(body));
-  }
-
-  return body.data;
+  return unwrap<ConversationListItem[]>(response);
 }
-// =========================
 
 export async function getConversation(id: string): Promise<ConversationDetail> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/conversations/${id}`, {
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/conversations/${id}`, {
     cache: "no-store",
   });
   return unwrap<ConversationDetail>(response);
@@ -67,7 +67,7 @@ export async function getConversation(id: string): Promise<ConversationDetail> {
 export async function getMemoryByConversation(
   conversationId: string,
 ): Promise<MemoryDetail | null> {
-  const response = await fetch(
+  const response = await authenticatedFetch(
     `${API_BASE_URL}/api/v1/memories/by-conversation/${conversationId}`,
     { cache: "no-store" },
   );
@@ -79,7 +79,7 @@ export async function getMemoryByConversation(
 export async function getTranscriptByConversation(
   conversationId: string,
 ): Promise<TranscriptDetail | null> {
-  const response = await fetch(
+  const response = await authenticatedFetch(
     `${API_BASE_URL}/api/v1/transcriptions/by-conversation/${conversationId}`,
     { cache: "no-store" },
   );
@@ -88,7 +88,7 @@ export async function getTranscriptByConversation(
 }
 
 export async function deleteConversation(id: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/conversations/${id}`, {
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/conversations/${id}`, {
     method: "DELETE",
   });
   if (!response.ok) {
@@ -101,13 +101,15 @@ export async function deleteConversation(id: string): Promise<void> {
  * Uses XMLHttpRequest (not fetch) specifically because fetch has no
  * upload-progress event — and the spec requires a visible progress bar.
  */
-export function uploadConversation(
+export async function uploadConversation(
   file: File,
   onProgress: (percent: number) => void,
 ): Promise<{ id: string; status: string }> {
+  const token = await getAccessToken();
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", `${API_BASE_URL}/api/v1/conversations`);
+    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
 
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) {
@@ -138,18 +140,35 @@ export function uploadConversation(
   });
 }
 
-export async function listClients(): Promise<ClientListItem[]> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/clients`, { cache: "no-store" });
+export interface ClientListOptions {
+  limit?: number;
+  offset?: number;
+  search?: string;
+  role?: string;
+}
+
+export async function listClients(options: ClientListOptions = {}): Promise<ClientListItem[]> {
+  const params = new URLSearchParams();
+  if (options.limit) params.set("limit", String(options.limit));
+  if (options.offset) params.set("offset", String(options.offset));
+  if (options.search) params.set("search", options.search);
+  if (options.role) params.set("role", options.role);
+  const query = params.size ? `?${params}` : "";
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/clients${query}`, {
+    cache: "no-store",
+  });
   return unwrap<ClientListItem[]>(response);
 }
 
 export async function getClient(id: string): Promise<ClientDetail> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/clients/${id}`, { cache: "no-store" });
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/clients/${id}`, {
+    cache: "no-store",
+  });
   return unwrap<ClientDetail>(response);
 }
 
 export async function getClientConversations(id: string): Promise<ClientConversationItem[]> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/clients/${id}/conversations`, {
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/clients/${id}/conversations`, {
     cache: "no-store",
   });
   return unwrap<ClientConversationItem[]>(response);
@@ -159,7 +178,7 @@ export async function linkConversationToClient(
   clientId: string,
   conversationId: string,
 ): Promise<void> {
-  const response = await fetch(
+  const response = await authenticatedFetch(
     `${API_BASE_URL}/api/v1/clients/${clientId}/conversations/${conversationId}`,
     { method: "POST" },
   );
@@ -173,7 +192,7 @@ export async function unlinkConversationFromClient(
   clientId: string,
   conversationId: string,
 ): Promise<void> {
-  const response = await fetch(
+  const response = await authenticatedFetch(
     `${API_BASE_URL}/api/v1/clients/${clientId}/conversations/${conversationId}`,
     { method: "DELETE" },
   );
@@ -184,14 +203,14 @@ export async function unlinkConversationFromClient(
 }
 
 export async function getDashboard(): Promise<DashboardData> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/dashboard`, {
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/dashboard`, {
     cache: "no-store",
   });
   return unwrap<DashboardData>(response);
 }
 
 export async function generateDashboardBriefing(): Promise<DashboardAIBriefing> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/dashboard/briefing`, {
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/dashboard/briefing`, {
     method: "POST",
   });
   return unwrap<DashboardAIBriefing>(response);
@@ -202,7 +221,7 @@ export async function recordFollowupAction(
   action: FollowupAction,
   snoozeDays?: number,
 ): Promise<FollowupActionResult> {
-  const response = await fetch(
+  const response = await authenticatedFetch(
     `${API_BASE_URL}/api/v1/dashboard/recommendations/${clientId}/actions`,
     {
       method: "POST",
@@ -217,7 +236,7 @@ export async function recordFollowupAction(
 }
 
 export async function completeActionItem(actionItemId: string): Promise<ActionItemOut> {
-  const response = await fetch(
+  const response = await authenticatedFetch(
     `${API_BASE_URL}/api/v1/memories/action-items/${actionItemId}/complete`,
     { method: "POST" },
   );
@@ -225,7 +244,7 @@ export async function completeActionItem(actionItemId: string): Promise<ActionIt
 }
 
 export async function reopenActionItem(actionItemId: string): Promise<ActionItemOut> {
-  const response = await fetch(
+  const response = await authenticatedFetch(
     `${API_BASE_URL}/api/v1/memories/action-items/${actionItemId}/reopen`,
     { method: "POST" },
   );

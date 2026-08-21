@@ -6,9 +6,10 @@ Read-only endpoints for CRM clients plus manual conversation linking.
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.dependencies import CurrentPrincipal
 from app.client.repository import ClientRepository
 from app.client.schemas import (
     ClientConversationItem,
@@ -30,9 +31,10 @@ router = APIRouter(
 
 
 def get_client_service(
+    principal: CurrentPrincipal,
     session: AsyncSession = Depends(get_db_session),
 ) -> ClientService:
-    return ClientService(ClientRepository(session))
+    return ClientService(ClientRepository(session, principal.user_id))
 
 
 @router.get(
@@ -41,9 +43,18 @@ def get_client_service(
 )
 async def list_clients(
     service: ClientService = Depends(get_client_service),
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    search: str | None = Query(default=None, min_length=1, max_length=100),
+    role: str | None = Query(default=None, min_length=1, max_length=64),
 ) -> ApiResponse[list[ClientListItem]]:
 
-    clients = await service.list_client_profiles()
+    clients = await service.list_client_profiles(
+        limit=limit,
+        offset=offset,
+        search=search,
+        role=role,
+    )
 
     return ApiResponse(
         success=True,
@@ -81,6 +92,7 @@ async def get_client(
 )
 async def get_client_conversations(
     client_id: uuid.UUID,
+    principal: CurrentPrincipal,
     service: ClientService = Depends(get_client_service),
     session: AsyncSession = Depends(get_db_session),
 ) -> ApiResponse[list[ClientConversationItem]]:
@@ -94,7 +106,7 @@ async def get_client_conversations(
             detail=str(exc),
         ) from exc
 
-    conversation_repo = ConversationRepository(session)
+    conversation_repo = ConversationRepository(session, principal.user_id)
 
     conversations = await conversation_repo.list_by_client_id(client_id)
 
@@ -120,6 +132,7 @@ async def get_client_conversations(
 async def link_conversation(
     client_id: uuid.UUID,
     conversation_id: uuid.UUID,
+    principal: CurrentPrincipal,
     service: ClientService = Depends(get_client_service),
     session: AsyncSession = Depends(get_db_session),
 ) -> None:
@@ -133,7 +146,7 @@ async def link_conversation(
             detail=str(exc),
         ) from exc
 
-    conversation_repo = ConversationRepository(session)
+    conversation_repo = ConversationRepository(session, principal.user_id)
 
     conversation = await conversation_repo.get(conversation_id)
 
@@ -155,10 +168,11 @@ async def link_conversation(
 async def unlink_conversation(
     client_id: uuid.UUID,
     conversation_id: uuid.UUID,
+    principal: CurrentPrincipal,
     session: AsyncSession = Depends(get_db_session),
 ) -> None:
 
-    conversation_repo = ConversationRepository(session)
+    conversation_repo = ConversationRepository(session, principal.user_id)
 
     conversation = await conversation_repo.get(conversation_id)
 

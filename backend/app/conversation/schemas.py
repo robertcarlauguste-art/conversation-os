@@ -32,6 +32,8 @@ class ConversationListItem(BaseModel):
     status: ConversationStatus
     file_size: int
     created_at: datetime
+    processing_attempts: int = 0
+    processing_error: str | None = None
 
 
 class ConversationDetail(BaseModel):
@@ -50,3 +52,7 @@ class ConversationDetail(BaseModel):
     client_id: uuid.UUID | None
     created_at: datetime
     updated_at: datetime
+    processing_attempts: int = 0
+    processing_error: str | None = None
+    processing_started_at: datetime | None = None
+    processing_completed_at: datetime | None = None

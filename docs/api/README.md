@@ -56,6 +56,24 @@ stable, and the dashboard returns at most five recommendations. Processing
 failures remain the first executive priority because they can conceal client
 context and next actions.
 
+## Sprint 5 endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/ready` | PostgreSQL and, in queue mode, Redis and worker readiness |
+| `GET` | `/api/v1/auth/me` | Return the authenticated, vendor-neutral principal |
+| `GET` | `/api/v1/operations` | Return owner processing metrics, queue health, and ranked alerts |
+
+Every `/api/v1` route requires a valid Clerk bearer token when
+`AUTH_ENABLED=true`. Development may use the configured local identity when
+authentication is disabled. Database results remain scoped to the authenticated
+owner. Collection routes support bounded pagination, search, and relevant
+status or role filters.
+
+In queue mode, a successful upload normally returns a `QUEUED` conversation.
+The worker records processing attempts, start and completion timestamps, and
+the final error after retry exhaustion.
+
 All business endpoints (i.e. everything under `/api/v1`) return
 `{ "success": bool, "data": ... }` on success. Errors return FastAPI's
 standard `{ "detail": "..." }` shape with an appropriate status code —
