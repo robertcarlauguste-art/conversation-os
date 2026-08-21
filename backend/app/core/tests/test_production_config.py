@@ -21,6 +21,12 @@ def test_production_configuration_accepts_secure_runtime() -> None:
     assert settings.processing_mode == "queue"
 
 
+def test_railway_postgres_url_uses_async_psycopg_driver() -> None:
+    settings = Settings(database_url="postgresql://user:password@postgres:5432/app")
+
+    assert settings.database_url == "postgresql+psycopg://user:password@postgres:5432/app"
+
+
 @pytest.mark.parametrize(
     "override",
     [

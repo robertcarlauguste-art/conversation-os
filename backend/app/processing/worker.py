@@ -4,7 +4,7 @@ from typing import Any
 from arq.connections import RedisSettings
 from arq.worker import Retry
 
-from app.conversation.storage import LocalStorageBackend
+from app.conversation.storage_factory import build_storage_backend
 from app.core.config import get_settings
 from app.core.database import AsyncSessionLocal
 from app.orchestrator.dependencies import build_conversation_processing_orchestrator
@@ -16,7 +16,7 @@ async def process_conversation(
     owner_id: str,
 ) -> None:
     settings = get_settings()
-    storage = LocalStorageBackend(root=settings.storage_root)
+    storage = build_storage_backend(settings)
     try:
         async with AsyncSessionLocal() as session:
             orchestrator = build_conversation_processing_orchestrator(
