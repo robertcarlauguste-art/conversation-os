@@ -38,10 +38,12 @@ one implementation, `LocalStorageBackend`, which writes to
 is kept only in the database, not the stored path, to avoid
 collisions and path-traversal concerns).
 
-Swapping to Supabase Storage or S3 in a later sprint means adding one
-new `StorageBackend` subclass and changing what
-`app/conversation/api.py`'s `get_storage_backend` dependency
-constructs — no change to `service.py`.
+The API and background worker both use the shared storage factory.
+New local uploads receive portable `local://conversations/...`
+locations, while records created before Sprint 6 retain support for
+their legacy absolute paths. Adding S3 means implementing one new
+`StorageBackend` and selecting it in the factory, with no changes to
+the conversation, transcription, or orchestration services.
 
 ## API endpoints
 

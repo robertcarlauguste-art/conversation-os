@@ -29,7 +29,8 @@ from app.conversation.schemas import (
     ConversationListItem,
 )
 from app.conversation.service import ConversationNotFoundError, ConversationService
-from app.conversation.storage import LocalStorageBackend, StorageBackend
+from app.conversation.storage import StorageBackend
+from app.conversation.storage_factory import build_storage_backend
 from app.conversation.validators import ValidationError
 from app.core.config import Settings, get_settings
 from app.core.database import get_db_session
@@ -43,7 +44,7 @@ router = APIRouter(prefix="/conversations", tags=["conversations"])
 
 
 def get_storage_backend(settings: Settings = Depends(get_settings)) -> StorageBackend:
-    return LocalStorageBackend(root=settings.storage_root)
+    return build_storage_backend(settings)
 
 
 def get_conversation_service(

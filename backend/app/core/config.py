@@ -10,7 +10,7 @@ own connection to the street.
 
 from functools import lru_cache
 
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -57,7 +57,13 @@ class Settings(BaseSettings):
     )
 
     # Storage (Sprint 1 — conversation intake)
+    storage_backend: str = Field(default="local", pattern="^(local|s3)$")
     storage_root: str = Field(default="/app/storage/uploads")
+    s3_endpoint_url: str | None = Field(default=None)
+    s3_region: str | None = Field(default=None)
+    s3_bucket: str | None = Field(default=None)
+    s3_access_key_id: str | None = Field(default=None)
+    s3_secret_access_key: str | None = Field(default=None)
     max_upload_size_bytes: int = Field(default=100 * 1024 * 1024)  # 100 MB
     allowed_audio_mime_types: tuple[str, ...] = Field(
         default=(
@@ -76,8 +82,26 @@ class Settings(BaseSettings):
     openai_whisper_model: str = Field(default="whisper-1")
     ai_request_timeout_seconds: float = Field(default=60.0)
 
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def normalize_database_driver(cls, value: object) -> object:
+        if isinstance(value, str) and value.startswith("postgresql://"):
+            return value.replace("postgresql://", "postgresql+psycopg://", 1)
+        return value
+
     @model_validator(mode="after")
     def validate_auth_configuration(self) -> "Settings":
+        if self.storage_backend == "s3":
+            required_storage_settings = {
+                "S3_ENDPOINT_URL": self.s3_endpoint_url,
+                "S3_REGION": self.s3_region,
+                "S3_BUCKET": self.s3_bucket,
+                "S3_ACCESS_KEY_ID": self.s3_access_key_id,
+                "S3_SECRET_ACCESS_KEY": self.s3_secret_access_key,
+            }
+            missing = [name for name, value in required_storage_settings.items() if not value]
+            if missing:
+                raise ValueError("STORAGE_BACKEND=s3 requires " + ", ".join(sorted(missing)))
         if self.auth_enabled and not (self.clerk_secret_key or self.clerk_jwt_key):
             raise ValueError("AUTH_ENABLED requires CLERK_SECRET_KEY or CLERK_JWT_KEY")
         if self.app_env == "production":
