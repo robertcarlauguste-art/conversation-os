@@ -44,14 +44,18 @@ class DashboardRepository:
     introduce dashboard-specific queries.
     """
 
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, owner_id: str = "dev_user") -> None:
         self.session = session
+        self.owner_id = owner_id
 
     async def list_latest_followup_actions(
         self,
     ) -> dict[uuid.UUID, ClientFollowupAction]:
         result = await self.session.execute(
-            select(ClientFollowupAction).order_by(
+            select(ClientFollowupAction)
+            .join(Client, ClientFollowupAction.client_id == Client.id)
+            .where(Client.owner_id == self.owner_id)
+            .order_by(
                 ClientFollowupAction.client_id,
                 ClientFollowupAction.created_at.desc(),
                 ClientFollowupAction.id.desc(),
@@ -78,6 +82,7 @@ class DashboardRepository:
             .join(Conversation, Memory.conversation_id == Conversation.id)
             .outerjoin(Client, Conversation.client_id == Client.id)
             .where(ActionItem.status == ActionStatus.OPEN)
+            .where(Conversation.owner_id == self.owner_id)
             .order_by(ActionItem.created_at.desc(), ActionItem.id.desc())
             .limit(limit)
         )
@@ -99,6 +104,7 @@ class DashboardRepository:
         result = await self.session.execute(
             select(ClientFollowupAction, Client)
             .join(Client, ClientFollowupAction.client_id == Client.id)
+            .where(Client.owner_id == self.owner_id)
             .order_by(
                 ClientFollowupAction.created_at.desc(),
                 ClientFollowupAction.id.desc(),
@@ -125,6 +131,7 @@ class DashboardRepository:
             .where(
                 ActionItem.status == ActionStatus.COMPLETED,
                 ActionItem.completed_at.is_not(None),
+                Conversation.owner_id == self.owner_id,
             )
             .order_by(ActionItem.completed_at.desc(), ActionItem.id.desc())
             .limit(limit)

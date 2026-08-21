@@ -17,9 +17,10 @@ tracked tradeoff rather than a background job.
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.dependencies import CurrentPrincipal
 from app.conversation.enums import ConversationStatus
 from app.conversation.repository import ConversationRepository
 from app.conversation.schemas import (
@@ -33,6 +34,7 @@ from app.conversation.validators import ValidationError
 from app.core.config import Settings, get_settings
 from app.core.database import get_db_session
 from app.orchestrator.dependencies import build_conversation_processing_orchestrator
+from app.processing.queue import enqueue_conversation_processing
 from app.schemas.envelope import ApiResponse
 
 logger = logging.getLogger("conversation_os.conversation")
@@ -45,11 +47,12 @@ def get_storage_backend(settings: Settings = Depends(get_settings)) -> StorageBa
 
 
 def get_conversation_service(
+    principal: CurrentPrincipal,
     session: AsyncSession = Depends(get_db_session),
     storage: StorageBackend = Depends(get_storage_backend),
     settings: Settings = Depends(get_settings),
 ) -> ConversationService:
-    repository = ConversationRepository(session)
+    repository = ConversationRepository(session, principal.user_id)
     return ConversationService(
         repository,
         storage,
@@ -61,6 +64,7 @@ def get_conversation_service(
 @router.post("", response_model=ApiResponse[ConversationCreateData])
 async def upload_conversation(
     file: UploadFile,
+    principal: CurrentPrincipal,
     title: str | None = None,
     service: ConversationService = Depends(get_conversation_service),
     session: AsyncSession = Depends(get_db_session),
@@ -82,8 +86,14 @@ async def upload_conversation(
     # persisted) — a processing failure below must not turn into an
     # HTTP error for the upload itself, only into status=FAILED.
     try:
-        orchestrator = build_conversation_processing_orchestrator(session, storage, settings)
-        await orchestrator.run(conversation.id)
+        if settings.processing_mode == "queue":
+            await enqueue_conversation_processing(conversation.id, principal.user_id, settings)
+            conversation = await service.update_status(conversation.id, ConversationStatus.QUEUED)
+        else:
+            orchestrator = build_conversation_processing_orchestrator(
+                session, storage, settings, principal.user_id
+            )
+            await orchestrator.run(conversation.id)
     except Exception:
         logger.warning(
             "conversation_processing_failed_during_upload conversation_id=%s",
@@ -102,8 +112,17 @@ async def upload_conversation(
 @router.get("", response_model=ApiResponse[list[ConversationListItem]])
 async def list_conversations(
     service: ConversationService = Depends(get_conversation_service),
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    search: str | None = Query(default=None, min_length=1, max_length=100),
+    status: ConversationStatus | None = Query(default=None),
 ) -> ApiResponse[list[ConversationListItem]]:
-    conversations = await service.list_conversations()
+    conversations = await service.list_conversations(
+        limit=limit,
+        offset=offset,
+        search=search,
+        status=status.value if status else None,
+    )
     return ApiResponse(
         success=True,
         data=[ConversationListItem.model_validate(c) for c in conversations],

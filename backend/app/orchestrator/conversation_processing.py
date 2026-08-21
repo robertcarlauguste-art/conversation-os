@@ -65,10 +65,7 @@ class ConversationProcessingOrchestrator(BaseOrchestrator):
 
         conversation = await self._conversations.get_conversation(conversation_id)
 
-        await self._conversations.update_status(
-            conversation_id,
-            ConversationStatus.PROCESSING,
-        )
+        await self._conversations.start_processing_attempt(conversation_id)
 
         emit_conversation_processing_started(conversation_id)
 
@@ -105,20 +102,21 @@ class ConversationProcessingOrchestrator(BaseOrchestrator):
                     conversation_id,
                 )
 
-            await self._conversations.update_status(
+            await self._conversations.finish_processing(
                 conversation_id,
-                ConversationStatus.COMPLETED,
+                status=ConversationStatus.COMPLETED,
             )
 
             emit_conversation_processed(conversation_id)
 
             return memory
 
-        except Exception:
+        except Exception as exc:
 
-            await self._conversations.update_status(
+            await self._conversations.finish_processing(
                 conversation_id,
-                ConversationStatus.FAILED,
+                status=ConversationStatus.FAILED,
+                error=str(exc)[:2000],
             )
 
             logger.exception(

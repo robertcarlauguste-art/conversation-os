@@ -13,6 +13,8 @@ export interface ConversationListItem {
   status: ConversationStatus;
   file_size: number;
   created_at: string;
+  processing_attempts: number;
+  processing_error: string | null;
 }
 
 export interface ConversationDetail {
@@ -27,6 +29,10 @@ export interface ConversationDetail {
   client_id: string | null;
   created_at: string;
   updated_at: string;
+  processing_attempts: number;
+  processing_error: string | null;
+  processing_started_at: string | null;
+  processing_completed_at: string | null;
 }
 
 export interface ApiResponse<T> {

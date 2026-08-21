@@ -2,8 +2,15 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
+import { AuthTokenBridge } from "@/components/AuthTokenBridge";
 
-export function Providers({ children }: { children: React.ReactNode }) {
+export function Providers({
+  children,
+  authEnabled = false,
+}: {
+  children: React.ReactNode;
+  authEnabled?: boolean;
+}) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -16,5 +23,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
       }),
   );
 
-  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  return (
+    <QueryClientProvider client={queryClient}>
+      {authEnabled ? <AuthTokenBridge /> : null}
+      {children}
+    </QueryClientProvider>
+  );
 }

@@ -8,6 +8,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.dependencies import CurrentPrincipal
 from app.core.database import get_db_session
 from app.memory.repository import MemoryRepository
 from app.memory.schemas import ActionItemOut, MemoryDetail, MemoryListItem
@@ -23,9 +24,10 @@ router = APIRouter(prefix="/memories", tags=["memories"])
 )
 async def complete_action_item(
     action_item_id: uuid.UUID,
+    principal: CurrentPrincipal,
     session: AsyncSession = Depends(get_db_session),
 ) -> ApiResponse[ActionItemOut]:
-    service = ActionItemService(MemoryRepository(session))
+    service = ActionItemService(MemoryRepository(session, principal.user_id))
     try:
         action_item = await service.complete(action_item_id)
     except ActionItemNotFoundError as exc:
@@ -42,9 +44,10 @@ async def complete_action_item(
 )
 async def reopen_action_item(
     action_item_id: uuid.UUID,
+    principal: CurrentPrincipal,
     session: AsyncSession = Depends(get_db_session),
 ) -> ApiResponse[ActionItemOut]:
-    service = ActionItemService(MemoryRepository(session))
+    service = ActionItemService(MemoryRepository(session, principal.user_id))
     try:
         action_item = await service.reopen(action_item_id)
     except ActionItemNotFoundError as exc:
@@ -57,9 +60,10 @@ async def reopen_action_item(
 
 @router.get("", response_model=ApiResponse[list[MemoryListItem]])
 async def list_memories(
+    principal: CurrentPrincipal,
     session: AsyncSession = Depends(get_db_session),
 ) -> ApiResponse[list[MemoryListItem]]:
-    repository = MemoryRepository(session)
+    repository = MemoryRepository(session, principal.user_id)
     memories = await repository.list_all()
     return ApiResponse(success=True, data=[MemoryListItem.model_validate(m) for m in memories])
 
@@ -67,9 +71,10 @@ async def list_memories(
 @router.get("/by-conversation/{conversation_id}", response_model=ApiResponse[MemoryDetail])
 async def get_memory_by_conversation(
     conversation_id: uuid.UUID,
+    principal: CurrentPrincipal,
     session: AsyncSession = Depends(get_db_session),
 ) -> ApiResponse[MemoryDetail]:
-    repository = MemoryRepository(session)
+    repository = MemoryRepository(session, principal.user_id)
     memory = await repository.get_by_conversation_id(conversation_id)
     if memory is None:
         raise HTTPException(
@@ -81,9 +86,10 @@ async def get_memory_by_conversation(
 @router.get("/{memory_id}", response_model=ApiResponse[MemoryDetail])
 async def get_memory(
     memory_id: uuid.UUID,
+    principal: CurrentPrincipal,
     session: AsyncSession = Depends(get_db_session),
 ) -> ApiResponse[MemoryDetail]:
-    repository = MemoryRepository(session)
+    repository = MemoryRepository(session, principal.user_id)
     memory = await repository.get(memory_id)
     if memory is None:
         raise HTTPException(status_code=404, detail=f"Memory {memory_id} not found.")

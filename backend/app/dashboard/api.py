@@ -3,6 +3,7 @@ import uuid
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.dependencies import CurrentPrincipal
 from app.client.api import get_client_service
 from app.client.service import ClientService
 from app.conversation.api import get_conversation_service
@@ -30,6 +31,7 @@ router = APIRouter(
 
 
 def get_dashboard_service(
+    principal: CurrentPrincipal,
     conversation_service: ConversationService = Depends(get_conversation_service),
     client_service: ClientService = Depends(get_client_service),
     session: AsyncSession = Depends(get_db_session),
@@ -44,7 +46,7 @@ def get_dashboard_service(
     return DashboardService(
         conversation_service=conversation_service,
         client_service=client_service,
-        repository=DashboardRepository(session),
+        repository=DashboardRepository(session, principal.user_id),
     )
 
 

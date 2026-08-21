@@ -22,7 +22,9 @@ export default function ConversationDetailPage({
     // Sprint 2: status can change from PROCESSING to COMPLETED/FAILED
     // shortly after upload — keep it current while that's in flight.
     refetchInterval: (query) =>
-      query.state.data?.status === "PROCESSING" || query.state.data?.status === "UPLOADED"
+      query.state.data?.status === "PROCESSING" ||
+      query.state.data?.status === "UPLOADED" ||
+      query.state.data?.status === "QUEUED"
         ? 3000
         : false,
   });
@@ -61,13 +63,18 @@ export default function ConversationDetailPage({
         <Field label="File Size" value={formatFileSize(data.file_size)} />
         <Field label="Duration" value={formatDuration(data.duration_seconds)} />
         <Field label="Source" value={data.source} />
+        <Field label="Processing Attempts" value={String(data.processing_attempts)} />
         <Field
           label="Client"
           value={<ClientField conversationId={data.id} clientId={data.client_id} />}
         />
       </dl>
 
-      <MemoryPanel conversationId={data.id} status={data.status} />
+      <MemoryPanel
+        conversationId={data.id}
+        status={data.status}
+        processingError={data.processing_error}
+      />
     </div>
   );
 }

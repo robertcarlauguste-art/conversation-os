@@ -10,7 +10,7 @@ own connection to the street.
 
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -31,6 +31,13 @@ class Settings(BaseSettings):
         default="postgresql+psycopg://postgres:postgres@postgres:5432/conversation_os"
     )
     redis_url: str = Field(default="redis://redis:6379/0")
+    processing_mode: str = Field(default="inline", pattern="^(inline|queue)$")
+    processing_max_tries: int = Field(default=3, ge=1, le=10)
+    processing_job_timeout_seconds: int = Field(default=300, ge=30)
+    operations_queue_alert_threshold: int = Field(default=25, ge=1)
+    cors_origins: tuple[str, ...] = Field(
+        default=("http://localhost:3000", "http://localhost:3001")
+    )
 
     # AI providers (keys only — no client instantiation here; see app/providers)
     openai_api_key: str | None = Field(default=None)
@@ -40,8 +47,14 @@ class Settings(BaseSettings):
     supabase_url: str | None = Field(default=None)
     supabase_key: str | None = Field(default=None)
 
-    # Auth (scaffold only, per Sprint 0 scope)
+    # Auth (Sprint 5 - Clerk identity boundary)
+    auth_enabled: bool = Field(default=False)
+    auth_dev_user_id: str = Field(default="dev_user")
     clerk_secret_key: str | None = Field(default=None)
+    clerk_jwt_key: str | None = Field(default=None)
+    clerk_authorized_parties: tuple[str, ...] = Field(
+        default=("http://localhost:3000", "http://localhost:3001")
+    )
 
     # Storage (Sprint 1 — conversation intake)
     storage_root: str = Field(default="/app/storage/uploads")
@@ -62,6 +75,19 @@ class Settings(BaseSettings):
     anthropic_model: str = Field(default="claude-sonnet-5")
     openai_whisper_model: str = Field(default="whisper-1")
     ai_request_timeout_seconds: float = Field(default=60.0)
+
+    @model_validator(mode="after")
+    def validate_auth_configuration(self) -> "Settings":
+        if self.auth_enabled and not (self.clerk_secret_key or self.clerk_jwt_key):
+            raise ValueError("AUTH_ENABLED requires CLERK_SECRET_KEY or CLERK_JWT_KEY")
+        if self.app_env == "production":
+            if not self.auth_enabled:
+                raise ValueError("Production requires AUTH_ENABLED=true")
+            if self.processing_mode != "queue":
+                raise ValueError("Production requires PROCESSING_MODE=queue")
+            if any("localhost" in origin for origin in self.cors_origins):
+                raise ValueError("Production CORS_ORIGINS cannot contain localhost")
+        return self
 
 
 @lru_cache

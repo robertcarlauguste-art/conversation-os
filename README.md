@@ -7,18 +7,20 @@ customer: Realtors. The architecture is designed to generalize to
 insurance, legal, recruiting, and financial advisors without a
 rewrite.
 
-**Sprint 4: Executive Command Center is complete.** The dashboard now combines
-conversation health, client follow-ups, explainable contact recommendations,
-open commitments, recent activity, and an on-demand AI morning briefing in one
-operational view. Follow-up actions and task completion are durable and
-auditable. See [`Sprint4.md`](./Sprint4.md) for the implementation and rules.
+**Sprint 5: Production Readiness is code-complete.** ConversationOS now adds
+Clerk authentication, owner-scoped tenant isolation, queued processing with
+retries, bounded search and pagination, processing observability, readiness
+checks, and an authenticated operational-status API. A credentialed staging run
+is the remaining release gate. See [`Sprint5.md`](./Sprint5.md) and the
+[`staging checklist`](./docs/SPRINT5_STAGING_CHECKLIST.md).
 
 ## Stack
 
 - **Frontend:** Next.js 16, React, TypeScript, TailwindCSS, TanStack Query
 - **Backend:** Python 3.13, FastAPI, uv, Pydantic v2, SQLAlchemy 2, Alembic
 - **AI:** Anthropic Claude (extraction), OpenAI Whisper (transcription)
-- **Infra:** PostgreSQL 16 + pgvector, Redis, Docker Compose, GitHub Actions
+- **Identity:** Clerk, with a local development identity when auth is disabled
+- **Infra:** PostgreSQL 16 + pgvector, Redis + ARQ worker, Docker Compose, GitHub Actions
 
 See [`docs/adr/`](./docs/adr) for the reasoning behind these choices.
 
@@ -204,7 +206,11 @@ delete, **not nullable**), `confidence` (nullable), `created_at`
 | `POST` | `/api/v1/dashboard/recommendations/{client_id}/actions` | Record, snooze, or complete a follow-up recommendation |
 | `POST` | `/api/v1/memories/action-items/{action_item_id}/complete` | Complete an extracted action item |
 | `POST` | `/api/v1/memories/action-items/{action_item_id}/reopen` | Reopen a completed action item |
-| `GET` | `/health` / `/version` | Operational endpoints |
+| `GET` | `/api/v1/auth/me` | Return the authenticated principal |
+| `GET` | `/api/v1/operations` | Owner processing metrics, queue health, and alerts |
+| `GET` | `/health` | Lightweight liveness check |
+| `GET` | `/ready` | Database, Redis, and worker readiness |
+| `GET` | `/version` | Application version and environment |
 
 Full interactive docs at `/docs`. Every business response uses
 `{ "success": bool, "data": ... }` (`app/schemas/envelope.py`).
@@ -298,9 +304,9 @@ See `Sprint3.md` for the full reconciliation pipeline.
   populated by extraction, so FD-003's automatic matching is
   currently inert against real data — see `Sprint3.md`.
 
-## Next sprint
+## Release gate
 
-Sprint 5 should focus on production readiness: authentication and tenant
-isolation, background processing with retries, queue pagination, and stronger
-client identity resolution. Sprint 4's command center is complete and provides
-the product surface those capabilities will support.
+Run `scripts/staging-smoke.ps1` and complete the Sprint 5 staging checklist with
+dedicated Clerk and AI credentials. Production promotion should happen only
+after authentication, tenant isolation, worker failure/recovery, retry
+exhaustion, and queue-backlog alerts pass in staging.

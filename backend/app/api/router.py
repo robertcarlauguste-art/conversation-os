@@ -11,13 +11,16 @@ holds: this file isn't a route, it's the thing that assembles them.
 Adding a new slice means one new `include_router` call here.
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from app.api.system import router as system_router
+from app.auth.api import router as auth_router
+from app.auth.dependencies import require_principal
 from app.client.api import router as client_router
 from app.conversation.api import router as conversation_router
 from app.dashboard.api import router as dashboard_router
 from app.memory.api import router as memory_router
+from app.operations.api import router as operations_router
 from app.transcription.api import router as transcription_router
 
 api_router = APIRouter()
@@ -26,28 +29,47 @@ api_router = APIRouter()
 # endpoints, not business API surface.
 api_router.include_router(system_router)
 
+protected_dependencies = [Depends(require_principal)]
+
+api_router.include_router(
+    auth_router,
+    prefix="/api/v1",
+    dependencies=protected_dependencies,
+)
+
 # Business API surface is versioned.
 api_router.include_router(
     conversation_router,
     prefix="/api/v1",
+    dependencies=protected_dependencies,
 )
 
 api_router.include_router(
     transcription_router,
     prefix="/api/v1",
+    dependencies=protected_dependencies,
 )
 
 api_router.include_router(
     memory_router,
     prefix="/api/v1",
+    dependencies=protected_dependencies,
 )
 
 api_router.include_router(
     client_router,
     prefix="/api/v1",
+    dependencies=protected_dependencies,
 )
 
 api_router.include_router(
     dashboard_router,
     prefix="/api/v1",
+    dependencies=protected_dependencies,
+)
+
+api_router.include_router(
+    operations_router,
+    prefix="/api/v1",
+    dependencies=protected_dependencies,
 )

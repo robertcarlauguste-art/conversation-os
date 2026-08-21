@@ -7,6 +7,7 @@ repository and storage backend.
 import logging
 import time
 import uuid
+from datetime import UTC, datetime
 
 from app.conversation.enums import ConversationSource, ConversationStatus
 from app.conversation.events import emit_conversation_uploaded
@@ -60,6 +61,7 @@ class ConversationService(BaseService[ConversationRepository]):
             storage_path = await self._storage.save(filename=filename, content=content)
 
             conversation = Conversation(
+                owner_id=self.repository.owner_id,
                 title=title,
                 filename=filename,
                 storage_path=storage_path,
@@ -93,8 +95,20 @@ class ConversationService(BaseService[ConversationRepository]):
             )
             raise
 
-    async def list_conversations(self) -> list[Conversation]:
-        return await self.repository.list_all()
+    async def list_conversations(
+        self,
+        *,
+        limit: int | None = None,
+        offset: int = 0,
+        search: str | None = None,
+        status: str | None = None,
+    ) -> list[Conversation]:
+        return await self.repository.list_all(
+            limit=limit,
+            offset=offset,
+            search=search,
+            status=status,
+        )
 
     async def get_conversation(self, conversation_id: uuid.UUID) -> Conversation:
         conversation = await self.repository.get(conversation_id)
@@ -118,6 +132,30 @@ class ConversationService(BaseService[ConversationRepository]):
         """
         conversation = await self.get_conversation(conversation_id)
         conversation.status = status
+        await self.repository.commit()
+        return conversation
+
+    async def start_processing_attempt(self, conversation_id: uuid.UUID) -> Conversation:
+        conversation = await self.get_conversation(conversation_id)
+        conversation.processing_attempts += 1
+        conversation.processing_error = None
+        conversation.processing_started_at = datetime.now(UTC)
+        conversation.processing_completed_at = None
+        conversation.status = ConversationStatus.PROCESSING
+        await self.repository.commit()
+        return conversation
+
+    async def finish_processing(
+        self,
+        conversation_id: uuid.UUID,
+        *,
+        status: ConversationStatus,
+        error: str | None = None,
+    ) -> Conversation:
+        conversation = await self.get_conversation(conversation_id)
+        conversation.status = status
+        conversation.processing_error = error
+        conversation.processing_completed_at = datetime.now(UTC)
         await self.repository.commit()
         return conversation
 

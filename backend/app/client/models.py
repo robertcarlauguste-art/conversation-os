@@ -41,6 +41,10 @@ class Client(Base):
         default=uuid.uuid4,
     )
 
+    owner_id: Mapped[str] = mapped_column(
+        String(255), nullable=False, index=True, default="dev_user"
+    )
+
     full_name: Mapped[str] = mapped_column(
         String(255),
         nullable=False,

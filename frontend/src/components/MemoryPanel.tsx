@@ -36,9 +36,11 @@ function BulletList({ items }: { items: string[] }) {
 export function MemoryPanel({
   conversationId,
   status,
+  processingError,
 }: {
   conversationId: string;
   status: ConversationStatus;
+  processingError?: string | null;
 }) {
   const memoryQuery = useQuery({
     queryKey: ["memory", conversationId],
@@ -61,14 +63,19 @@ export function MemoryPanel({
       <div className="rounded-xl border border-status-failed/30 bg-surface p-6 text-center">
         <p className="text-sm font-medium text-status-failed">Processing failed</p>
         <p className="mt-1 text-xs text-ink/50">
-          Transcription or extraction didn&apos;t complete for this conversation. Check the
-          server logs for the request ID tied to this upload.
+          {processingError ??
+            "Transcription or extraction didn't complete for this conversation."}
         </p>
       </div>
     );
   }
 
-  if (memoryQuery.isLoading || status === "PROCESSING" || status === "UPLOADED") {
+  if (
+    memoryQuery.isLoading ||
+    status === "QUEUED" ||
+    status === "PROCESSING" ||
+    status === "UPLOADED"
+  ) {
     return (
       <div className="rounded-xl border border-dashed border-line bg-surface py-12 text-center">
         <WaveformMark className="mx-auto h-6 w-auto animate-pulse text-ink/30" />

@@ -39,6 +39,28 @@ services:
       STORAGE_ROOT: /app/storage/uploads
     ports:
       - "8000:8000"
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./backend:/app
+      - conversation_storage:/app/storage/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: ./backend
+    container_name: conversation-os-worker
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/conversation_os
+      REDIS_URL: redis://redis:6379/0
+      STORAGE_ROOT: /app/storage/uploads
+      PROCESSING_MODE: queue
+    command: arq app.processing.worker.WorkerSettings
     volumes:
       - ./backend:/app
       - conversation_storage:/app/storage/uploads
@@ -54,6 +76,7 @@ services:
     container_name: conversation-os-frontend
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
     ports:
       - "3000:3000"
     volumes:

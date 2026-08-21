@@ -34,24 +34,25 @@ def build_conversation_processing_orchestrator(
     session: AsyncSession,
     storage: StorageBackend,
     settings: Settings,
+    owner_id: str = "dev_user",
 ) -> ConversationProcessingOrchestrator:
     conversation_service = ConversationService(
-        ConversationRepository(session),
+        ConversationRepository(session, owner_id),
         storage,
         allowed_mime_types=settings.allowed_audio_mime_types,
         max_upload_size_bytes=settings.max_upload_size_bytes,
     )
     transcription_service = TranscriptionService(
-        TranscriptRepository(session),
+        TranscriptRepository(session, owner_id),
         get_transcription_provider(settings),
         storage,
     )
     memory_service = MemoryService(
-        MemoryRepository(session),
+        MemoryRepository(session, owner_id),
         get_ai_provider(settings),
         model=settings.anthropic_model,
     )
-    client_service = ClientService(ClientRepository(session))
+    client_service = ClientService(ClientRepository(session, owner_id))
     return ConversationProcessingOrchestrator(
         conversation_service, transcription_service, memory_service, client_service
     )

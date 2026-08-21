@@ -19,19 +19,45 @@ from app.repositories.base import BaseRepository
 
 
 class ConversationRepository(BaseRepository[Conversation]):
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, owner_id: str = "dev_user") -> None:
         super().__init__(session, Conversation)
+        self.owner_id = owner_id
 
-    async def list_all(self) -> list[Conversation]:
-        """Newest first, per GET /conversations spec."""
+    async def get(self, id_: object) -> Conversation | None:
         result = await self.session.execute(
-            select(Conversation).order_by(Conversation.created_at.desc())
+            select(Conversation).where(
+                Conversation.id == id_, Conversation.owner_id == self.owner_id
+            )
         )
+        return result.scalar_one_or_none()
+
+    async def list_all(
+        self,
+        *,
+        limit: int | None = None,
+        offset: int = 0,
+        search: str | None = None,
+        status: str | None = None,
+    ) -> list[Conversation]:
+        """Newest first, per GET /conversations spec."""
+        query = select(Conversation).where(Conversation.owner_id == self.owner_id)
+        if search:
+            term = f"%{search.strip()}%"
+            query = query.where(Conversation.title.ilike(term) | Conversation.filename.ilike(term))
+        if status:
+            query = query.where(Conversation.status == status)
+        query = query.order_by(Conversation.created_at.desc()).offset(offset)
+        if limit is not None:
+            query = query.limit(limit)
+        result = await self.session.execute(query)
         return list(result.scalars().all())
 
     async def delete_by_id(self, conversation_id: uuid.UUID) -> None:
         await self.session.execute(
-            sql_delete(Conversation).where(Conversation.id == conversation_id)
+            sql_delete(Conversation).where(
+                Conversation.id == conversation_id,
+                Conversation.owner_id == self.owner_id,
+            )
         )
         await self.session.commit()
 
@@ -39,7 +65,10 @@ class ConversationRepository(BaseRepository[Conversation]):
         """Sprint 3 — supports GET /clients/{id}/conversations (US-104)."""
         result = await self.session.execute(
             select(Conversation)
-            .where(Conversation.client_id == client_id)
+            .where(
+                Conversation.client_id == client_id,
+                Conversation.owner_id == self.owner_id,
+            )
             .order_by(Conversation.created_at.desc())
         )
         return list(result.scalars().all())

@@ -20,16 +20,12 @@ settings = get_settings()
 app = FastAPI(
     title=settings.app_name,
     version=settings.version,
-    description="ConversationOS - Relationship Intelligence Platform (Sprint 1).",
+    description="ConversationOS - AI-powered relationship intelligence platform.",
 )
 
-# Allow the Next.js frontend running on localhost:3000 to call this API.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:3001",
-    ],
+    allow_origins=list(settings.cors_origins),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

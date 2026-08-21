@@ -131,6 +131,7 @@ class ClientService(BaseService[ClientRepository]):
                 return existing, False
 
         client = Client(
+            owner_id=self.repository.owner_id,
             full_name=name.strip(),
             role=normalized_role,
         )
@@ -216,12 +217,22 @@ class ClientService(BaseService[ClientRepository]):
 
     async def list_client_profiles(
         self,
+        *,
+        limit: int | None = None,
+        offset: int = 0,
+        search: str | None = None,
+        role: str | None = None,
     ) -> list[Client]:
         """
         Returns all clients.
         """
 
-        return await self.repository.list_all()
+        return await self.repository.list_all(
+            limit=limit,
+            offset=offset,
+            search=search,
+            role=role,
+        )
 
     #
     # Backwards compatibility
