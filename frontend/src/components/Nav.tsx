@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+import { Show, SignInButton, UserButton } from "@clerk/nextjs";
 import { WaveformMark } from "./WaveformMark";
 
 const LINKS = [
@@ -41,16 +41,16 @@ export function Nav({ authEnabled = false }: { authEnabled?: boolean }) {
           })}
           {authEnabled ? (
             <>
-              <SignedOut>
+              <Show when="signed-out">
                 <SignInButton mode="modal">
                   <button className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white">
                     Sign in
                   </button>
                 </SignInButton>
-              </SignedOut>
-              <SignedIn>
+              </Show>
+              <Show when="signed-in">
                 <UserButton />
-              </SignedIn>
+              </Show>
             </>
           ) : null}
         </nav>
