@@ -8,7 +8,7 @@
   "deploy": {
     "preDeployCommand": ["alembic upgrade head"],
     "startCommand": "/bin/sh -c \"exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}\"",
-    "healthcheckPath": "/ready",
+    "healthcheckPath": "/health",
     "healthcheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 3
