@@ -17,20 +17,27 @@ async def process_conversation(
 ) -> None:
     settings = get_settings()
     storage = build_storage_backend(settings)
-    try:
-        async with AsyncSessionLocal() as session:
-            orchestrator = build_conversation_processing_orchestrator(
-                session,
-                storage,
-                settings,
-                owner_id,
-            )
+    async with AsyncSessionLocal() as session:
+        orchestrator = build_conversation_processing_orchestrator(
+            session,
+            storage,
+            settings,
+            owner_id,
+        )
+        try:
             await orchestrator.run(uuid.UUID(conversation_id))
-    except Exception as exc:
-        job_try = int(_ctx.get("job_try", 1))
-        if job_try < settings.processing_max_tries:
-            raise Retry(defer=job_try * 5) from exc
-        raise
+        except Exception as exc:
+            # SQLAlchemy sessions remain unusable after many database errors until
+            # explicitly rolled back. Recover before ARQ reuses the connection or
+            # before terminal failure is written with this session.
+            await session.rollback()
+
+            job_try = int(_ctx.get("job_try", 1))
+            if job_try < settings.processing_max_tries:
+                raise Retry(defer=job_try * 5) from exc
+
+            await orchestrator.mark_failed(uuid.UUID(conversation_id), str(exc))
+            raise
 
 
 settings = get_settings()

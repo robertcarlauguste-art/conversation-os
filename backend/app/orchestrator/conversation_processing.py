@@ -126,6 +126,14 @@ class ConversationProcessingOrchestrator(BaseOrchestrator):
 
             raise
 
+    async def mark_failed(self, conversation_id: uuid.UUID, error: str) -> None:
+        """Persist terminal worker failure after its failed transaction is rolled back."""
+        await self._conversations.finish_processing(
+            conversation_id,
+            status=ConversationStatus.FAILED,
+            error=error[:2000],
+        )
+
     async def _reconcile_people_to_clients(
         self,
         conversation_id: uuid.UUID,

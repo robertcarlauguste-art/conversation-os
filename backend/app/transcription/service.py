@@ -52,12 +52,26 @@ class TranscriptionService(BaseService[TranscriptRepository]):
             conversation_id,
         )
 
-        transcript = Transcript(
-            conversation_id=conversation_id,
-            status=TranscriptionStatus.PROCESSING,
-        )
+        transcript = await self.repository.get_by_conversation_id(conversation_id)
+        if transcript is not None and transcript.status == TranscriptionStatus.COMPLETED:
+            logger.info(
+                "transcription_reused conversation_id=%s transcript_id=%s",
+                conversation_id,
+                transcript.id,
+            )
+            return transcript
 
-        await self.repository.add(transcript)
+        if transcript is None:
+            transcript = Transcript(conversation_id=conversation_id)
+            await self.repository.add(transcript)
+
+        # A processing job may be retried after transcription succeeded or failed
+        # but a later pipeline stage did not. Reuse the conversation's unique row
+        # so retrying never violates uq_transcripts_conversation_id.
+        transcript.text = None
+        transcript.language = None
+        transcript.error_message = None
+        transcript.status = TranscriptionStatus.PROCESSING
         await self.repository.commit()
 
         try:
