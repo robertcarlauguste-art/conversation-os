@@ -29,9 +29,7 @@ async def test_failed_attempt_rolls_back_before_retry(monkeypatch: pytest.Monkey
     )
 
     with pytest.raises(Retry):
-        await worker.process_conversation(
-            {"job_try": 1}, str(uuid4()), "owner"
-        )
+        await worker.process_conversation({"job_try": 1}, str(uuid4()), "owner")
 
     session.rollback.assert_awaited_once()
     orchestrator.mark_failed.assert_not_awaited()
@@ -61,9 +59,7 @@ async def test_exhausted_attempt_is_marked_failed_after_rollback(
     )
 
     with pytest.raises(RuntimeError, match="permanent"):
-        await worker.process_conversation(
-            {"job_try": 3}, str(conversation_id), "owner"
-        )
+        await worker.process_conversation({"job_try": 3}, str(conversation_id), "owner")
 
     assert events == ["rollback", "failed"]
     orchestrator.mark_failed.assert_awaited_once_with(conversation_id, "permanent")

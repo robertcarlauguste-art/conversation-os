@@ -11,9 +11,7 @@ from tests.fakes import FakeTranscriptionProvider
 
 
 class FailingTranscriptionProvider(TranscriptionProvider):
-    async def transcribe(
-        self, *, audio_bytes: bytes, filename: str
-    ) -> TranscriptionResult:
+    async def transcribe(self, *, audio_bytes: bytes, filename: str) -> TranscriptionResult:
         raise RuntimeError("temporary failure")
 
 
