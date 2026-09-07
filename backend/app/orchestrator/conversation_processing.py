@@ -62,6 +62,8 @@ class ConversationProcessingOrchestrator(BaseOrchestrator):
     async def run(
         self,
         conversation_id: uuid.UUID,
+        *,
+        terminal_failure: bool = True,
     ) -> Memory | None:
 
         conversation = await self._conversations.get_conversation(conversation_id)
@@ -122,7 +124,9 @@ class ConversationProcessingOrchestrator(BaseOrchestrator):
 
             await self._conversations.finish_processing(
                 conversation_id,
-                status=ConversationStatus.FAILED,
+                status=(
+                    ConversationStatus.FAILED if terminal_failure else ConversationStatus.PROCESSING
+                ),
                 error=error_message,
             )
 

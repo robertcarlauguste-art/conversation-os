@@ -9,11 +9,13 @@ Conversation is queried, not generic to every entity.
 """
 
 import uuid
+from datetime import UTC, datetime
 
 from sqlalchemy import delete as sql_delete
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.conversation.enums import ConversationStatus
 from app.conversation.models import Conversation
 from app.repositories.base import BaseRepository
 from app.transcription.models import Transcript
@@ -29,6 +31,34 @@ class ConversationRepository(BaseRepository[Conversation]):
             select(Conversation).where(
                 Conversation.id == id_, Conversation.owner_id == self.owner_id
             )
+        )
+        return result.scalar_one_or_none()
+
+    async def mark_processing_failed(self, conversation_id: uuid.UUID, error: str) -> None:
+        await self.session.execute(
+            update(Conversation)
+            .where(Conversation.id == conversation_id, Conversation.owner_id == self.owner_id)
+            .values(
+                status=ConversationStatus.FAILED,
+                processing_error=error,
+                processing_completed_at=datetime.now(UTC),
+            )
+        )
+        await self.commit()
+
+    async def flush_retry(self, conversation: Conversation) -> None:
+        await self.session.flush()
+        await self.session.refresh(conversation)
+
+    async def rollback(self) -> None:
+        await self.session.rollback()
+
+    async def get_for_retry(self, conversation_id: uuid.UUID) -> Conversation | None:
+        result = await self.session.execute(
+            select(Conversation)
+            .where(Conversation.id == conversation_id, Conversation.owner_id == self.owner_id)
+            .with_for_update(of=Conversation)
+            .execution_options(populate_existing=True)
         )
         return result.scalar_one_or_none()
 

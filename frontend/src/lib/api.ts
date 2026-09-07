@@ -250,3 +250,15 @@ export async function reopenActionItem(actionItemId: string): Promise<ActionItem
   );
   return unwrap<ActionItemOut>(response);
 }
+
+export async function retryConversation(id: string): Promise<ConversationDetail> {
+  try {
+    const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/conversations/${id}/retry`, {
+      method: "POST",
+    });
+    if (!response.ok) throw new Error("Retry rejected");
+    return await unwrap<ConversationDetail>(response);
+  } catch {
+    throw new ApiError("Couldn't queue the retry. Refresh the conversation before trying again.");
+  }
+}
