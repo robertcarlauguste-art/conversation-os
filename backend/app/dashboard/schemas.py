@@ -14,6 +14,8 @@ class DashboardOverview(BaseModel):
     completed: int
     processing: int
     failed: int
+    queued: int = 0
+    stale: int = 0
 
 
 class DashboardPriority(BaseModel):

@@ -9,6 +9,7 @@ from app.client.service import ClientService
 from app.conversation.enums import ConversationStatus
 from app.conversation.schemas import ConversationListItem
 from app.conversation.service import ConversationService
+from app.processing.visibility import is_stale
 
 from .models import ClientFollowupAction, FollowupAction
 from .repository import (
@@ -471,6 +472,13 @@ class DashboardService:
             grouped_actions.setdefault(key, []).append(record)
 
         overview = DashboardOverview(
+            queued=sum(c.status == ConversationStatus.QUEUED for c in conversations),
+            stale=sum(
+                is_stale(
+                    c.status, c.created_at, getattr(c, "processing_started_at", None), self._clock()
+                )
+                for c in conversations
+            ),
             clients=len(clients),
             conversations=len(conversations),
             completed=sum(
@@ -491,6 +499,11 @@ class DashboardService:
         )
 
         alerts = self._build_alerts(overview.failed)
+        if overview.stale:
+            alerts.append(
+                f"{overview.stale} conversations are possibly stalled. "
+                "Review the conversation list."
+            )
         followups = self._build_followups(clients, latest_actions)
         priorities = self._build_priorities(overview.failed, clients, latest_actions)
         client_recommendations = self._build_client_recommendations(

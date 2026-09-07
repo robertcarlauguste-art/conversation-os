@@ -21,6 +21,8 @@ const dashboard: DashboardData = {
   overview: {
     clients: 1,
     conversations: 2,
+    queued: 0,
+    stale: 0,
     processing: 0,
     completed: 2,
     failed: 0,
@@ -88,6 +90,19 @@ function renderDashboard() {
 }
 
 describe("SummaryCards interactions", () => {
+  it("shows queued and stale counts with an operator alert", async () => {
+    api.getDashboard.mockResolvedValue({
+      ...dashboard,
+      overview: { ...dashboard.overview, queued: 4, stale: 2 },
+      alerts: ["2 conversations are possibly stalled. Review the conversation list."],
+    });
+    renderDashboard();
+    const queued = await screen.findByText("Queued");
+    expect(queued.parentElement).toHaveTextContent("4");
+    expect(screen.getByText("Possibly stalled").parentElement).toHaveTextContent("2");
+    expect(screen.getByText(/2 conversations are possibly stalled/)).toBeInTheDocument();
+  });
+
   beforeEach(() => {
     api.getDashboard.mockResolvedValue(dashboard);
     api.completeActionItem.mockResolvedValue({});

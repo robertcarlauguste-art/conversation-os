@@ -20,6 +20,8 @@ import { useToast } from "./Toast";
 const CARDS: { key: keyof DashboardOverview; label: string }[] = [
   { key: "clients", label: "Clients" },
   { key: "conversations", label: "Conversations" },
+  { key: "queued", label: "Queued" },
+  { key: "stale", label: "Possibly stalled" },
   { key: "processing", label: "Processing" },
   { key: "completed", label: "Completed" },
   { key: "failed", label: "Failed" },

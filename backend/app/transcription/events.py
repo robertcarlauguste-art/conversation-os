@@ -9,6 +9,8 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from app.processing.visibility import safe_error
+
 logger = logging.getLogger("conversation_os.events")
 
 
@@ -43,6 +45,7 @@ def emit_transcription_completed(
 
 
 def emit_transcription_failed(conversation_id: uuid.UUID, error: str) -> TranscriptionFailed:
+    error = safe_error(error) or "Processing failed."
     event = TranscriptionFailed(
         conversation_id=conversation_id, error=error, occurred_at=datetime.now(UTC)
     )

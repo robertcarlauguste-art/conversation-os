@@ -99,10 +99,17 @@ async def upload_conversation(
         logger.warning(
             "conversation_processing_failed_during_upload conversation_id=%s",
             conversation.id,
-            exc_info=True,
         )
         if conversation.status not in (ConversationStatus.COMPLETED, ConversationStatus.FAILED):
-            await service.update_status(conversation.id, ConversationStatus.FAILED)
+            await service.finish_processing(
+                conversation.id,
+                status=ConversationStatus.FAILED,
+                error=(
+                    "Processing could not be queued. Check queue and worker availability."
+                    if settings.processing_mode == "queue"
+                    else "Processing could not start. Check provider configuration."
+                ),
+            )
 
     return ApiResponse(
         success=True,
@@ -136,11 +143,11 @@ async def get_conversation(
     service: ConversationService = Depends(get_conversation_service),
 ) -> ApiResponse[ConversationDetail]:
     try:
-        conversation = await service.get_conversation(conversation_id)
+        detail = await service.get_conversation_detail(conversation_id)
     except ConversationNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
-    return ApiResponse(success=True, data=ConversationDetail.model_validate(conversation))
+    return ApiResponse(success=True, data=detail)
 
 
 @router.delete("/{conversation_id}", status_code=204)

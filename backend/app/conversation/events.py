@@ -44,9 +44,8 @@ def emit_conversation_uploaded(conversation_id: uuid.UUID, filename: str) -> Con
         occurred_at=datetime.now(UTC),
     )
     logger.info(
-        "event=ConversationUploaded conversation_id=%s filename=%s",
+        "event=ConversationUploaded conversation_id=%s",
         event.conversation_id,
-        event.filename,
     )
     return event
 

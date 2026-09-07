@@ -13,8 +13,10 @@ from app.conversation.enums import ConversationSource, ConversationStatus
 from app.conversation.events import emit_conversation_uploaded
 from app.conversation.models import Conversation
 from app.conversation.repository import ConversationRepository
+from app.conversation.schemas import ConversationDetail
 from app.conversation.storage import StorageBackend
-from app.conversation.validators import UploadCandidate, validate_upload
+from app.conversation.validators import UploadCandidate, ValidationError, validate_upload
+from app.processing.visibility import safe_error
 from app.services.base import BaseService
 
 logger = logging.getLogger("conversation_os.conversation")
@@ -47,7 +49,7 @@ class ConversationService(BaseService[ConversationRepository]):
         title: str | None = None,
     ) -> Conversation:
         start = time.perf_counter()
-        logger.info("upload_started filename=%s size=%d", filename, len(content))
+        logger.info("upload_started size=%d", len(content))
 
         try:
             validate_upload(
@@ -77,9 +79,8 @@ class ConversationService(BaseService[ConversationRepository]):
 
             duration_ms = (time.perf_counter() - start) * 1000
             logger.info(
-                "upload_completed conversation_id=%s filename=%s duration_ms=%.2f status=%s",
+                "upload_completed conversation_id=%s duration_ms=%.2f status=%s",
                 conversation.id,
-                filename,
                 duration_ms,
                 conversation.status.value,
             )
@@ -88,12 +89,13 @@ class ConversationService(BaseService[ConversationRepository]):
         except Exception as exc:
             duration_ms = (time.perf_counter() - start) * 1000
             logger.warning(
-                "upload_failed filename=%s duration_ms=%.2f error=%s",
-                filename,
+                "upload_failed duration_ms=%.2f error=%s",
                 duration_ms,
-                str(exc),
+                safe_error(str(exc)),
             )
-            raise
+            if isinstance(exc, ValidationError):
+                raise
+            raise RuntimeError("Upload failed. Check storage and database availability.") from None
 
     async def list_conversations(
         self,
@@ -115,6 +117,15 @@ class ConversationService(BaseService[ConversationRepository]):
         if conversation is None:
             raise ConversationNotFoundError(f"Conversation {conversation_id} not found.")
         return conversation
+
+    async def get_conversation_detail(self, conversation_id: uuid.UUID) -> ConversationDetail:
+        conversation = await self.get_conversation(conversation_id)
+        detail = ConversationDetail.model_validate(conversation)
+        if detail.status == ConversationStatus.FAILED and not detail.processing_error:
+            detail.processing_error = safe_error(
+                await self.repository.latest_transcript_error(conversation_id)
+            )
+        return detail
 
     async def delete_conversation(self, conversation_id: uuid.UUID) -> None:
         conversation = await self.get_conversation(conversation_id)
@@ -154,7 +165,7 @@ class ConversationService(BaseService[ConversationRepository]):
     ) -> Conversation:
         conversation = await self.get_conversation(conversation_id)
         conversation.status = status
-        conversation.processing_error = error
+        conversation.processing_error = safe_error(error)
         conversation.processing_completed_at = datetime.now(UTC)
         await self.repository.commit()
         return conversation

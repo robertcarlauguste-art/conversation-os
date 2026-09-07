@@ -244,9 +244,8 @@ class MemoryService(BaseService[MemoryRepository]):
             )
 
             logger.info(
-                "claude_raw_response conversation_id=%s response=%r",
+                "claude_response_received conversation_id=%s",
                 conversation_id,
-                completion.content,
             )
 
             content = completion.content.strip()
@@ -259,11 +258,11 @@ class MemoryService(BaseService[MemoryRepository]):
 
                 raw = json.loads(content)
 
-            except json.JSONDecodeError as exc:
+            except json.JSONDecodeError:
 
                 raise ExtractionError(
-                    f"LLM response was not valid JSON: {exc}. " f"Raw response: {content[:500]}"
-                ) from exc
+                    "Memory extraction returned invalid JSON. Check the extraction provider."
+                ) from None
 
             extraction = ExtractionResult.model_validate(raw)
 
@@ -279,15 +278,6 @@ class MemoryService(BaseService[MemoryRepository]):
                 len(extraction.topics),
                 extraction.confidence,
             )
-
-            for person in extraction.people:
-
-                logger.info(
-                    "entity_detected name=%s role=%s type=%s",
-                    person.name,
-                    person.role,
-                    person.entity_type,
-                )
 
             memory = await self._persist(
                 conversation_id=conversation_id,
@@ -317,10 +307,7 @@ class MemoryService(BaseService[MemoryRepository]):
 
             return memory
 
-        except (
-            ExtractionError,
-            MemoryValidationError,
-        ) as exc:
+        except Exception as exc:
 
             duration_ms = (time.perf_counter() - start) * 1000
 
@@ -328,10 +315,13 @@ class MemoryService(BaseService[MemoryRepository]):
                 "extraction_failed conversation_id=%s duration_ms=%.2f error=%s",
                 conversation_id,
                 duration_ms,
-                str(exc),
+                "Memory extraction failed. Check the extraction provider configuration.",
             )
 
-            raise
+            message = "Memory extraction failed. Check the extraction provider configuration."
+            if isinstance(exc, MemoryValidationError):
+                raise MemoryValidationError(message) from None
+            raise ExtractionError(message) from None
 
     def _safe_person_type(
         self,
