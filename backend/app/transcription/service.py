@@ -79,9 +79,8 @@ class TranscriptionService(BaseService[TranscriptRepository]):
             audio_bytes = await self._storage.read(storage_path)
 
             logger.info(
-                "audio_read conversation_id=%s filename=%s bytes=%d",
+                "audio_read conversation_id=%s bytes=%d",
                 conversation_id,
-                filename,
                 len(audio_bytes),
             )
 
@@ -92,10 +91,9 @@ class TranscriptionService(BaseService[TranscriptRepository]):
             )
 
             logger.info(
-                "whisper_result conversation_id=%s text_length=%d text=%r",
+                "whisper_result conversation_id=%s text_length=%d",
                 conversation_id,
                 len(result.text),
-                result.text[:100],
             )
 
             # Persist transcript
@@ -123,13 +121,16 @@ class TranscriptionService(BaseService[TranscriptRepository]):
 
         except Exception as exc:
             transcript.status = TranscriptionStatus.FAILED
-            transcript.error_message = str(exc)
+            transcript.error_message = (
+                "Transcription failed. Check recording format and "
+                "transcription provider configuration."
+            )
 
             await self.repository.commit()
 
             emit_transcription_failed(
                 conversation_id,
-                str(exc),
+                transcript.error_message,
             )
 
             duration_ms = (time.perf_counter() - start) * 1000
@@ -138,7 +139,9 @@ class TranscriptionService(BaseService[TranscriptRepository]):
                 "transcription_failed conversation_id=%s duration_ms=%.2f error=%s",
                 conversation_id,
                 duration_ms,
-                str(exc),
+                transcript.error_message,
             )
 
-            raise
+            if isinstance(exc, FileNotFoundError):
+                raise FileNotFoundError(transcript.error_message) from None
+            raise RuntimeError(transcript.error_message) from None

@@ -5,6 +5,8 @@ from pydantic import BaseModel
 
 
 class ProcessingMetrics(BaseModel):
+    stale: int = 0
+    stale_threshold_seconds: int = 900
     total: int
     queued: int
     processing: int

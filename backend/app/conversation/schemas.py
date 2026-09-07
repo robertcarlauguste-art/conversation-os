@@ -10,9 +10,10 @@ don't belong on the DB row itself.
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, computed_field, field_validator
 
 from app.conversation.enums import ConversationSource, ConversationStatus
+from app.processing.visibility import is_stale, safe_error, stale_threshold_seconds
 
 
 class ConversationCreateData(BaseModel):
@@ -22,7 +23,29 @@ class ConversationCreateData(BaseModel):
     status: ConversationStatus
 
 
-class ConversationListItem(BaseModel):
+class ProcessingVisibility(BaseModel):
+    status: ConversationStatus
+    created_at: datetime
+    processing_started_at: datetime | None = None
+    processing_error: str | None = None
+
+    @field_validator("processing_error")
+    @classmethod
+    def sanitize_error(cls, value: str | None) -> str | None:
+        return safe_error(value)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def is_stale(self) -> bool:
+        return is_stale(self.status, self.created_at, self.processing_started_at)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def stale_threshold_seconds(self) -> int:
+        return stale_threshold_seconds()
+
+
+class ConversationListItem(ProcessingVisibility):
     """One row in GET /conversations."""
 
     model_config = ConfigDict(from_attributes=True)
@@ -36,7 +59,7 @@ class ConversationListItem(BaseModel):
     processing_error: str | None = None
 
 
-class ConversationDetail(BaseModel):
+class ConversationDetail(ProcessingVisibility):
     """Full detail for GET /conversations/{id}."""
 
     model_config = ConfigDict(from_attributes=True)

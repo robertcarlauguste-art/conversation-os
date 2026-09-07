@@ -115,6 +115,7 @@ export function ConversationsTable() {
             </td>
             <td className="px-4 py-3">
               <StatusBadge status={conversation.status} />
+              {conversation.is_stale && <span className="ml-2 text-amber-700">Possibly stalled</span>}
             </td>
             <td className="px-4 py-3 text-ink/70">{formatDate(conversation.created_at)}</td>
             <td className="px-4 py-3 text-ink/70">{formatFileSize(conversation.file_size)}</td>

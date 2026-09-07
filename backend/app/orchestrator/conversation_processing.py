@@ -38,6 +38,7 @@ from app.memory.models import (
 )
 from app.memory.service import MemoryService
 from app.orchestrator.base import BaseOrchestrator
+from app.processing.visibility import safe_error
 from app.transcription.service import TranscriptionService
 
 logger = logging.getLogger("conversation_os.orchestrator")
@@ -69,6 +70,9 @@ class ConversationProcessingOrchestrator(BaseOrchestrator):
 
         emit_conversation_processing_started(conversation_id)
 
+        error_message = (
+            "Transcription failed. Check recording format and transcription provider configuration."
+        )
         try:
 
             transcript = await self._transcription.transcribe(
@@ -77,6 +81,7 @@ class ConversationProcessingOrchestrator(BaseOrchestrator):
                 filename=conversation.filename,
             )
 
+            error_message = "Memory extraction failed. Check the extraction provider configuration."
             memory = await self._memory.extract_and_persist(
                 conversation_id=conversation_id,
                 transcript_text=transcript.text or "",
@@ -84,6 +89,7 @@ class ConversationProcessingOrchestrator(BaseOrchestrator):
 
             if memory is not None:
 
+                error_message = "Client reconciliation failed. Check database availability."
                 await self._reconcile_people_to_clients(
                     conversation_id,
                     memory,
@@ -102,6 +108,7 @@ class ConversationProcessingOrchestrator(BaseOrchestrator):
                     conversation_id,
                 )
 
+            error_message = "Processing result could not be saved. Check database availability."
             await self._conversations.finish_processing(
                 conversation_id,
                 status=ConversationStatus.COMPLETED,
@@ -111,27 +118,27 @@ class ConversationProcessingOrchestrator(BaseOrchestrator):
 
             return memory
 
-        except Exception as exc:
+        except Exception:
 
             await self._conversations.finish_processing(
                 conversation_id,
                 status=ConversationStatus.FAILED,
-                error=str(exc)[:2000],
+                error=error_message,
             )
 
-            logger.exception(
+            logger.warning(
                 "conversation_processing_failed conversation_id=%s",
                 conversation_id,
             )
 
-            raise
+            raise RuntimeError(error_message) from None
 
     async def mark_failed(self, conversation_id: uuid.UUID, error: str) -> None:
         """Persist terminal worker failure after its failed transaction is rolled back."""
         await self._conversations.finish_processing(
             conversation_id,
             status=ConversationStatus.FAILED,
-            error=error[:2000],
+            error=safe_error(error),
         )
 
     async def _reconcile_people_to_clients(
@@ -165,9 +172,8 @@ class ConversationProcessingOrchestrator(BaseOrchestrator):
             if person.entity_type != PersonType.CLIENT:
 
                 logger.info(
-                    "person_skipped_client_reconciliation " "person_id=%s name=%s entity_type=%s",
+                    "person_skipped_client_reconciliation " "person_id=%s entity_type=%s",
                     person.id,
-                    person.name,
                     person.entity_type.value,
                 )
 

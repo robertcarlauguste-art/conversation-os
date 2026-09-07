@@ -13,6 +13,8 @@ export interface ConversationListItem {
   status: ConversationStatus;
   file_size: number;
   created_at: string;
+  is_stale: boolean;
+  stale_threshold_seconds: number;
   processing_attempts: number;
   processing_error: string | null;
 }
@@ -29,6 +31,8 @@ export interface ConversationDetail {
   client_id: string | null;
   created_at: string;
   updated_at: string;
+  is_stale: boolean;
+  stale_threshold_seconds: number;
   processing_attempts: number;
   processing_error: string | null;
   processing_started_at: string | null;
@@ -129,6 +133,8 @@ export interface ClientConversationItem {
 }
 
 export interface DashboardOverview {
+  queued: number;
+  stale: number;
   clients: number;
   conversations: number;
   completed: number;

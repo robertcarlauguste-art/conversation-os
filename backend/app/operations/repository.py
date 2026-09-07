@@ -1,8 +1,11 @@
+from datetime import UTC, datetime, timedelta
+
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.conversation.enums import ConversationStatus
 from app.conversation.models import Conversation
+from app.processing.visibility import stale_threshold_seconds
 
 from .schemas import ProcessingMetrics
 
@@ -16,6 +19,13 @@ class OperationsRepository:
         duration = func.extract(
             "epoch",
             Conversation.processing_completed_at - Conversation.processing_started_at,
+        )
+        cutoff = datetime.now(UTC) - timedelta(seconds=stale_threshold_seconds())
+        stale = (
+            (Conversation.status == ConversationStatus.QUEUED) & (Conversation.created_at < cutoff)
+        ) | (
+            (Conversation.status == ConversationStatus.PROCESSING)
+            & (func.coalesce(Conversation.processing_started_at, Conversation.created_at) < cutoff)
         )
         result = await self.session.execute(
             select(
@@ -38,10 +48,13 @@ class OperationsRepository:
                     Conversation.processing_started_at.is_not(None),
                     Conversation.processing_completed_at.is_not(None),
                 ),
+                func.sum(case((stale, 1), else_=0)),
             ).where(Conversation.owner_id == self.owner_id)
         )
         row = result.one()
         return ProcessingMetrics(
+            stale=int(row[7] or 0),
+            stale_threshold_seconds=stale_threshold_seconds(),
             total=int(row[0] or 0),
             queued=int(row[1] or 0),
             processing=int(row[2] or 0),
