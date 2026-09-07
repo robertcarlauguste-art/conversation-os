@@ -4,9 +4,11 @@ what an upload means (Rule 3). Routes call this; this calls the
 repository and storage backend.
 """
 
+import asyncio
 import logging
 import time
 import uuid
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 
 from app.conversation.enums import ConversationSource, ConversationStatus
@@ -23,6 +25,14 @@ logger = logging.getLogger("conversation_os.conversation")
 
 
 class ConversationNotFoundError(Exception):
+    pass
+
+
+class ConversationRetryConflict(Exception):
+    pass
+
+
+class ConversationRetryUnavailable(Exception):
     pass
 
 
@@ -127,6 +137,43 @@ class ConversationService(BaseService[ConversationRepository]):
             )
         return detail
 
+    async def retry_conversation(
+        self,
+        conversation_id: uuid.UUID,
+        enqueue: Callable[[uuid.UUID, int], Awaitable[None]],
+    ) -> Conversation:
+        try:
+            conversation = await self.repository.get_for_retry(conversation_id)
+            if conversation is None:
+                raise ConversationNotFoundError("Conversation not found.")
+            if conversation.status != ConversationStatus.FAILED:
+                raise ConversationRetryConflict("Only failed conversations can be retried.")
+            conversation.status = ConversationStatus.QUEUED
+            conversation.processing_error = None
+            conversation.processing_completed_at = None
+            await self.repository.flush_retry(conversation)
+            async with asyncio.timeout(10):
+                await enqueue(conversation.id, conversation.processing_attempts)
+            await self.repository.commit()
+        except (ConversationNotFoundError, ConversationRetryConflict):
+            await self._rollback_retry()
+            raise
+        except Exception:
+            await self._rollback_retry()
+            raise ConversationRetryUnavailable("Retry could not be queued.") from None
+        logger.info(
+            "conversation_retry_queued conversation_id=%s processing_attempts=%d",
+            conversation.id,
+            conversation.processing_attempts,
+        )
+        return conversation
+
+    async def _rollback_retry(self) -> None:
+        try:
+            await self.repository.rollback()
+        except Exception:
+            raise ConversationRetryUnavailable("Retry could not be queued.") from None
+
     async def delete_conversation(self, conversation_id: uuid.UUID) -> None:
         conversation = await self.get_conversation(conversation_id)
         await self._storage.delete(conversation.storage_path)
@@ -166,7 +213,11 @@ class ConversationService(BaseService[ConversationRepository]):
         conversation = await self.get_conversation(conversation_id)
         conversation.status = status
         conversation.processing_error = safe_error(error)
-        conversation.processing_completed_at = datetime.now(UTC)
+        conversation.processing_completed_at = (
+            datetime.now(UTC)
+            if status in (ConversationStatus.FAILED, ConversationStatus.COMPLETED)
+            else None
+        )
         await self.repository.commit()
         return conversation
 

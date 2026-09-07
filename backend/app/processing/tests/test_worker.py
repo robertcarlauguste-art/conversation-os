@@ -95,3 +95,20 @@ async def test_worker_sanitizes_infrastructure_failures(monkeypatch, failure_poi
         await worker.process_conversation({"job_try": 1}, str(uuid4()), "owner")
     assert "private-secret" not in "".join(traceback.format_exception(failure.value))
     assert "Check provider configuration" in str(failure.value)
+
+
+@pytest.mark.parametrize(
+    "status,attempts", [("FAILED", 3), ("PROCESSING", 4), ("COMPLETED", 4), ("QUEUED", 4)]
+)
+async def test_retry_worker_ignores_rolled_back_or_consumed_job(monkeypatch, status, attempts):
+    session = AsyncMock()
+    repository = MagicMock(
+        get_for_retry=AsyncMock(return_value=MagicMock(status=status, processing_attempts=attempts))
+    )
+    build = MagicMock()
+    monkeypatch.setattr(worker, "ConversationRepository", lambda *args: repository)
+    monkeypatch.setattr(worker, "build_storage_backend", MagicMock())
+    monkeypatch.setattr(worker, "AsyncSessionLocal", lambda: _session_context(session))
+    monkeypatch.setattr(worker, "build_conversation_processing_orchestrator", build)
+    await worker.process_conversation({"job_try": 1}, str(uuid4()), "owner", 3)
+    build.assert_not_called()

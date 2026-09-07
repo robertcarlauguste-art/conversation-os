@@ -43,7 +43,7 @@ export function MemoryPanel({
   processingError?: string | null;
 }) {
   const memoryQuery = useQuery({
-    queryKey: ["memory", conversationId],
+    queryKey: ["memory", conversationId, status],
     queryFn: () => getMemoryByConversation(conversationId),
     // Sprint 2 processes synchronously on upload, but poll briefly in
     // case the page is opened mid-processing (e.g. a slow real STT call).
@@ -51,7 +51,7 @@ export function MemoryPanel({
   });
 
   const transcriptQuery = useQuery({
-    queryKey: ["transcript", conversationId],
+    queryKey: ["transcript", conversationId, status],
     queryFn: () => getTranscriptByConversation(conversationId),
     refetchInterval: (query) => (query.state.data ? false : 3000),
   });

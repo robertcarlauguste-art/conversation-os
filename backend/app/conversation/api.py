@@ -28,14 +28,19 @@ from app.conversation.schemas import (
     ConversationDetail,
     ConversationListItem,
 )
-from app.conversation.service import ConversationNotFoundError, ConversationService
+from app.conversation.service import (
+    ConversationNotFoundError,
+    ConversationRetryConflict,
+    ConversationRetryUnavailable,
+    ConversationService,
+)
 from app.conversation.storage import StorageBackend
 from app.conversation.storage_factory import build_storage_backend
 from app.conversation.validators import ValidationError
 from app.core.config import Settings, get_settings
 from app.core.database import get_db_session
 from app.orchestrator.dependencies import build_conversation_processing_orchestrator
-from app.processing.queue import enqueue_conversation_processing
+from app.processing.queue import enqueue_conversation_processing, enqueue_conversation_retry
 from app.schemas.envelope import ApiResponse
 
 logger = logging.getLogger("conversation_os.conversation")
@@ -159,3 +164,26 @@ async def delete_conversation(
         await service.delete_conversation(conversation_id)
     except ConversationNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post("/{conversation_id}/retry", response_model=ApiResponse[ConversationDetail])
+async def retry_conversation(
+    conversation_id: uuid.UUID,
+    principal: CurrentPrincipal,
+    service: ConversationService = Depends(get_conversation_service),
+    settings: Settings = Depends(get_settings),
+) -> ApiResponse[ConversationDetail]:
+    async def enqueue(id_: uuid.UUID, attempts: int) -> None:
+        await enqueue_conversation_retry(id_, principal.user_id, settings, attempts)
+
+    try:
+        conversation = await service.retry_conversation(conversation_id, enqueue)
+    except ConversationNotFoundError:
+        raise HTTPException(404, "Conversation not found.") from None
+    except ConversationRetryConflict:
+        raise HTTPException(409, "Only failed conversations can be retried.") from None
+    except ConversationRetryUnavailable:
+        raise HTTPException(
+            503, "Retry could not be queued. Refresh the conversation before trying again."
+        ) from None
+    return ApiResponse(success=True, data=ConversationDetail.model_validate(conversation))

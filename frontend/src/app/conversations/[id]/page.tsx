@@ -6,6 +6,7 @@ import { use } from "react";
 import { getConversation } from "@/lib/api";
 import { formatDate, formatDuration, formatFileSize } from "@/lib/format";
 import { StatusBadge } from "@/components/StatusBadge";
+import { RetryConversation } from "@/components/RetryConversation";
 import { ProcessingDetails } from "@/components/ProcessingDetails";
 import { MemoryPanel } from "@/components/MemoryPanel";
 import { ClientField } from "@/components/ClientField";
@@ -72,6 +73,7 @@ export default function ConversationDetailPage({
       </dl>
 
       <ProcessingDetails conversation={data} />
+      <RetryConversation key={data.id} id={data.id} status={data.status} />
 
       <MemoryPanel
         conversationId={data.id}
