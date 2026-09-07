@@ -135,3 +135,21 @@ Build the shared storage factory, canonical location format, legacy local-path
 compatibility, configuration validation, and tests. This slice is provider-safe:
 it improves architecture without creating accounts, spending money, or changing
 the local development default.
+## Staging completion record
+
+Date: September 6, 2026
+
+Sprint 6 delivered a functioning ConversationOS staging environment on Railway:
+
+- Next.js frontend, FastAPI API, ARQ worker, PostgreSQL, and Redis are deployed.
+- Cloudflare R2 provides private S3-compatible recording storage.
+- Clerk authentication and staging access controls are active.
+- An authenticated recording completed the full upload, storage, queue, transcription, and persistence workflow.
+- Worker retries now roll back failed database transactions, reuse existing transcript rows, and persist terminal `FAILED` status instead of leaving jobs stuck in `PROCESSING`.
+- Railway watch paths now trigger both backend-api and worker deployments for changes under `/backend`.
+- The full backend test suite passes with 118 tests.
+- Ruff, Black, and GitHub CI checks pass.
+
+During staging verification, Clerk, R2, and Anthropic credentials were rotated and corrected. Secret values must remain outside source control and must not appear in screenshots or logs.
+
+The core staging deployment and durable-storage objectives are complete. Remaining external-demo hardening—centralized error reporting, alerts, cross-tenant verification, rollback rehearsal, database restore rehearsal, and the Realtor usability session—will continue in Sprint 7.
