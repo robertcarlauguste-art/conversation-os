@@ -3,7 +3,7 @@
   "build": {
     "builder": "DOCKERFILE",
     "dockerfilePath": "Dockerfile.railway",
-    "watchPatterns": ["/**"]
+    "watchPatterns": ["/frontend/**"]
   },
   "deploy": {
     "healthcheckPath": "/",

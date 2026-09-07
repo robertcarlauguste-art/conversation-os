@@ -66,3 +66,15 @@ in 2 files; `npm run typecheck`, `npm run lint`, and `npm run build` passed.
 
 These were local Windows runs with Python 3.14.5 and Node 24.18.0. CI uses Linux,
 Python 3.13, and Node 22; the CI environment itself and hosted deployment were not run.
+## Hosted verification
+
+Completed September 7, 2026 against the Railway staging environment.
+
+The backend API, worker, and frontend deployed successfully. A new authenticated
+recording completed in one processing attempt. It was received at 5:51:46 AM,
+started processing at 5:51:47 AM, and completed at 5:51:53 AM. The deployed
+conversation detail page displayed the attempt count and all processing timestamps.
+
+The frontend deployment was initially skipped because its Railway watch pattern
+used `/**`. The pattern was corrected to `/frontend/**` so future frontend changes
+trigger deployment automatically.
