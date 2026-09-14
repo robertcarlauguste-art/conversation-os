@@ -207,7 +207,7 @@ delete, **not nullable**), `confidence` (nullable), `created_at`
 | `POST` | `/api/v1/memories/action-items/{action_item_id}/complete` | Complete an extracted action item |
 | `POST` | `/api/v1/memories/action-items/{action_item_id}/reopen` | Reopen a completed action item |
 | `GET` | `/api/v1/auth/me` | Return the authenticated principal |
-| `GET` | `/api/v1/operations` | Owner processing metrics, queue health, and alerts |
+| `GET` | `/api/v1/operations` | Owner processing metrics and alerts; shared infrastructure fields remain null |
 | `GET` | `/health` | Lightweight liveness check |
 | `GET` | `/ready` | Database, Redis, and worker readiness |
 | `GET` | `/version` | Application version and environment |
@@ -216,6 +216,10 @@ Full interactive docs at `/docs`. Every business response uses
 `{ "success": bool, "data": ... }` (`app/schemas/envelope.py`).
 
 ## Observability
+
+Operator alerting is provided by a separate, non-HTTP monitoring process. See
+[Monitoring and alerts](docs/deployment/monitoring-alerts.md) for thresholds,
+deployment, delivery setup and the remaining hosted acceptance checks.
 
 Unchanged from Sprint 1 (request ID, method, path, status, duration,
 `X-Request-ID` header) — plus structured log lines from the pipeline,

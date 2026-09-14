@@ -42,6 +42,35 @@ class Settings(BaseSettings):
     processing_max_tries: int = Field(default=3, ge=1, le=10)
     processing_job_timeout_seconds: int = Field(default=300, ge=30)
     operations_queue_alert_threshold: int = Field(default=25, ge=1)
+    # Operator-only monitoring process; never consumed by tenant HTTP routes.
+    monitoring_api_url: str | None = None
+    monitoring_webhook_url: str | None = Field(default=None, repr=False)
+    monitoring_heartbeat_url: str | None = Field(default=None, repr=False)
+    monitoring_state_path: str = "/data/monitoring-state.json"
+    monitoring_interval_seconds: int = Field(default=60, ge=30)
+    monitoring_consecutive_checks: int = Field(default=2, ge=1)
+    monitoring_failure_window_seconds: int = Field(default=900, ge=60)
+    monitoring_provider_failure_threshold: int = Field(default=3, ge=1)
+
+    @field_validator("monitoring_api_url", "monitoring_webhook_url", "monitoring_heartbeat_url")
+    @classmethod
+    def validate_monitoring_url(cls, value: str | None) -> str | None:
+        if value is not None:
+            parsed = urlsplit(value)
+            if (
+                parsed.scheme != "https"
+                or not parsed.hostname
+                or parsed.username
+                or parsed.password
+                or parsed.fragment
+            ):
+                raise ValueError("provide an HTTPS URL without user info or fragment")
+            try:
+                _ = parsed.port
+            except ValueError:
+                raise ValueError("provide a valid HTTPS port") from None
+        return value
+
     cors_origins: tuple[str, ...] = Field(
         default=("http://localhost:3000", "http://localhost:3001")
     )
