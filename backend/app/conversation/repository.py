@@ -50,6 +50,16 @@ class ConversationRepository(BaseRepository[Conversation]):
         await self.session.flush()
         await self.session.refresh(conversation)
 
+    async def owns_client(self, client_id: uuid.UUID) -> bool:
+        from app.client.models import Client
+
+        return (
+            await self.session.scalar(
+                select(Client.id).where(Client.id == client_id, Client.owner_id == self.owner_id)
+            )
+            is not None
+        )
+
     async def rollback(self) -> None:
         await self.session.rollback()
 

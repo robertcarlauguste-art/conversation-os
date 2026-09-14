@@ -1,7 +1,7 @@
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.client.models import Client
@@ -80,7 +80,10 @@ class DashboardRepository:
             select(ActionItem, Memory, Conversation, Client)
             .join(Memory, ActionItem.memory_id == Memory.id)
             .join(Conversation, Memory.conversation_id == Conversation.id)
-            .outerjoin(Client, Conversation.client_id == Client.id)
+            .outerjoin(
+                Client,
+                and_(Conversation.client_id == Client.id, Client.owner_id == self.owner_id),
+            )
             .where(ActionItem.status == ActionStatus.OPEN)
             .where(Conversation.owner_id == self.owner_id)
             .order_by(ActionItem.created_at.desc(), ActionItem.id.desc())
@@ -127,7 +130,10 @@ class DashboardRepository:
             select(ActionItem, Memory, Conversation, Client)
             .join(Memory, ActionItem.memory_id == Memory.id)
             .join(Conversation, Memory.conversation_id == Conversation.id)
-            .outerjoin(Client, Conversation.client_id == Client.id)
+            .outerjoin(
+                Client,
+                and_(Conversation.client_id == Client.id, Client.owner_id == self.owner_id),
+            )
             .where(
                 ActionItem.status == ActionStatus.COMPLETED,
                 ActionItem.completed_at.is_not(None),

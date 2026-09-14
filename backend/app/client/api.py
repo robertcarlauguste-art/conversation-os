@@ -169,9 +169,13 @@ async def unlink_conversation(
     client_id: uuid.UUID,
     conversation_id: uuid.UUID,
     principal: CurrentPrincipal,
+    service: ClientService = Depends(get_client_service),
     session: AsyncSession = Depends(get_db_session),
 ) -> None:
-
+    try:
+        await service.get_profile(client_id)
+    except ClientNotFoundError:
+        raise HTTPException(404, "Client not found.") from None
     conversation_repo = ConversationRepository(session, principal.user_id)
 
     conversation = await conversation_repo.get(conversation_id)

@@ -1,8 +1,6 @@
 from collections.abc import Callable
 from datetime import UTC, datetime
 
-from redis.asyncio import Redis
-
 from app.core.config import Settings
 
 from .repository import OperationsRepository
@@ -33,24 +31,13 @@ class OperationsService:
         )
 
     async def _infrastructure_metrics(self) -> InfrastructureMetrics:
-        if self.settings.processing_mode == "inline":
-            return InfrastructureMetrics(
-                processing_mode="inline", queue_depth=None, worker_available=None
-            )
-
-        redis = Redis.from_url(self.settings.redis_url)
-        try:
-            queue_depth = int(await redis.zcard("arq:queue"))
-            worker_available = bool(await redis.exists("conversation-os:worker:health"))
-        except Exception:
-            queue_depth = None
-            worker_available = False
-        finally:
-            await redis.aclose()
+        # This is a tenant endpoint, not an administrator endpoint. Shared Redis
+        # metrics reveal other tenants' workload. Preserve nullable response fields
+        # without querying infrastructure; operator monitoring belongs out of band.
         return InfrastructureMetrics(
-            processing_mode="queue",
-            queue_depth=queue_depth,
-            worker_available=worker_available,
+            processing_mode="queue" if self.settings.processing_mode == "queue" else "inline",
+            queue_depth=None,
+            worker_available=None,
         )
 
     def _build_alerts(
@@ -60,7 +47,7 @@ class OperationsService:
         infrastructure: InfrastructureMetrics,
     ) -> list[OperationalAlert]:
         alerts: list[OperationalAlert] = []
-        if infrastructure.processing_mode == "queue" and not infrastructure.worker_available:
+        if infrastructure.processing_mode == "queue" and infrastructure.worker_available is False:
             alerts.append(
                 OperationalAlert(
                     severity="critical",
