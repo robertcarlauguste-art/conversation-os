@@ -36,5 +36,10 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
+      - name: Tests
+        run: npm test
+
       - name: Build
+        env:
+          APP_ENV: test
         run: npm run build

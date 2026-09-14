@@ -37,7 +37,7 @@ OPENAI_API_KEY=<OpenAI key>
 ANTHROPIC_API_KEY=<Anthropic key>
 ```
 
-The backend additionally receives exact JSON arrays after both public Railway
+Both backend and worker receive exact JSON arrays after both public Railway
 domains are known:
 
 ```text
@@ -74,3 +74,7 @@ secrets. Changing either requires a frontend rebuild.
 - Roll back application services to the last successful deployment together.
 - Never roll back application code across an incompatible database migration.
 - Revoke the R2 token and rotate Railway secrets if credentials are exposed.
+
+## Configuration validation
+
+See [Configuration Validation](configuration-validation.md) for the complete startup contract, environment-specific requirements, and deployment smoke checklist. Frontend Railway builds default to `APP_ENV=production`; `staging` enforces the same hosted checks.

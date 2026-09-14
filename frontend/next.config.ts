@@ -1,4 +1,6 @@
 import type { NextConfig } from "next";
+import { PHASE_PRODUCTION_BUILD } from "next/constants";
+import { validateEnvironment } from "./environment";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -7,4 +9,7 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default function config(phase: string): NextConfig {
+  validateEnvironment(process.env, phase === PHASE_PRODUCTION_BUILD);
+  return nextConfig;
+}
