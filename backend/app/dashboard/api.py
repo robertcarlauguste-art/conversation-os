@@ -1,11 +1,11 @@
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import CurrentPrincipal
 from app.client.api import get_client_service
-from app.client.service import ClientService
+from app.client.service import ClientNotFoundError, ClientService
 from app.conversation.api import get_conversation_service
 from app.conversation.service import ConversationService
 from app.core.config import Settings, get_settings
@@ -101,5 +101,8 @@ async def record_followup_action(
     request: FollowupActionRequest,
     service: DashboardService = Depends(get_dashboard_service),
 ) -> ApiResponse[FollowupActionResult]:
-    result = await service.record_followup_action(client_id, request)
+    try:
+        result = await service.record_followup_action(client_id, request)
+    except ClientNotFoundError:
+        raise HTTPException(404, "Client not found.") from None
     return ApiResponse(success=True, data=result)

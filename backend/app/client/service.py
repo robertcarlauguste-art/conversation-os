@@ -182,6 +182,11 @@ class ClientService(BaseService[ClientRepository]):
                 )
             )
 
+        if not await self.repository.owns_fact_provenance(
+            client_id, source_conversation_id, source_memory_id
+        ):
+            raise ClientNotFoundError("Client or source not found.")
+
         for fact in facts:
             self.repository.session.add(fact)
 

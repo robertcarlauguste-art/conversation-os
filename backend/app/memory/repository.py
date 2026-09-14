@@ -3,6 +3,7 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.client.models import Client
 from app.conversation.models import Conversation
 from app.memory.models import ActionItem, ActionStatus, Memory, Person
 from app.repositories.base import BaseRepository
@@ -51,10 +52,20 @@ class MemoryRepository(BaseRepository[Memory]):
         than something `extract_and_persist` could have done itself —
         it doesn't know about clients, by design (Rule 5).
         """
-        person = await self.session.get(Person, person_id)
-        if person is not None:
-            person.client_id = client_id
-            await self.session.commit()
+        result = await self.session.execute(
+            select(Person)
+            .join(Memory, Person.memory_id == Memory.id)
+            .join(Conversation, Memory.conversation_id == Conversation.id)
+            .where(Person.id == person_id, Conversation.owner_id == self.owner_id)
+        )
+        person = result.scalar_one_or_none()
+        client = await self.session.scalar(
+            select(Client).where(Client.id == client_id, Client.owner_id == self.owner_id)
+        )
+        if person is None or client is None:
+            raise ValueError("Person or client not found.")
+        person.client_id = client_id
+        await self.session.commit()
 
     async def get_action_item(self, action_item_id: uuid.UUID) -> ActionItem | None:
         result = await self.session.execute(

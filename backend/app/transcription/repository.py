@@ -13,6 +13,14 @@ class TranscriptRepository(BaseRepository[Transcript]):
         super().__init__(session, Transcript)
         self.owner_id = owner_id
 
+    async def get(self, id_: object) -> Transcript | None:
+        result = await self.session.execute(
+            select(Transcript)
+            .join(Conversation, Transcript.conversation_id == Conversation.id)
+            .where(Transcript.id == id_, Conversation.owner_id == self.owner_id)
+        )
+        return result.scalar_one_or_none()
+
     async def get_by_conversation_id(self, conversation_id: uuid.UUID) -> Transcript | None:
         result = await self.session.execute(
             select(Transcript)

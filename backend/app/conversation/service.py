@@ -231,6 +231,8 @@ class ConversationService(BaseService[ConversationRepository]):
         link/unlink endpoints (US-105) — `client_id=None` unlinks.
         """
         conversation = await self.get_conversation(conversation_id)
+        if client_id is not None and not await self.repository.owns_client(client_id):
+            raise ConversationNotFoundError("Client not found.")
         conversation.client_id = client_id
         await self.repository.commit()
         return conversation
