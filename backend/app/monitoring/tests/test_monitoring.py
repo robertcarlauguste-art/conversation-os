@@ -24,6 +24,67 @@ def settings(**kwargs):
     )
 
 
+async def test_free_heartbeat_refresh_failure_restart_and_confirmed_recovery(tmp_path):
+    requests = []
+
+    def receive(request):
+        requests.append(request)
+        return httpx.Response(204)
+
+    config = Settings(_env_file=None, monitoring_alert_heartbeat_url="https://heartbeat.test/key")
+    path = tmp_path / "state.json"
+    state = load_state(path)
+    async with httpx.AsyncClient(transport=httpx.MockTransport(receive)) as client:
+        for value in (False, False, False, True, True, None, False, False):
+            await process_signals({"database_unavailable": value}, state, config, client)
+            save_state(path, state)
+            state = load_state(path)
+    assert [request.url.path for request in requests] == [
+        "/key",
+        "/key",
+        "/key/fail",
+        "/key/fail",
+        "/key/fail",
+        "/key",
+    ]
+    assert all(request.method == "GET" and not request.content for request in requests)
+    assert "key" not in path.read_text()
+
+
+async def test_free_heartbeat_unknown_never_reports_healthy_and_failure_retries():
+    config = Settings(
+        _env_file=None,
+        monitoring_alert_heartbeat_url="https://heartbeat.test/key",
+        monitoring_consecutive_checks=1,
+    )
+    client = Mock(get=AsyncMock(side_effect=[httpx.Response(503), httpx.Response(204)]))
+    state = {"incidents": {}}
+    for signals in ({}, {"a": None}, {"a": False, "b": None}):
+        assert await process_signals(signals, state, config, client) == []
+    client.get.assert_not_called()
+    events = await process_signals({"a": True, "b": None}, state, config, client)
+    assert events[0]["delivery"] == "failed"
+    assert not state["incidents"]["operational_health"]["sent"]
+    events = await process_signals({"a": True, "b": None}, state, config, client)
+    assert events[0]["delivery"] == "accepted"
+    assert state["incidents"]["operational_health"]["sent"]
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        {"monitoring_webhook_url": "https://alerts.test/key"},
+        {"monitoring_heartbeat_url": "https://heartbeat.test/key/"},
+        {"monitoring_alert_heartbeat_url": "https://heartbeat.test/key?secret=value"},
+        {"monitoring_alert_heartbeat_url": "http://heartbeat.test/key"},
+    ],
+)
+def test_free_heartbeat_rejects_ambiguous_or_unsafe_configuration(extra):
+    values = {"monitoring_alert_heartbeat_url": "https://heartbeat.test/key"} | extra
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **values)
+
+
 async def test_transitions_survive_restart_and_unknown_does_not_resolve(tmp_path):
     sent = []
 

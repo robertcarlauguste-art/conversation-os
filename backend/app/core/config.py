@@ -46,13 +46,19 @@ class Settings(BaseSettings):
     monitoring_api_url: str | None = None
     monitoring_webhook_url: str | None = Field(default=None, repr=False)
     monitoring_heartbeat_url: str | None = Field(default=None, repr=False)
+    monitoring_alert_heartbeat_url: str | None = Field(default=None, repr=False)
     monitoring_state_path: str = "/data/monitoring-state.json"
     monitoring_interval_seconds: int = Field(default=60, ge=30)
     monitoring_consecutive_checks: int = Field(default=2, ge=1)
     monitoring_failure_window_seconds: int = Field(default=900, ge=60)
     monitoring_provider_failure_threshold: int = Field(default=3, ge=1)
 
-    @field_validator("monitoring_api_url", "monitoring_webhook_url", "monitoring_heartbeat_url")
+    @field_validator(
+        "monitoring_api_url",
+        "monitoring_webhook_url",
+        "monitoring_heartbeat_url",
+        "monitoring_alert_heartbeat_url",
+    )
     @classmethod
     def validate_monitoring_url(cls, value: str | None) -> str | None:
         if value is not None:
@@ -70,6 +76,19 @@ class Settings(BaseSettings):
             except ValueError:
                 raise ValueError("provide a valid HTTPS port") from None
         return value
+
+    @model_validator(mode="after")
+    def validate_monitoring_delivery(self):
+        if self.monitoring_alert_heartbeat_url:
+            if self.monitoring_webhook_url:
+                raise ValueError("choose webhook or alert heartbeat delivery, not both")
+            if urlsplit(self.monitoring_alert_heartbeat_url).query:
+                raise ValueError("alert heartbeat URL must not contain query parameters")
+            if self.monitoring_alert_heartbeat_url.rstrip("/") == (
+                self.monitoring_heartbeat_url or ""
+            ).rstrip("/"):
+                raise ValueError("operational health and process heartbeats must be distinct")
+        return self
 
     cors_origins: tuple[str, ...] = Field(
         default=("http://localhost:3000", "http://localhost:3001")

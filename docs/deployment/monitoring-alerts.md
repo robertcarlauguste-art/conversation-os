@@ -1,8 +1,9 @@
 # Operator monitoring and alerts
 
-Status: implementation ready for review; not deployed or signed off. The user has
-no alert destination yet. Delivery must remain disabled until a destination is
-configured and an actual notification is received. Configuration validation and
+Status: implementation ready for review; not deployed or signed off. Better Stack
+Free is selected; incoming webhooks require an upgrade, so use the operational
+health heartbeat mode below. Delivery is not yet connected to Railway.
+Configuration validation and
 tenant isolation are preserved in the base release `c1893cc`.
 
 ## Inventory and boundary
@@ -54,6 +55,7 @@ environment clearly; both labels retain hosted validation requirements.
 | --- | --- |
 | MONITORING_API_URL | Required by monitor; HTTPS API base URL, no credentials or fragment |
 | MONITORING_WEBHOOK_URL | Omitted disables delivery; HTTPS JSON receiver, treated as a secret |
+| MONITORING_ALERT_HEARTBEAT_URL | Alternative to webhook: secret HTTPS heartbeat base URL, no query; must differ from process heartbeat |
 | MONITORING_HEARTBEAT_URL | Optional secret HTTPS GET endpoint for an independent missing-heartbeat service |
 | MONITORING_STATE_PATH | `/data/monitoring-state.json`; persistent volume required |
 | MONITORING_INTERVAL_SECONDS | 60; minimum 30 |
@@ -69,6 +71,35 @@ fixed safe error; it is not silently reset. Keep state on restart/rollback. Do n
 scale replicas without implementing coordinated delivery state.
 
 ## Delivery contract
+
+### Free heartbeat mode (selected)
+
+Set MONITORING_ALERT_HEARTBEAT_URL and leave MONITORING_WEBHOOK_URL unset.
+Configure one heartbeat named `ConversationOS Staging Operational Health` and a
+separate `ConversationOS Staging Monitor` process heartbeat. Use a 3-minute period
+and 1-minute grace for both. Do not reuse either URL for the other purpose.
+
+Any unhealthy signal makes overall health unhealthy; recovery requires all signals
+to be known and healthy. After the consecutive-observation threshold, the poller
+sends an empty GET to the base URL for health or to its `/fail` path for failure.
+It refreshes the confirmed state each poll, including after restart. An announced
+failure stays failed until recovery is confirmed. Unknown/unconfirmed observations
+without an announced failure receive no health ping; once activated, the external
+deadline detects prolonged uncertainty. Empty signal sets never count as healthy.
+
+This produces one aggregate incident per environment, not a separate incident for
+each code. Multiple simultaneous faults and changing faults remain one incident;
+consult the private `monitor_poll` signals to identify them. The debounce threshold
+applies to overall health. The process heartbeat confirms execution and is not a
+substitute for this health heartbeat. A new heartbeat remains pending until its
+first ping, so verify activation explicitly during deployment.
+
+No customer content, counts or diagnostic payload is transmitted. Failed delivery
+retries on the next eligible poll; redirects are rejected. The hosted acceptance
+test must prove repeated `/fail` pings do not create duplicate incidents, that
+recovery closes the incident, and that missing pings alert the operator.
+
+### Optional JSON webhook mode
 
 The HTTPS receiver must accept JSON with `service`, `environment`, `code`, `status`.
 Status is `firing` or `resolved`. It must return 2xx after accepting the event and
@@ -94,7 +125,7 @@ acceptance, not that a human received email.
    persistent `/data` volume and start command `python -m app.monitoring`. No public
    domain is needed. Prefer read-only database and least-privilege Redis/S3 access;
    validate those permissions before replacing existing credentials.
-4. Begin without MONITORING_WEBHOOK_URL and run `--once` for a read-only staging
+4. Begin without either alert delivery URL and run `--once` for a read-only staging
    probe. Check signal values; no incident delivery is claimed during dry run.
 5. Verify firing, deduplication, retry, restart and recovery using a disposable
    environment or dedicated test receiver. Use clearly labeled test incidents;
@@ -114,12 +145,24 @@ The Monitoring & Alerts milestone stays open until hosted deployment, independen
 uptime/dead-man monitoring and actual delivery/recovery evidence are complete.
 Sprint 7's real-failure retry smoke remains independently pending.
 
-## Suggested initial notification service
+## Notification service checkpoint (2026-09-15)
 
-Better Stack is a candidate because its [incoming webhook integration](https://betterstack.com/docs/uptime/api/single-incoming-webhook/)
-can create/resolve incidents and deliver email, and its [heartbeat monitors](https://betterstack.com/docs/uptime/api/create-a-hearbeat/)
-can detect missing pings. No account, subscription, webhook or monitor has been
-created. Verify current plan entitlements before subscribing.
+Better Stack Free is configured for email to the primary responder. No paid
+subscription was purchased. The custom incoming-webhook feature is paid and is
+not used. [Heartbeat failure reporting](https://betterstack.com/docs/uptime/cron-and-heartbeat-monitor/)
+provides the free delivery mechanism above.
+
+- API monitor: `4931590`, ConversationOS Staging API; `/health`, 3-minute checks,
+  1-minute confirmation, 3-minute recovery, 10-second timeout, redirects disabled.
+- Process heartbeat: `493621`, ConversationOS Staging Monitor; pending until wired.
+- Health heartbeat: `493748`, ConversationOS Staging Operational Health; pending.
+- Both heartbeats: 3-minute period, 1-minute grace, email enabled, no team escalation.
+- Better Stack reported sending a process-heartbeat test alert; inbox receipt is
+  not yet confirmed. No real failure/recovery or missed-heartbeat proof yet.
+
+Store the secret heartbeat URLs only in the monitoring service configuration.
+These two heartbeats per environment leave capacity for staging and initial
+production within the currently advertised ten free heartbeats.
 
 The poller sends MONITORING_HEARTBEAT_URL an empty GET only after state persistence.
 It withholds the ping if a due alert was not accepted (including disabled delivery).

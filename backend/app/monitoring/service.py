@@ -31,6 +31,8 @@ def save_state(path: Path, state: dict) -> None:
 async def process_signals(
     signals: dict[str, bool | None], state: dict, settings: Settings, client: httpx.AsyncClient
 ) -> list[dict]:
+    if settings.monitoring_alert_heartbeat_url:
+        return await process_health_heartbeat(signals, state, settings, client)
     events = []
     for code, unhealthy in sorted(signals.items()):
         incident = state["incidents"].setdefault(code, {"bad": 0, "good": 0, "sent": False})
@@ -76,6 +78,46 @@ async def process_signals(
         incident["sent"] = bool(firing)
         events.append(event | {"delivery": "accepted"})
     return events
+
+
+async def process_health_heartbeat(
+    signals: dict[str, bool | None], state: dict, settings: Settings, client: httpx.AsyncClient
+) -> list[dict]:
+    """Refresh a free heartbeat; never report recovery while any probe is unknown."""
+    incident = state["incidents"].setdefault(
+        "operational_health", {"bad": 0, "good": 0, "sent": False}
+    )
+    unhealthy = any(value is True for value in signals.values())
+    healthy = bool(signals) and all(value is False for value in signals.values())
+    threshold = settings.monitoring_consecutive_checks
+    incident["bad"] = min(incident["bad"] + 1, threshold) if unhealthy else 0
+    incident["good"] = min(incident["good"] + 1, threshold) if healthy else 0
+    if incident["bad"] >= threshold:
+        firing = True
+    elif incident["good"] >= threshold:
+        firing = False
+    elif incident["sent"]:
+        # Maintain the remote failure until recovery is confirmed.
+        firing = True
+    else:
+        # No healthy ping on unknown or unconfirmed observations. Once started,
+        # the remote deadline also detects prolonged inability to assess health.
+        return []
+    event = {
+        "service": "ConversationOS",
+        "environment": settings.app_env,
+        "code": "operational_health",
+        "status": "firing" if firing else "resolved",
+    }
+    url = (settings.monitoring_alert_heartbeat_url or "").rstrip("/")
+    try:
+        response = await client.get(url + ("/fail" if firing else ""))
+        if not 200 <= response.status_code < 300:
+            raise ValueError("Delivery rejected")
+    except Exception:
+        return [event | {"delivery": "failed"}]
+    incident["sent"] = firing
+    return [event | {"delivery": "accepted"}]
 
 
 async def heartbeat(settings: Settings, events: list[dict], client: httpx.AsyncClient) -> str:
