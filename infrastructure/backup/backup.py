@@ -14,6 +14,7 @@ from urllib.parse import parse_qs, unquote, urlsplit
 import boto3
 import httpx
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from recordings import snapshot
 
 MAGIC = b"COSBACKUP1"
 CHUNK = 1024 * 1024
@@ -73,6 +74,9 @@ def config():
         "BACKUP_ENCRYPTION_KEY",
         "BACKUP_HEARTBEAT_URL",
         "BACKUP_KEY_ID",
+        "RECORDING_SOURCE_BUCKET",
+        "RECORDING_SOURCE_ACCESS_KEY_ID",
+        "RECORDING_SOURCE_SECRET_ACCESS_KEY",
     )
     values = {name: os.environ[name].strip() for name in names}
     if not all(values.values()):
@@ -90,6 +94,8 @@ def config():
         "S3_BUCKET", "conversation-os-staging"
     ):
         raise ValueError("Backup bucket must be separate from application recordings")
+    if values["BACKUP_BUCKET"] == values["RECORDING_SOURCE_BUCKET"]:
+        raise ValueError("Recording source must be separate from backup storage")
     return values, key
 
 
@@ -208,6 +214,28 @@ def run():
             Body=json.dumps(manifest).encode(),
             ContentType="application/json",
         )
+        print('{"backup_stage":"recording_snapshot"}', flush=True)
+        source = boto3.client(
+            "s3",
+            endpoint_url=values["BACKUP_ENDPOINT_URL"],
+            region_name="auto",
+            aws_access_key_id=values["RECORDING_SOURCE_ACCESS_KEY_ID"],
+            aws_secret_access_key=values["RECORDING_SOURCE_SECRET_ACCESS_KEY"],
+        )
+        count = snapshot(
+            source,
+            values["RECORDING_SOURCE_BUCKET"],
+            client,
+            bucket,
+            prefix.replace("postgres/", "recordings/", 1),
+            key,
+            directory,
+            encrypt_file,
+            verify_remote,
+            file_hash,
+            MAX_BYTES,
+        )
+        print(json.dumps({"recordings_verified": count}), flush=True)
     # Only verified uploads emit success. Missed/failed runs leave heartbeat overdue.
     response = httpx.get(
         values["BACKUP_HEARTBEAT_URL"], timeout=15, follow_redirects=False

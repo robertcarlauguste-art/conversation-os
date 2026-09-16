@@ -5,7 +5,27 @@ First backup: 2026-09-16T05:43:18Z. All ten public tables matched the live datab
 by counts and full-row fingerprints. Migration 0008 and all constraints verified;
 both synthetic tenants retained distinct owners and scoped foreign-ID queries
 returned no rows. Restore and comparison took 18.804 seconds on the small dataset.
-This is database recovery evidence, not a fresh API authorization test or audio backup.
+This is database recovery evidence, not a fresh API authorization test.
+
+Recording protection added September 16: a full snapshot copied and verified all
+five source objects; both synthetic recordings authenticated and restored with
+byte hashes matching their originals. The 06:00 UTC scheduled database run was
+observed completing at 06:03:35 UTC. The combined job was manually executed at
+11:09 UTC and succeeded; its first unattended combined run remains to be observed.
+Deployment: 084f8f4e-d2cb-4407-ac80-635ea233a7f4.
+
+Recording source settings: RECORDING_SOURCE_BUCKET, RECORDING_SOURCE_ACCESS_KEY_ID,
+RECORDING_SOURCE_SECRET_ACCESS_KEY reference existing staging app storage settings.
+The source credential currently has object read/write permission; this code only
+lists/reads source objects. A dedicated read-only source credential remains desirable.
+Source and backup buckets must differ. Total source recording size is capped at
+256 MiB per snapshot for this proof; larger datasets fail without a success heartbeat.
+Each recording is encrypted, uploaded and downloaded for checksum verification.
+Source conditional reads and a final inventory check reject concurrent changes.
+Manifests are published only after successful verification of every object.
+Snapshots retain previous copies even after source deletion; no retention cleanup
+is enabled. Database and object snapshots are sequential, not atomic: a maintenance
+window or reconciliation is needed to guarantee references during concurrent writes.
 
 One-shot PostgreSQL 18 export, AES-256-GCM encryption, upload, full download/hash
 verification, immutable manifest, then success heartbeat. Errors exit nonzero and
@@ -18,7 +38,7 @@ UTC, one replica, restart NEVER, no public networking and no attached volume.
 Use a dedicated missed-run heartbeat (24-hour period, 1-hour grace), verified email
 recipient. Existing acceptance-test heartbeat 493760 was repurposed, retaining its
 previously verified email delivery path. It is active with a one-day period and
-one-hour grace; daily scheduled execution itself still needs observation.
+one-hour grace; the database-only scheduled execution has now been observed.
 
 R2 bucket: `conversation-os-staging-backups`, private, no public domain.
 The credential is scoped ONLY to this bucket with object read/write access.
