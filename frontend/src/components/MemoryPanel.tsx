@@ -91,7 +91,7 @@ export function MemoryPanel({
     return (
       <div className="rounded-xl border border-status-failed/30 bg-surface p-6 text-center">
         <p className="text-sm text-status-failed">
-          Couldn&apos;t load this conversation&apos;s memory. Check that the backend is running.
+          Couldn&apos;t load this conversation&apos;s memory. Please refresh the page and try again.
         </p>
       </div>
     );

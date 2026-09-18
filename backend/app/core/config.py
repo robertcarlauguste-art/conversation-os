@@ -129,6 +129,7 @@ class Settings(BaseSettings):
             "audio/x-m4a",
             "audio/mp4",  # m4a is often reported as audio/mp4
             "audio/aac",
+            "audio/webm",
         )
     )
 

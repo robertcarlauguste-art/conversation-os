@@ -31,7 +31,7 @@ export function ClientsTable() {
   if (isError) {
     return (
       <p className="py-10 text-center text-sm text-status-failed">
-        Couldn&apos;t load clients. Check that the backend is running.
+        Couldn&apos;t load clients. Please refresh the page and try again.
       </p>
     );
   }

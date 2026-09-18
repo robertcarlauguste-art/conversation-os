@@ -5,32 +5,48 @@ import { useRef, useState } from "react";
 import { ApiError, uploadConversation } from "@/lib/api";
 import { useToast } from "./Toast";
 import { WaveformMark } from "./WaveformMark";
+import { AudioRecorder } from "./AudioRecorder";
+import Link from "next/link";
 
-const ACCEPTED_EXTENSIONS = [".mp3", ".wav", ".m4a", ".aac"];
+const ACCEPTED_EXTENSIONS = [".mp3", ".wav", ".m4a", ".aac", ".webm", ".mp4"];
 
 export function UploadDropzone() {
   const [isDragging, setIsDragging] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
   const [activeFileName, setActiveFileName] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const busy = useRef(false);
+  const [uploadedId, setUploadedId] = useState<string | null>(null);
   const { notify } = useToast();
   const queryClient = useQueryClient();
 
   const isUploading = progress !== null;
 
   async function handleFile(file: File) {
+    if (busy.current) return false;
+    if (!file.size || file.size > 100 * 1024 * 1024) {
+      notify("Choose a non-empty audio file up to 100 MB.", "error");
+      return false;
+    }
+    busy.current = true;
+    setUploadedId(null);
     setActiveFileName(file.name);
     setProgress(0);
     try {
-      await uploadConversation(file, setProgress);
+      const result = await uploadConversation(file, setProgress);
+      setUploadedId(result.id);
       notify(`${file.name} uploaded successfully.`, "success");
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      return true;
     } catch (error) {
       const message = error instanceof ApiError ? error.message : "Upload failed.";
       notify(message, "error");
+      return false;
     } finally {
       setProgress(null);
       setActiveFileName(null);
+      busy.current = false;
     }
   }
 
@@ -48,6 +64,9 @@ export function UploadDropzone() {
   }
 
   return (
+    <>
+    <AudioRecorder onSubmit={handleFile} disabled={isUploading} />
+    {uploadedId && <p role="status">Audio uploaded. Processing may take a moment. <Link className="text-accent underline" href={`/conversations/${uploadedId}`}>Open your conversation to follow progress and review results.</Link></p>}
     <div
       onDragOver={(e) => {
         e.preventDefault();
@@ -98,5 +117,7 @@ export function UploadDropzone() {
         className="hidden"
       />
     </div>
+    <p className="text-sm text-ink/70">Review AI summaries and actions for mistakes. You can organize conversations by linking them to a client. This pilot does not include unlimited storage.</p>
+    </>
   );
 }

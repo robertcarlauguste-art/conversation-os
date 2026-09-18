@@ -39,7 +39,7 @@ export function ConversationsTable() {
   if (isError) {
     return (
       <p className="py-10 text-center text-sm text-status-failed">
-        Couldn&apos;t load conversations. Check that the backend is running.
+        Couldn&apos;t load conversations. Please refresh the page and try again.
       </p>
     );
   }
@@ -49,7 +49,7 @@ export function ConversationsTable() {
       <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-line py-16 text-center">
         <WaveformMark className="h-6 w-auto text-ink/20" />
         <p className="text-sm font-medium text-ink">No conversations yet</p>
-        <p className="text-xs text-ink/50">Upload a recording above to get started.</p>
+        <p className="text-xs text-ink/50">Record a voice note or upload audio above to get started.</p>
       </div>
     );
   }

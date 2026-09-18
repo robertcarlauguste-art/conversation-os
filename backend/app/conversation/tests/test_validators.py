@@ -33,3 +33,18 @@ def test_rejects_mismatched_mime_type() -> None:
     candidate = UploadCandidate("track.mp3", "video/mp4", 1024)
     with pytest.raises(ValidationError, match="Unsupported content type"):
         validate_upload(candidate, allowed_mime_types=ALLOWED_MIME, max_size_bytes=MAX_SIZE)
+
+
+@pytest.mark.parametrize(
+    ("filename", "mime"),
+    [("note.webm", "audio/webm"), ("note.m4a", "audio/mp4"), ("note.mp4", "audio/mp4")],
+)
+def test_accepts_browser_recordings(filename: str, mime: str) -> None:
+    from app.core.config import Settings
+
+    settings = Settings(_env_file=None)
+    validate_upload(
+        UploadCandidate(filename, mime, 1024),
+        allowed_mime_types=settings.allowed_audio_mime_types,
+        max_size_bytes=MAX_SIZE,
+    )
