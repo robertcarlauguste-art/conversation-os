@@ -374,7 +374,7 @@ async def test_every_business_route_requires_authentication(security):
                 response = await security.http.request(method, concrete, **kwargs)
                 assert response.status_code == 401, (method, concrete, response.text)
             count += 1
-    assert count == 22
+    assert count == 23
     security.storage.save.assert_not_awaited()
     security.enqueue.assert_not_awaited()
 
@@ -595,3 +595,58 @@ async def test_client_review_scopes_sources_and_rejects_foreign_ids(security, ac
     )
     assert response.status_code == 502
     assert foreign.marker not in response.text
+
+
+@pytest.mark.parametrize("actor", ["alpha", "beta"])
+async def test_saved_review_persists_and_hides_removed_sources(security, actor, monkeypatch):
+    import json
+
+    own = security.records[actor]
+    foreign = security.records["beta" if actor == "alpha" else "alpha"]
+    provider = SimpleNamespace(
+        complete=AsyncMock(
+            return_value=SimpleNamespace(
+                content=json.dumps(
+                    {
+                        "details": [
+                            {
+                                "label": "Detail",
+                                "value": own.marker,
+                                "source_conversation_id": str(own.conversation),
+                                "quote": own.marker,
+                            }
+                        ],
+                        "completed_actions": [
+                            {
+                                "action_id": str(own.action),
+                                "source_conversation_id": str(own.conversation),
+                                "quote": own.marker,
+                            }
+                        ],
+                    }
+                )
+            )
+        )
+    )
+    monkeypatch.setattr("app.providers.dependencies.get_ai_provider", lambda _: provider)
+    url = f"/api/v1/clients/{own.client}/review"
+    assert (await security.http.get(url, headers=headers(actor))).json()["data"] is None
+    created = await security.http.post(url, headers=headers(actor))
+    assert created.status_code == 200
+    saved = await security.http.get(url, headers=headers(actor))
+    assert saved.json()["data"] == created.json()["data"]
+    provider.complete.assert_awaited_once()
+    assert (
+        await security.http.get(f"/api/v1/clients/{foreign.client}/review", headers=headers(actor))
+    ).status_code == 404
+    await security.http.post(
+        f"/api/v1/memories/action-items/{own.action}/complete", headers=headers(actor)
+    )
+    saved = (await security.http.get(url, headers=headers(actor))).json()["data"]
+    assert saved["completed_actions"] == []
+    assert saved["details"]
+    await security.http.delete(
+        f"/api/v1/clients/{own.client}/conversations/{own.conversation}", headers=headers(actor)
+    )
+    saved = (await security.http.get(url, headers=headers(actor))).json()["data"]
+    assert saved["stale"] and saved["details"] == [] and saved["actions"] == {}

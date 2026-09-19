@@ -215,3 +215,17 @@ async def review_client_updates(
     except RuntimeError:
         raise HTTPException(503, "Client review is currently unavailable.") from None
     return ApiResponse(success=True, data=await generate_review(repository, client_id, provider))
+
+
+@router.get("/{client_id}/review")
+async def get_saved_client_review(
+    client_id: uuid.UUID,
+    principal: CurrentPrincipal,
+    session: AsyncSession = Depends(get_db_session),
+):
+    from app.client.review import load_review
+
+    return ApiResponse(
+        success=True,
+        data=await load_review(ClientRepository(session, principal.user_id), client_id),
+    )

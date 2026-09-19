@@ -264,6 +264,8 @@ export async function retryConversation(id: string): Promise<ConversationDetail>
 }
 
 export interface ClientReview {
+  saved_at?: string | null;
+  stale?: boolean;
   conversation_count: number;
   details: { label: string; value: string; source_conversation_id: string; quote: string }[];
   completed_actions: { action_id: string; source_conversation_id: string; quote: string }[];
@@ -272,4 +274,8 @@ export interface ClientReview {
 
 export async function reviewClientUpdates(clientId: string): Promise<ClientReview> {
   return unwrap<ClientReview>(await authenticatedFetch(`${API_BASE_URL}/api/v1/clients/${clientId}/review`, { method: "POST" }));
+}
+
+export async function getSavedClientReview(clientId: string): Promise<ClientReview | null> {
+  return unwrap<ClientReview | null>(await authenticatedFetch(`${API_BASE_URL}/api/v1/clients/${clientId}/review`, { cache: "no-store" }));
 }
