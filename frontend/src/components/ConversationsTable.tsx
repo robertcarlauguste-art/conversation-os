@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useDeferredValue, useState } from "react";
 import { deleteConversation, listConversations } from "@/lib/api";
-import { formatDate, formatFileSize } from "@/lib/format";
+import { conversationTitle, formatDate, formatFileSize } from "@/lib/format";
 import { StatusBadge } from "./StatusBadge";
 import { WaveformMark } from "./WaveformMark";
 
@@ -110,7 +110,7 @@ export function ConversationsTable() {
                 href={`/conversations/${conversation.id}`}
                 className="font-medium text-ink hover:text-accent"
               >
-                {conversation.title ?? "Untitled conversation"}
+                {conversationTitle(conversation)}
               </Link>
             </td>
             <td className="px-4 py-3">

@@ -23,3 +23,7 @@ export function formatDuration(seconds: number | null): string {
   const remaining = seconds % 60;
   return `${minutes}:${remaining.toString().padStart(2, "0")}`;
 }
+
+export function conversationTitle(conversation: { title: string | null; created_at: string }): string {
+  return conversation.title?.trim() || `Conversation — ${formatDate(conversation.created_at)}`;
+}

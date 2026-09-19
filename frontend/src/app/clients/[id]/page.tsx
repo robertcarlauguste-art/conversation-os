@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { use } from "react";
 import { getClient, getClientConversations } from "@/lib/api";
-import { formatDate } from "@/lib/format";
+import { conversationTitle, formatDate } from "@/lib/format";
 import { StatusBadge } from "@/components/StatusBadge";
 import type { ConversationStatus } from "@/lib/types";
 
@@ -52,8 +52,9 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
 
       <div className="rounded-xl border border-line bg-surface p-6">
         <h3 className="text-xs font-medium uppercase tracking-wide text-ink/50">
-          Remembered Facts
+          Fact history
         </h3>
+        <p className="mt-3 text-sm text-ink/60">Details collected from past conversations may conflict or change. Review the source conversation before treating a detail as current.</p>
         {client.facts.length === 0 ? (
           <p className="mt-3 text-sm text-ink/40">Nothing recorded yet.</p>
         ) : (
@@ -61,9 +62,9 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
             {client.facts.map((fact) => (
               <li key={fact.id} className="flex flex-col gap-0.5">
                 <span>{fact.fact_text}</span>
+                <Link className="text-xs text-accent underline" href={`/conversations/${fact.source_conversation_id}`}>Review source conversation</Link>
                 <span className="text-xs text-ink/40">
                   Recorded {formatDate(fact.created_at)}
-                  {fact.confidence !== null && ` · ${Math.round(fact.confidence * 100)}% confidence`}
                 </span>
               </li>
             ))}
@@ -87,7 +88,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                   href={`/conversations/${conversation.id}`}
                   className="font-medium text-ink hover:text-accent"
                 >
-                  {conversation.title ?? conversation.filename}
+                  {conversationTitle(conversation)}
                 </Link>
                 <StatusBadge status={conversation.status as ConversationStatus} />
               </li>

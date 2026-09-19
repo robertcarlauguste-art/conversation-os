@@ -384,6 +384,12 @@ class MemoryService(BaseService[MemoryRepository]):
 
         await self.repository.add(memory)
 
+        # Reuse extracted details without another model call or overwriting a user title.
+        topic = next((" ".join(t.split()) for t in extraction.topics if t.strip()), "Conversation")
+        names = [" ".join(p.name.split()) for p in extraction.people if p.name.strip()]
+        title = f"{', '.join(names[:2])} — {topic}" if names else topic
+        await self.repository.set_missing_conversation_title(conversation_id, title[:255])
+
         await self.repository.commit()
 
         return memory

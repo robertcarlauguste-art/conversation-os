@@ -14,7 +14,7 @@ import type {
   DashboardOverview,
   DashboardPriority,
 } from "@/lib/types";
-import { formatDate } from "@/lib/format";
+import { conversationTitle, formatDate } from "@/lib/format";
 import { useToast } from "./Toast";
 
 const CARDS: { key: keyof DashboardOverview; label: string }[] = [
@@ -535,7 +535,7 @@ export function SummaryCards() {
                   href={`/conversations/${conversation.id}`}
                   className="flex items-center justify-between rounded-lg border border-line p-3 hover:bg-paper"
                 >
-                  <span>{conversation.title ?? "Untitled conversation"}</span>
+                  <span>{conversationTitle(conversation)}</span>
                   <span className="text-xs text-ink/50">{conversation.status}</span>
                 </Link>
               ))

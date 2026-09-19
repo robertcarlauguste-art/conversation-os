@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.client.models import Client
@@ -10,6 +10,17 @@ from app.repositories.base import BaseRepository
 
 
 class MemoryRepository(BaseRepository[Memory]):
+    async def set_missing_conversation_title(self, conversation_id: uuid.UUID, title: str) -> None:
+        await self.session.execute(
+            update(Conversation)
+            .where(
+                Conversation.id == conversation_id,
+                Conversation.owner_id == self.owner_id,
+                or_(Conversation.title.is_(None), Conversation.title == ""),
+            )
+            .values(title=title)
+        )
+
     def __init__(self, session: AsyncSession, owner_id: str = "dev_user") -> None:
         super().__init__(session, Memory)
         self.owner_id = owner_id

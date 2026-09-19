@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { use } from "react";
 import { getConversation } from "@/lib/api";
-import { formatDate, formatDuration, formatFileSize } from "@/lib/format";
+import { conversationTitle, formatDate, formatDuration, formatFileSize } from "@/lib/format";
 import { StatusBadge } from "@/components/StatusBadge";
 import { RetryConversation } from "@/components/RetryConversation";
 import { ProcessingDetails } from "@/components/ProcessingDetails";
@@ -53,7 +53,7 @@ export default function ConversationDetailPage({
           ← Conversations
         </Link>
         <div className="mt-2 flex items-center gap-3">
-          <h1 className="font-display text-3xl text-ink">{data.title ?? data.filename}</h1>
+          <h1 className="font-display text-3xl text-ink">{conversationTitle(data)}</h1>
           <StatusBadge status={data.status} />
         </div>
       </div>

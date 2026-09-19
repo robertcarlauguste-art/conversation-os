@@ -129,7 +129,7 @@ export function MemoryPanel({
           </div>
         )}
         <p className="mt-4 text-xs text-ink/40">
-          {Math.round(memory.confidence * 100)}% confidence · {memory.source}
+          AI-generated summary. Check important details and follow-up actions against the transcript; AI can make mistakes.
         </p>
       </SectionCard>
 
