@@ -262,3 +262,14 @@ export async function retryConversation(id: string): Promise<ConversationDetail>
     throw new ApiError("Couldn't queue the retry. Refresh the conversation before trying again.");
   }
 }
+
+export interface ClientReview {
+  conversation_count: number;
+  details: { label: string; value: string; source_conversation_id: string; quote: string }[];
+  completed_actions: { action_id: string; source_conversation_id: string; quote: string }[];
+  actions: Record<string, string>;
+}
+
+export async function reviewClientUpdates(clientId: string): Promise<ClientReview> {
+  return unwrap<ClientReview>(await authenticatedFetch(`${API_BASE_URL}/api/v1/clients/${clientId}/review`, { method: "POST" }));
+}

@@ -195,3 +195,23 @@ async def unlink_conversation(
     conversation.client_id = None
 
     await conversation_repo.commit()
+
+
+@router.post("/{client_id}/review")
+async def review_client_updates(
+    client_id: uuid.UUID,
+    principal: CurrentPrincipal,
+    session: AsyncSession = Depends(get_db_session),
+):
+    from app.client.review import generate_review
+    from app.core.config import get_settings
+    from app.providers.dependencies import get_ai_provider
+
+    repository = ClientRepository(session, principal.user_id)
+    if await repository.get(client_id) is None:
+        raise HTTPException(404, "Client not found.")
+    try:
+        provider = get_ai_provider(get_settings())
+    except RuntimeError:
+        raise HTTPException(503, "Client review is currently unavailable.") from None
+    return ApiResponse(success=True, data=await generate_review(repository, client_id, provider))

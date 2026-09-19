@@ -5,6 +5,7 @@ import Link from "next/link";
 import { use } from "react";
 import { getClient, getClientConversations } from "@/lib/api";
 import { conversationTitle, formatDate } from "@/lib/format";
+import { ClientUpdateReview } from "@/components/ClientUpdateReview";
 import { StatusBadge } from "@/components/StatusBadge";
 import type { ConversationStatus } from "@/lib/types";
 
@@ -50,6 +51,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         </p>
       </div>
 
+      <ClientUpdateReview key={id} clientId={id} />
       <div className="rounded-xl border border-line bg-surface p-6">
         <h3 className="text-xs font-medium uppercase tracking-wide text-ink/50">
           Fact history

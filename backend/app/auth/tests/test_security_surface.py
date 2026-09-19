@@ -374,7 +374,7 @@ async def test_every_business_route_requires_authentication(security):
                 response = await security.http.request(method, concrete, **kwargs)
                 assert response.status_code == 401, (method, concrete, response.text)
             count += 1
-    assert count == 21
+    assert count == 22
     security.storage.save.assert_not_awaited()
     security.enqueue.assert_not_awaited()
 
@@ -542,3 +542,56 @@ async def test_briefing_provider_receives_only_actor_data(security, actor, monke
     assert own.marker in prompt
     assert foreign.marker not in prompt
     assert str(foreign.client) not in prompt
+
+
+@pytest.mark.parametrize("actor", ["alpha", "beta"])
+async def test_client_review_scopes_sources_and_rejects_foreign_ids(security, actor, monkeypatch):
+    import json
+
+    own = security.records[actor]
+    foreign = security.records["beta" if actor == "alpha" else "alpha"]
+    draft = {
+        "details": [
+            {
+                "label": "Test detail",
+                "value": own.marker,
+                "source_conversation_id": str(own.conversation),
+                "quote": own.marker,
+            }
+        ],
+        "completed_actions": [],
+    }
+    provider = SimpleNamespace(
+        complete=AsyncMock(return_value=SimpleNamespace(content=json.dumps(draft)))
+    )
+    monkeypatch.setattr("app.providers.dependencies.get_ai_provider", lambda _: provider)
+    for target in (foreign.client, uuid.uuid4()):
+        response = await security.http.post(
+            f"/api/v1/clients/{target}/review", headers=headers(actor)
+        )
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Client not found."
+    provider.complete.assert_not_awaited()
+    response = await security.http.post(
+        f"/api/v1/clients/{own.client}/review", headers=headers(actor)
+    )
+    assert response.status_code == 200
+    async with security.maker() as session:
+        action = await session.get(ActionItem, own.action)
+        assert action.status == ActionStatus.OPEN
+    prompt = provider.complete.await_args.args[0][0].content
+    assert own.marker in prompt and foreign.marker not in prompt
+    assert str(foreign.action) not in prompt
+    draft["completed_actions"] = [
+        {
+            "action_id": str(foreign.action),
+            "source_conversation_id": str(own.conversation),
+            "quote": own.marker,
+        }
+    ]
+    provider.complete.return_value.content = json.dumps(draft)
+    response = await security.http.post(
+        f"/api/v1/clients/{own.client}/review", headers=headers(actor)
+    )
+    assert response.status_code == 502
+    assert foreign.marker not in response.text
