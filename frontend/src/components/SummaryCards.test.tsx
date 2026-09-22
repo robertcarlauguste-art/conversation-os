@@ -90,16 +90,17 @@ function renderDashboard() {
 }
 
 describe("SummaryCards interactions", () => {
-  it("shows queued and stale counts with an operator alert", async () => {
+  it("leads with tasks and hides technical count cards while retaining alerts", async () => {
     api.getDashboard.mockResolvedValue({
       ...dashboard,
       overview: { ...dashboard.overview, queued: 4, stale: 2 },
       alerts: ["2 conversations are possibly stalled. Review the conversation list."],
     });
     renderDashboard();
-    const queued = await screen.findByText("Queued");
-    expect(queued.parentElement).toHaveTextContent("4");
-    expect(screen.getByText("Possibly stalled").parentElement).toHaveTextContent("2");
+    await screen.findByRole("heading", { name: "Next Actions" });
+    expect(screen.queryByText("Queued")).not.toBeInTheDocument();
+    expect(screen.queryByText("Possibly stalled")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("heading")[0]).toHaveTextContent("Next Actions");
     expect(screen.getByText(/2 conversations are possibly stalled/)).toBeInTheDocument();
   });
 

@@ -7,7 +7,7 @@ export default function DashboardPage() {
       <div>
         <h1 className="font-display text-3xl text-ink">Dashboard</h1>
         <p className="mt-1 text-sm text-ink/60">
-          A running view of every conversation moving through ConversationOS.
+          Your next steps, client follow-ups, and recent conversations.
         </p>
       </div>
       <section className="rounded-xl border border-line bg-surface p-6">

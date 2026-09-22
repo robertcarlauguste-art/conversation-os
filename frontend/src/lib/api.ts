@@ -279,3 +279,9 @@ export async function reviewClientUpdates(clientId: string): Promise<ClientRevie
 export async function getSavedClientReview(clientId: string): Promise<ClientReview | null> {
   return unwrap<ClientReview | null>(await authenticatedFetch(`${API_BASE_URL}/api/v1/clients/${clientId}/review`, { cache: "no-store" }));
 }
+
+export async function editMemoryItem(memoryId: string, itemId: string, kind: "decisions" | "action-items", values: { description: string } | { task: string; owner: string | null; due: string | null }): Promise<unknown> {
+  return unwrap(await authenticatedFetch(`${API_BASE_URL}/api/v1/memories/${memoryId}/${kind}/${itemId}`, {
+    method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(values),
+  }));
+}

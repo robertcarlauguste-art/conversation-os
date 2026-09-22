@@ -62,11 +62,13 @@ export interface TranscriptDetail {
 }
 
 export interface DecisionOut {
+  original?: Record<string, string | null> | null;
   id: string;
   description: string;
 }
 
 export interface ActionItemOut {
+  original?: Record<string, string | null> | null;
   id: string;
   task: string;
   due: string | null;

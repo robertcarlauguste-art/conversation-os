@@ -114,6 +114,7 @@ async def security(db_session, monkeypatch):
             memory=memory.id,
             transcript=transcript.id,
             action=memory.action_items[0].id,
+            decision=memory.decisions[0].id,
             person=memory.people[0].id,
             failed=failed.id,
             fact=fact.id,
@@ -374,7 +375,7 @@ async def test_every_business_route_requires_authentication(security):
                 response = await security.http.request(method, concrete, **kwargs)
                 assert response.status_code == 401, (method, concrete, response.text)
             count += 1
-    assert count == 23
+    assert count == 25
     security.storage.save.assert_not_awaited()
     security.enqueue.assert_not_awaited()
 
@@ -645,8 +646,84 @@ async def test_saved_review_persists_and_hides_removed_sources(security, actor, 
     saved = (await security.http.get(url, headers=headers(actor))).json()["data"]
     assert saved["completed_actions"] == []
     assert saved["details"]
+    edited = await security.http.patch(
+        f"/api/v1/memories/{own.memory}/action-items/{own.action}",
+        json={"task": "Corrected completed task", "owner": None, "due": None},
+        headers=headers(actor),
+    )
+    assert edited.status_code == 200
+    assert edited.json()["data"]["status"] == "COMPLETED"
+    assert edited.json()["data"]["completed_at"] is not None
+    changed_review = (await security.http.get(url, headers=headers(actor))).json()["data"]
+    assert changed_review["stale"] and changed_review["completed_actions"] == []
+    assert changed_review["details"] == []
     await security.http.delete(
         f"/api/v1/clients/{own.client}/conversations/{own.conversation}", headers=headers(actor)
     )
     saved = (await security.http.get(url, headers=headers(actor))).json()["data"]
     assert saved["stale"] and saved["details"] == [] and saved["actions"] == {}
+
+
+@pytest.mark.parametrize("actor", ["alpha", "beta"])
+@pytest.mark.parametrize("kind", ["action-items", "decisions"])
+async def test_edits_are_scoped_preserve_original_and_persist(security, actor, kind):
+    own = security.records[actor]
+    foreign = security.records["beta" if actor == "alpha" else "alpha"]
+    attr = "action" if kind == "action-items" else "decision"
+    body = (
+        {"task": "Corrected task", "owner": "Jordan", "due": "Wednesday"}
+        if attr == "action"
+        else {"description": "Corrected decision"}
+    )
+
+    def url(memory, item):
+        return f"/api/v1/memories/{memory}/{kind}/{item}"
+
+    missing = await security.http.patch(
+        url(uuid.uuid4(), uuid.uuid4()), json=body, headers=headers(actor)
+    )
+    for memory, item in (
+        (foreign.memory, getattr(foreign, attr)),
+        (own.memory, getattr(foreign, attr)),
+        (foreign.memory, getattr(own, attr)),
+    ):
+        denied = await security.http.patch(url(memory, item), json=body, headers=headers(actor))
+        assert denied.status_code == missing.status_code == 404
+        assert denied.json() == missing.json()
+    endpoint = url(own.memory, getattr(own, attr))
+    for invalid in (
+        {**body, "owner_id": "beta"},
+        {**body, "task" if attr == "action" else "description": "  "},
+    ):
+        assert (
+            await security.http.patch(endpoint, json=invalid, headers=headers(actor))
+        ).status_code == 422
+    response = await security.http.patch(endpoint, json=body, headers=headers(actor))
+    assert response.status_code == 200, response.text
+    original = response.json()["data"]["original"]
+    assert original["task" if attr == "action" else "description"] == own.marker
+    key = "task" if attr == "action" else "description"
+    body[key] = "Second correction"
+    again = await security.http.patch(endpoint, json=body, headers=headers(actor))
+    assert again.json()["data"]["original"] == original
+    read = (
+        await security.http.get(f"/api/v1/memories/{own.memory}", headers=headers(actor))
+    ).json()["data"]
+    assert read["action_items" if attr == "action" else "decisions"][0][key] == "Second correction"
+    foreign_read = (
+        await security.http.get(
+            f"/api/v1/memories/{foreign.memory}", headers=headers(foreign.owner)
+        )
+    ).json()["data"]
+    assert (
+        foreign_read["action_items" if attr == "action" else "decisions"][0][key] == foreign.marker
+    )
+    if attr == "action":
+        dashboard = (await security.http.get("/api/v1/dashboard", headers=headers(actor))).json()[
+            "data"
+        ]
+        assert any(
+            a["task"] == "Second correction" and a["owner"] == "Jordan" and a["due"] == "Wednesday"
+            for a in dashboard["next_actions"]
+        )
+        assert again.json()["data"]["status"] == "OPEN"

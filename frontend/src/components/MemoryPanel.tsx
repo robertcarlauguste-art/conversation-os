@@ -5,6 +5,7 @@ import { useState } from "react";
 import { getMemoryByConversation, getTranscriptByConversation } from "@/lib/api";
 import type { ConversationStatus } from "@/lib/types";
 import { WaveformMark } from "./WaveformMark";
+import { MemoryItemEditor } from "./MemoryItemEditor";
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -135,14 +136,10 @@ export function MemoryPanel({
 
       <div className="grid gap-4 sm:grid-cols-3">
         <SectionCard title="Decisions">
-          <BulletList items={memory.decisions.map((d) => d.description)} />
+          {memory.decisions.length ? <ul className="flex flex-col gap-3">{memory.decisions.map(item => <MemoryItemEditor key={item.id} memoryId={memory.id} item={item} />)}</ul> : <EmptyNote>None identified.</EmptyNote>}
         </SectionCard>
         <SectionCard title="Action Items">
-          <BulletList
-            items={memory.action_items.map((a) =>
-              a.owner ? `${a.task} (${a.owner})` : a.task,
-            )}
-          />
+          {memory.action_items.length ? <ul className="flex flex-col gap-3">{memory.action_items.map(item => <MemoryItemEditor key={item.id} memoryId={memory.id} item={item} />)}</ul> : <EmptyNote>None identified.</EmptyNote>}
         </SectionCard>
         <SectionCard title="People">
           <BulletList

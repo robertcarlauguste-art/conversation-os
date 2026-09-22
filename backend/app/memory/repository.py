@@ -1,15 +1,51 @@
 import uuid
 
-from sqlalchemy import or_, select, update
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.client.models import Client
 from app.conversation.models import Conversation
-from app.memory.models import ActionItem, ActionStatus, Memory, Person
+from app.memory.models import ActionItem, ActionStatus, Decision, Memory, Person
 from app.repositories.base import BaseRepository
 
 
 class MemoryRepository(BaseRepository[Memory]):
+    async def edit_item(
+        self,
+        memory_id: uuid.UUID,
+        item_id: uuid.UUID,
+        model: type[ActionItem] | type[Decision],
+        values: dict,
+    ) -> ActionItem | Decision | None:
+        item = await self.session.scalar(
+            select(model)
+            .join(Memory, model.memory_id == Memory.id)
+            .join(Conversation, Memory.conversation_id == Conversation.id)
+            .where(
+                model.id == item_id, Memory.id == memory_id, Conversation.owner_id == self.owner_id
+            )
+            .with_for_update(of=model)
+        )
+        if not isinstance(item, (ActionItem, Decision)):
+            return None
+        if item.original is None:
+            item.original = {key: getattr(item, key) for key in values}
+        for key, value in values.items():
+            setattr(item, key, value or None if key in ("owner", "due") else value)
+        # Edited task wording must invalidate previously suggested completions.
+        await self.session.execute(
+            update(Conversation)
+            .where(
+                Conversation.id
+                == select(Memory.conversation_id).where(Memory.id == memory_id).scalar_subquery(),
+                Conversation.owner_id == self.owner_id,
+            )
+            .values(updated_at=func.now())
+        )
+        await self.session.commit()
+        await self.session.refresh(item)
+        return item
+
     async def set_missing_conversation_title(self, conversation_id: uuid.UUID, title: str) -> None:
         await self.session.execute(
             update(Conversation)
