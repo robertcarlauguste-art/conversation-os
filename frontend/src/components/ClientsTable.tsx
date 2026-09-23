@@ -14,6 +14,7 @@ export function ClientsTable() {
   const deferredSearch = useDeferredValue(search.trim());
   const pageSize = 20;
   const { data, isLoading, isError } = useQuery({
+    placeholderData: previous => previous,
     queryKey: ["clients", page, deferredSearch, role],
     queryFn: () =>
       listClients({

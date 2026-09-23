@@ -9,6 +9,8 @@ it("keeps search controls available after no matches and lets the user recover",
   render(<QueryClientProvider client={new QueryClient()}><ConversationsTable /></QueryClientProvider>);
   await screen.findByText("Jordan note");
   await user.type(screen.getByLabelText("Search conversations"), "missing");
+  expect(screen.getByLabelText("Search conversations")).toHaveValue("missing");
+  expect(screen.getByLabelText("Search conversations")).toHaveFocus();
   await screen.findByText("No conversations match these filters.");
   expect(screen.queryByText("No conversations yet")).not.toBeInTheDocument();
   await user.clear(screen.getByLabelText("Search conversations"));

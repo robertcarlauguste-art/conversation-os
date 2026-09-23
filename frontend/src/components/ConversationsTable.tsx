@@ -17,6 +17,7 @@ export function ConversationsTable() {
   const pageSize = 20;
 
   const { data, isLoading, isError } = useQuery({
+    placeholderData: previous => previous,
     queryKey: ["conversations", page, deferredSearch, status],
     queryFn: () =>
       listConversations({
