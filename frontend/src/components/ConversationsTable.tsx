@@ -44,7 +44,7 @@ export function ConversationsTable() {
     );
   }
 
-  if (!data || (data.length === 0 && page === 0)) {
+  if (!data || (data.length === 0 && page === 0 && !deferredSearch && !status)) {
     return (
       <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-line py-16 text-center">
         <WaveformMark className="h-6 w-auto text-ink/20" />
@@ -80,11 +80,11 @@ export function ConversationsTable() {
           className="rounded-md border border-line bg-surface px-3 py-2 text-sm"
         >
           <option value="">All statuses</option>
-          <option value="UPLOADED">Uploaded</option>
-          <option value="QUEUED">Queued</option>
-          <option value="PROCESSING">Processing</option>
-          <option value="COMPLETED">Completed</option>
-          <option value="FAILED">Failed</option>
+          <option value="UPLOADED">Received</option>
+          <option value="QUEUED">Waiting to start</option>
+          <option value="PROCESSING">Preparing your notes</option>
+          <option value="COMPLETED">Ready to review</option>
+          <option value="FAILED">Needs attention</option>
         </select>
       </div>
       {rows.length === 0 ? (
@@ -115,7 +115,7 @@ export function ConversationsTable() {
             </td>
             <td className="px-4 py-3">
               <StatusBadge status={conversation.status} />
-              {conversation.is_stale && <span className="ml-2 text-amber-700">Possibly stalled</span>}
+              {conversation.is_stale && <span className="ml-2 text-amber-700">Taking longer than expected</span>}
             </td>
             <td className="px-4 py-3 text-ink/70">{formatDate(conversation.created_at)}</td>
             <td className="px-4 py-3 text-ink/70">{formatFileSize(conversation.file_size)}</td>

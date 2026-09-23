@@ -1,11 +1,11 @@
 import type { ConversationStatus } from "@/lib/types";
 
 const LABELS: Record<ConversationStatus, string> = {
-  UPLOADED: "Uploaded",
-  QUEUED: "Queued",
-  PROCESSING: "Processing",
-  COMPLETED: "Completed",
-  FAILED: "Failed",
+  UPLOADED: "Received",
+  QUEUED: "Waiting to start",
+  PROCESSING: "Preparing your notes",
+  COMPLETED: "Ready to review",
+  FAILED: "Needs attention",
 };
 
 const DOT_COLOR: Record<ConversationStatus, string> = {

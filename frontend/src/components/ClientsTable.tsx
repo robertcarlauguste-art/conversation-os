@@ -42,7 +42,7 @@ export function ClientsTable() {
         <WaveformMark className="h-6 w-auto text-ink/20" />
         <p className="text-sm font-medium text-ink">No clients yet</p>
         <p className="text-xs text-ink/50">
-          Clients appear here once conversations are reconciled to them.
+          Record a note mentioning a person. After processing, check the client linked to that conversation.
         </p>
       </div>
     );

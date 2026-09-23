@@ -1,6 +1,7 @@
 "use client";
 
 import { SignInButton, SignUpButton } from "@clerk/nextjs";
+import { PilotGuide } from "./PilotGuide";
 
 export function Welcome() {
   return <main className="mx-auto max-w-2xl px-6 py-16">
@@ -13,5 +14,6 @@ export function Welcome() {
     </div>
     <p className="mt-8 text-sm text-ink/70">Family and friends pilot: use fictional information. AI can make mistakes; review the results before acting on them. Uploads are limited to 100 MB per file. Unlimited storage is not promised.</p>
     <p className="mt-4 text-sm text-ink/70">Your account keeps your conversations separate from other users. Audio is stored and processed by our service providers to generate results. This pilot is not intended for confidential information.</p>
+    <PilotGuide />
   </main>;
 }
