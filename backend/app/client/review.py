@@ -2,11 +2,12 @@
 
 import hashlib
 import json
+import logging
 import uuid
 from datetime import UTC, datetime
 
 from fastapi import HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import select, update
 
 from app.client.completion_review import COMPLETION_PROMPT, assess_completions
@@ -16,6 +17,8 @@ from app.conversation.models import Conversation
 from app.memory.models import ActionItem, ActionStatus, Memory
 from app.providers.ai_provider import AIMessage, AIProvider
 from app.transcription.models import Transcript
+
+logger = logging.getLogger(__name__)
 
 
 class DetailSuggestion(BaseModel):
@@ -183,30 +186,59 @@ async def generate_review(
     repository: ClientRepository, client_id: uuid.UUID, provider: AIProvider
 ) -> ClientReview:
     _, rows, sources, actions, payload, fingerprint = await review_context(repository, client_id)
-    try:
-        if rows:
-            result = await provider.complete(
-                [AIMessage(role="user", content=payload)], system=PROMPT
+    # One retry total; no writes occur until the entire review validates.
+    for attempt in (1, 2):
+        stage = "details"
+        try:
+            if rows:
+                result = await provider.complete(
+                    [AIMessage(role="user", content=payload)], system=PROMPT
+                )
+                draft = ReviewDraft.model_validate_json(result.content)
+                # Ignore completion guesses from the general summary call.
+                draft.completed_actions = []
+                validate_sources(draft, sources, actions)
+                stage = "completion"
+                draft.completed_actions = [
+                    CompletionSuggestion.model_validate(item)
+                    for item in await assess_completions(provider, json.loads(payload))
+                ]
+            else:
+                draft = ReviewDraft()
+            stage = "final_validation"
+            validate_sources(draft, sources, actions)
+            review = ClientReview(
+                **draft.model_dump(),
+                conversation_count=len(rows),
+                actions=actions,
+                saved_at=datetime.now(UTC).isoformat(),
             )
-            draft = ReviewDraft.model_validate_json(result.content)
-            # Never use completion guesses from the general client-summary call.
-            draft.completed_actions = [
-                CompletionSuggestion.model_validate(item)
-                for item in await assess_completions(provider, json.loads(payload))
-            ]
-        else:
-            draft = ReviewDraft()
-        validate_sources(draft, sources, actions)
-    except Exception:
-        raise HTTPException(
-            502, "Could not produce a source-supported review. Please try again."
-        ) from None
-    review = ClientReview(
-        **draft.model_dump(),
-        conversation_count=len(rows),
-        actions=actions,
-        saved_at=datetime.now(UTC).isoformat(),
-    )
+            if attempt == 2:
+                logger.info("client_review recovered attempt=2")
+            break
+        except Exception as exc:
+            # Never log exception text, model output, prompts, IDs or transcripts.
+            recoverable = isinstance(exc, ValueError)
+            category = (
+                "format"
+                if isinstance(exc, ValidationError)
+                else "evidence" if recoverable else "provider_or_internal"
+            )
+            retry = recoverable and attempt == 1
+            logger.warning(
+                "client_review failed stage=%s category=%s attempt=%s retry=%s",
+                stage,
+                category,
+                attempt,
+                retry,
+            )
+            if retry:
+                continue
+            raise HTTPException(
+                502,
+                "We couldn't refresh this review. Your saved review and tasks are unchanged. "
+                "Please try again shortly.",
+            ) from None
     await repository.session.execute(
         update(Client)
         .where(Client.id == client_id, Client.owner_id == repository.owner_id)

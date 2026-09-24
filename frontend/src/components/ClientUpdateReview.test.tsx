@@ -24,3 +24,14 @@ it("hides stale review details and invites regeneration", async () => {
   expect(screen.queryByText("$375,000")).not.toBeInTheDocument();
   expect(screen.queryByText("Confirm task is complete")).not.toBeInTheDocument();
 });
+it("keeps the saved review after refresh failure without completing a task", async () => {
+  const message = "We couldn't refresh this review. Your saved review and tasks are unchanged. Please try again shortly.";
+  vi.mocked(reviewClientUpdates).mockRejectedValue(new Error(message));
+  mount();
+  expect(await screen.findByText("$375,000")).toBeInTheDocument();
+  fireEvent.click(screen.getByText("Review client updates"));
+  expect(await screen.findByRole("alert")).toHaveTextContent(message);
+  expect(screen.getByText("$375,000")).toBeInTheDocument();
+  expect(screen.getAllByText("Confirm task is complete")).toHaveLength(1);
+  expect(completeActionItem).not.toHaveBeenCalled();
+});
