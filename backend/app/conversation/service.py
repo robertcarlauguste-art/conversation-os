@@ -57,7 +57,11 @@ class ConversationService(BaseService[ConversationRepository]):
         content_type: str | None,
         content: bytes,
         title: str | None = None,
+        client_id: uuid.UUID | None = None,
+        client_assignment_manual: bool = False,
     ) -> Conversation:
+        if client_id is not None and not await self.repository.owns_client(client_id):
+            raise ConversationNotFoundError("Client not found.")
         start = time.perf_counter()
         logger.info("upload_started size=%d", len(content))
 
@@ -75,6 +79,8 @@ class ConversationService(BaseService[ConversationRepository]):
             conversation = Conversation(
                 owner_id=self.repository.owner_id,
                 title=title,
+                client_id=client_id,
+                client_assignment_manual=client_assignment_manual or client_id is not None,
                 filename=filename,
                 storage_path=storage_path,
                 mime_type=content_type or "application/octet-stream",

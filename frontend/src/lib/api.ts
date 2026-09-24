@@ -104,6 +104,7 @@ export async function deleteConversation(id: string): Promise<void> {
 export async function uploadConversation(
   file: File,
   onProgress: (percent: number) => void,
+  clientId?: string | null,
 ): Promise<{ id: string; status: string }> {
   const token = await getAccessToken();
   return new Promise((resolve, reject) => {
@@ -136,6 +137,10 @@ export async function uploadConversation(
 
     const formData = new FormData();
     formData.append("file", file);
+    if (clientId !== undefined) {
+      formData.append("client_assignment_manual", "true");
+      if (clientId) formData.append("client_id", clientId);
+    }
     xhr.send(formData);
   });
 }
@@ -270,6 +275,12 @@ export interface ClientReview {
   details: { label: string; value: string; source_conversation_id: string; quote: string }[];
   completed_actions: { action_id: string; source_conversation_id: string; quote: string }[];
   actions: Record<string, string>;
+}
+
+export async function createClient(fullName: string): Promise<ClientListItem> {
+  return unwrap<ClientListItem>(await authenticatedFetch(`${API_BASE_URL}/api/v1/clients`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ full_name: fullName }),
+  }));
 }
 
 export async function reviewClientUpdates(clientId: string): Promise<ClientReview> {

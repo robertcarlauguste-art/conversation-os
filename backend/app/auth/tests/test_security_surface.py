@@ -182,6 +182,49 @@ def headers(actor):
     return {"Authorization": f"Bearer {actor}", "X-User-Id": "forged", "X-Role": "admin"}
 
 
+@pytest.mark.parametrize("actor", ["alpha", "beta"])
+async def test_upload_selection_and_named_client_are_tenant_scoped(security, actor):
+    own = security.records[actor]
+    foreign = security.records["beta" if actor == "alpha" else "alpha"]
+    responses = []
+    for client_id in (foreign.client, uuid.uuid4()):
+        responses.append(
+            await security.http.post(
+                "/api/v1/conversations",
+                headers=headers(actor),
+                data={"client_id": str(client_id), "client_assignment_manual": "true"},
+                files={"file": ("test.wav", b"audio", "audio/wav")},
+            )
+        )
+    assert [r.status_code for r in responses] == [404, 404]
+    assert responses[0].json() == responses[1].json()
+    security.storage.save.assert_not_awaited()
+    security.enqueue.assert_not_awaited()
+    for client_id in (own.client, None):
+        data = {"client_assignment_manual": "true"}
+        if client_id:
+            data["client_id"] = str(client_id)
+        response = await security.http.post(
+            "/api/v1/conversations",
+            headers=headers(actor),
+            data=data,
+            files={"file": ("test.wav", b"audio", "audio/wav")},
+        )
+        assert response.status_code == 200
+        async with security.maker() as session:
+            row = await session.get(Conversation, uuid.UUID(response.json()["data"]["id"]))
+            assert row.owner_id == actor
+            assert row.client_id == client_id
+            assert row.client_assignment_manual is True
+    created = await security.http.post(
+        "/api/v1/clients", headers=headers(actor), json={"full_name": "Typed client"}
+    )
+    assert created.status_code == 201
+    async with security.maker() as session:
+        client = await session.get(Client, uuid.UUID(created.json()["data"]["id"]))
+        assert client.owner_id == actor
+
+
 def targeted(record):
     return [
         ("GET", f"/conversations/{record.conversation}", None),
@@ -375,7 +418,7 @@ async def test_every_business_route_requires_authentication(security):
                 response = await security.http.request(method, concrete, **kwargs)
                 assert response.status_code == 401, (method, concrete, response.text)
             count += 1
-    assert count == 25
+    assert count == 26  # Includes explicit client creation before recording.
     security.storage.save.assert_not_awaited()
     security.enqueue.assert_not_awaited()
 

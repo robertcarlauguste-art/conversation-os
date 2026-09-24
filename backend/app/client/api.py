@@ -13,6 +13,7 @@ from app.auth.dependencies import CurrentPrincipal
 from app.client.repository import ClientRepository
 from app.client.schemas import (
     ClientConversationItem,
+    ClientCreate,
     ClientDetail,
     ClientListItem,
 )
@@ -35,6 +36,15 @@ def get_client_service(
     session: AsyncSession = Depends(get_db_session),
 ) -> ClientService:
     return ClientService(ClientRepository(session, principal.user_id))
+
+
+@router.post("", response_model=ApiResponse[ClientListItem], status_code=201)
+async def create_client(
+    body: ClientCreate,
+    service: ClientService = Depends(get_client_service),
+) -> ApiResponse[ClientListItem]:
+    client = await service.create_named_client(body.full_name)
+    return ApiResponse(success=True, data=ClientListItem.model_validate(client))
 
 
 @router.get(
@@ -157,6 +167,7 @@ async def link_conversation(
         )
 
     conversation.client_id = client_id
+    conversation.client_assignment_manual = True
 
     await conversation_repo.commit()
 
@@ -193,6 +204,7 @@ async def unlink_conversation(
         )
 
     conversation.client_id = None
+    conversation.client_assignment_manual = True
 
     await conversation_repo.commit()
 

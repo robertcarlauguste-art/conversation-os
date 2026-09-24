@@ -167,6 +167,12 @@ class ConversationProcessingOrchestrator(BaseOrchestrator):
         remain people records only.
         """
 
+        conversation = await self._conversations.get_conversation(conversation_id)
+        if conversation.client_assignment_manual:
+            # Keep explicit selection, including no client. Extracted people remain
+            # evidence: do not guess identities or create spelling-based duplicates.
+            return
+
         matched_client_ids: set[uuid.UUID] = set()
 
         primary_client_id: uuid.UUID | None = None

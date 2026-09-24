@@ -17,7 +17,7 @@ tracked tradeoff rather than a background job.
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import CurrentPrincipal
@@ -72,6 +72,8 @@ async def upload_conversation(
     file: UploadFile,
     principal: CurrentPrincipal,
     title: str | None = None,
+    client_id: uuid.UUID | None = Form(default=None),
+    client_assignment_manual: bool = Form(default=False),
     service: ConversationService = Depends(get_conversation_service),
     session: AsyncSession = Depends(get_db_session),
     storage: StorageBackend = Depends(get_storage_backend),
@@ -84,7 +86,11 @@ async def upload_conversation(
             content_type=file.content_type,
             content=content,
             title=title,
+            client_id=client_id,
+            client_assignment_manual=client_assignment_manual,
         )
+    except ConversationNotFoundError:
+        raise HTTPException(status_code=404, detail="Client not found.") from None
     except ValidationError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 

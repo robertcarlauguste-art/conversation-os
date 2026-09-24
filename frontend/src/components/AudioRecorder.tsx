@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-export function AudioRecorder({ onSubmit, disabled }: { onSubmit: (file: File) => Promise<boolean>; disabled: boolean }) {
+export function AudioRecorder({ onSubmit, disabled, onActiveChange }: { onSubmit: (file: File) => Promise<boolean>; disabled: boolean; onActiveChange?: (active: boolean) => void }) {
   const [phase, setPhase] = useState<"idle" | "requesting" | "recording" | "review">("idle");
   const [error, setError] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -11,6 +11,8 @@ export function AudioRecorder({ onSubmit, disabled }: { onSubmit: (file: File) =
   const stream = useRef<MediaStream | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mounted = useRef(false);
+
+  useEffect(() => { onActiveChange?.(phase !== "idle"); }, [phase, onActiveChange]);
 
   useEffect(() => {
     mounted.current = true;

@@ -37,7 +37,7 @@ export function ClientField({ conversationId, clientId }: { conversationId: stri
         <option value="">Choose a client</option>
         {choices.data?.map(client => <option key={client.id} value={client.id}>{client.full_name}{client.email ? ` (${client.email})` : ""}</option>)}
       </select>
-      {choices.isError ? <p role="alert">Couldn&apos;t load clients. Change the search or refresh to try again.</p> : choices.isFetching ? <p>Finding clients…</p> : choices.data?.length === 0 ? <p>No matching clients. Clients appear after a recording identifies someone.</p> : <p className="text-xs text-ink/60">Showing up to 20 matches. Search to narrow the list.</p>}
+      {choices.isError ? <p role="alert">Couldn&apos;t load clients. Change the search or refresh to try again.</p> : choices.isFetching ? <p>Finding clients…</p> : choices.data?.length === 0 ? <p>No matching clients. You can add a client before your next recording.</p> : <p className="text-xs text-ink/60">Showing up to 20 matches. Search to narrow the list.</p>}
       <button type="button" disabled={busy || !selected || choices.isFetching} onClick={() => void change(false)} className="self-start rounded bg-accent px-3 py-2 text-white disabled:opacity-50">{busy ? "Saving…" : "Link client"}</button>
     </>}
     {error && <p role="alert" className="text-red-700">{error}</p>}

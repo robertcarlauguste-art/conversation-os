@@ -7,10 +7,13 @@ import { useToast } from "./Toast";
 import { WaveformMark } from "./WaveformMark";
 import { AudioRecorder } from "./AudioRecorder";
 import Link from "next/link";
+import { RecordingClientChoice, type RecordingClient } from "./RecordingClientChoice";
 
 const ACCEPTED_EXTENSIONS = [".mp3", ".wav", ".m4a", ".aac", ".webm", ".mp4"];
 
 export function UploadDropzone() {
+  const [client, setClient] = useState<RecordingClient | null>(null);
+  const [recordingActive, setRecordingActive] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
   const [activeFileName, setActiveFileName] = useState<string | null>(null);
@@ -23,7 +26,7 @@ export function UploadDropzone() {
   const isUploading = progress !== null;
 
   async function handleFile(file: File) {
-    if (busy.current) return false;
+    if (busy.current || !client) return false;
     if (!file.size || file.size > 100 * 1024 * 1024) {
       notify("Choose a non-empty audio file up to 100 MB.", "error");
       return false;
@@ -33,7 +36,7 @@ export function UploadDropzone() {
     setActiveFileName(file.name);
     setProgress(0);
     try {
-      const result = await uploadConversation(file, setProgress);
+      const result = await uploadConversation(file, setProgress, client.id);
       setUploadedId(result.id);
       notify(`${file.name} uploaded successfully.`, "success");
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
@@ -63,9 +66,16 @@ export function UploadDropzone() {
     event.target.value = "";
   }
 
+  if (!client) return <RecordingClientChoice onConfirm={setClient} />;
+
   return (
     <>
-    <AudioRecorder onSubmit={handleFile} disabled={isUploading} />
+    <section className="rounded-xl border border-line bg-surface p-4">
+      <p>{client.id ? `This recording will be saved to ${client.name}.` : "This recording will stay unassigned."}</p>
+      <p className="mt-2 text-sm">Mention names when discussing multiple people so the notes are easier to follow.</p>
+      <button disabled={isUploading || recordingActive} onClick={() => setClient(null)} className="mt-2 text-accent underline disabled:opacity-50">Change client</button>
+    </section>
+    <AudioRecorder onSubmit={handleFile} disabled={isUploading} onActiveChange={setRecordingActive} />
     {uploadedId && <p role="status">Audio uploaded. Processing may take a moment. <Link className="text-accent underline" href={`/conversations/${uploadedId}`}>Open your conversation to follow progress and review results.</Link></p>}
     <div
       onDragOver={(e) => {
