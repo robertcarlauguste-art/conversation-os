@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { editMemoryItem } from "@/lib/api";
+import { editMemoryItem, completeActionItem, reopenActionItem } from "@/lib/api";
 import type { ActionItemOut, DecisionOut } from "@/lib/types";
 
 export function MemoryItemEditor({ memoryId, item }: { memoryId: string; item: ActionItemOut | DecisionOut }) {
@@ -13,6 +13,12 @@ export function MemoryItemEditor({ memoryId, item }: { memoryId: string; item: A
   const [due, setDue] = useState(action ? item.due ?? "" : "");
   const [saved, setSaved] = useState(false);
   const cache = useQueryClient();
+  const statusMutation = useMutation({
+    mutationFn: () => action && item.status === "COMPLETED" ? reopenActionItem(item.id) : completeActionItem(item.id),
+    onSuccess: async () => {
+      await Promise.all(["memory", "dashboard", "client-review"].map(key => cache.invalidateQueries({ queryKey: [key] })));
+    },
+  });
   const mutation = useMutation({
     mutationFn: () => editMemoryItem(memoryId, item.id, action ? "action-items" : "decisions",
       action ? { task: text.trim(), owner: owner.trim() || null, due: due.trim() || null } : { description: text.trim() }),
@@ -30,7 +36,7 @@ export function MemoryItemEditor({ memoryId, item }: { memoryId: string; item: A
     mutation.reset();
     setEditing(true);
   };
-  return <li className="rounded-lg border border-line p-3 text-sm">
+  return <li className="min-w-0 break-words rounded-lg border border-line p-3 text-sm">
     {editing ? <form onSubmit={event => { event.preventDefault(); mutation.mutate(); }} className="flex flex-col gap-3">
       <label className="flex flex-col gap-1">{action ? "Task" : "Decision"}
         <textarea autoFocus required maxLength={5000} value={text} onChange={e => setText(e.target.value)} disabled={mutation.isPending} className="rounded border border-line bg-paper p-2" />
@@ -47,7 +53,11 @@ export function MemoryItemEditor({ memoryId, item }: { memoryId: string; item: A
     </form> : <>
       <p>{action ? item.task : item.description}</p>
       {action && <p className="mt-1 text-xs text-ink/60">{item.owner ? `Owner: ${item.owner} · ` : ""}{item.due ? `Due: ${item.due}` : "No due date"}{item.status === "COMPLETED" ? " · Completed" : ""}</p>}
-      <button type="button" onClick={start} className="mt-2 text-accent underline" aria-label={`Edit ${action ? "task" : "decision"}: ${action ? item.task : item.description}`}>Edit</button>
+      <div className="mt-2 flex flex-wrap gap-3">
+        <button type="button" disabled={statusMutation.isPending} onClick={start} className="min-h-11 text-accent underline" aria-label={`Edit ${action ? "task" : "decision"}: ${action ? item.task : item.description}`}>Edit</button>
+        {action && <button type="button" disabled={statusMutation.isPending} onClick={() => statusMutation.mutate()} className="min-h-11 rounded border border-line px-3 text-accent disabled:opacity-50" aria-label={`${item.status === "COMPLETED" ? "Reopen" : "Complete"} task: ${item.task}`}>{statusMutation.isPending ? "Saving…" : item.status === "COMPLETED" ? "Reopen task" : "Mark complete"}</button>}
+      </div>
+      {statusMutation.isError && <p role="alert">Couldn&apos;t update the task. Please try again.</p>}
       {saved && <p role="status" className="mt-1 text-accent">Changes saved.</p>}
     </>}
     {item.original && <details className="mt-3 text-xs text-ink/60"><summary className="cursor-pointer">Original AI extraction</summary>

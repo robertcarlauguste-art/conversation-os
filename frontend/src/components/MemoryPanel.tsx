@@ -1,4 +1,5 @@
 "use client";
+import { ConversationTasks } from "./ConversationTasks";
 
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -139,7 +140,7 @@ export function MemoryPanel({
           {memory.decisions.length ? <ul className="flex flex-col gap-3">{memory.decisions.map(item => <MemoryItemEditor key={item.id} memoryId={memory.id} item={item} />)}</ul> : <EmptyNote>None identified.</EmptyNote>}
         </SectionCard>
         <SectionCard title="Action Items">
-          {memory.action_items.length ? <ul className="flex flex-col gap-3">{memory.action_items.map(item => <MemoryItemEditor key={item.id} memoryId={memory.id} item={item} />)}</ul> : <EmptyNote>None identified.</EmptyNote>}
+          <ConversationTasks memoryId={memory.id} items={memory.action_items} />
         </SectionCard>
         <SectionCard title="People">
           <BulletList

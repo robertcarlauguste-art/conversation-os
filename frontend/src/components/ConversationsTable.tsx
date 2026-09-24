@@ -93,8 +93,8 @@ export function ConversationsTable() {
           No conversations match these filters.
         </p>
       ) : (
-      <table className="w-full border-collapse overflow-hidden rounded-xl border border-line bg-surface text-sm">
-      <thead>
+      <table className="block w-full min-w-0 text-sm md:table md:border-collapse md:rounded-xl md:border md:border-line md:bg-surface">
+      <thead className="hidden md:table-header-group">
         <tr className="border-b border-line bg-paper text-left text-xs uppercase tracking-wide text-ink/50">
           <th className="px-4 py-3 font-medium">Title</th>
           <th className="px-4 py-3 font-medium">Status</th>
@@ -103,35 +103,35 @@ export function ConversationsTable() {
           <th className="px-4 py-3 font-medium">Actions</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody className="block space-y-3 md:table-row-group md:space-y-0">
         {rows.map((conversation) => (
-          <tr key={conversation.id} className="border-b border-line last:border-0">
-            <td className="px-4 py-3">
+          <tr key={conversation.id} className="block min-w-0 rounded-xl border border-line bg-surface p-3 md:table-row md:rounded-none md:border-x-0 md:border-t-0 md:p-0">
+            <td className="block min-w-0 px-1 py-2 md:table-cell md:px-4 md:py-3">
               <Link
                 href={`/conversations/${conversation.id}`}
-                className="font-medium text-ink hover:text-accent"
+                className="break-all font-medium text-ink hover:text-accent"
               >
                 {conversationTitle(conversation)}
               </Link>
             </td>
-            <td className="px-4 py-3">
+            <td className="block min-w-0 px-1 py-2 md:table-cell md:px-4 md:py-3">
               <StatusBadge status={conversation.status} />
               {conversation.is_stale && <span className="ml-2 text-amber-700">Taking longer than expected</span>}
             </td>
-            <td className="px-4 py-3 text-ink/70">{formatDate(conversation.created_at)}</td>
-            <td className="px-4 py-3 text-ink/70">{formatFileSize(conversation.file_size)}</td>
-            <td className="px-4 py-3">
+            <td className="block px-1 py-1 text-ink/70 md:table-cell md:px-4 md:py-3"><span className="md:hidden">Uploaded: </span>{formatDate(conversation.created_at)}</td>
+            <td className="block px-1 py-1 text-ink/70 md:table-cell md:px-4 md:py-3"><span className="md:hidden">File size: </span>{formatFileSize(conversation.file_size)}</td>
+            <td className="block min-w-0 px-1 py-2 md:table-cell md:px-4 md:py-3">
               <div className="flex gap-3">
                 <Link
                   href={`/conversations/${conversation.id}`}
-                  className="text-xs font-medium text-steel hover:underline"
+                  className="inline-flex min-h-11 items-center text-sm font-medium text-steel hover:underline"
                 >
                   View
                 </Link>
                 <button
                   type="button"
                   onClick={() => deleteMutation.mutate(conversation.id)}
-                  className="text-xs font-medium text-status-failed hover:underline disabled:opacity-50"
+                  className="min-h-11 text-sm font-medium text-status-failed hover:underline disabled:opacity-50"
                   disabled={deleteMutation.isPending}
                 >
                   Delete
