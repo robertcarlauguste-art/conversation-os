@@ -605,9 +605,13 @@ async def test_client_review_scopes_sources_and_rejects_foreign_ids(security, ac
         ],
         "completed_actions": [],
     }
-    provider = SimpleNamespace(
-        complete=AsyncMock(return_value=SimpleNamespace(content=json.dumps(draft)))
-    )
+    assessments = {"assessments": [{"action_id": str(own.action), "outcome": "not_completed"}]}
+
+    async def respond(*args, **kwargs):
+        body = assessments if "EVERY supplied open action" in kwargs.get("system", "") else draft
+        return SimpleNamespace(content=json.dumps(body))
+
+    provider = SimpleNamespace(complete=AsyncMock(side_effect=respond))
     monkeypatch.setattr("app.providers.dependencies.get_ai_provider", lambda _: provider)
     for target in (foreign.client, uuid.uuid4()):
         response = await security.http.post(
@@ -626,14 +630,14 @@ async def test_client_review_scopes_sources_and_rejects_foreign_ids(security, ac
     prompt = provider.complete.await_args.args[0][0].content
     assert own.marker in prompt and foreign.marker not in prompt
     assert str(foreign.action) not in prompt
-    draft["completed_actions"] = [
+    assessments["assessments"] = [
         {
             "action_id": str(foreign.action),
+            "outcome": "completed",
             "source_conversation_id": str(own.conversation),
             "quote": own.marker,
         }
     ]
-    provider.complete.return_value.content = json.dumps(draft)
     response = await security.http.post(
         f"/api/v1/clients/{own.client}/review", headers=headers(actor)
     )
@@ -647,6 +651,28 @@ async def test_saved_review_persists_and_hides_removed_sources(security, actor, 
 
     own = security.records[actor]
     foreign = security.records["beta" if actor == "alpha" else "alpha"]
+    async with security.maker() as session:
+        later = Conversation(
+            owner_id=actor,
+            filename="later.wav",
+            storage_path="test",
+            mime_type="audio/wav",
+            file_size=1,
+            client_id=own.client,
+            status=ConversationStatus.COMPLETED,
+            source=ConversationSource.UPLOAD,
+        )
+        session.add(later)
+        await session.flush()
+        session.add(
+            Transcript(
+                conversation_id=later.id,
+                text="I finished that task.",
+                status=TranscriptionStatus.COMPLETED,
+            )
+        )
+        await session.commit()
+        later_id = str(later.id)
     provider = SimpleNamespace(
         complete=AsyncMock(
             return_value=SimpleNamespace(
@@ -672,6 +698,27 @@ async def test_saved_review_persists_and_hides_removed_sources(security, actor, 
             )
         )
     )
+    detail_response = provider.complete.return_value
+
+    async def respond(*args, **kwargs):
+        if "EVERY supplied open action" in kwargs.get("system", ""):
+            return SimpleNamespace(
+                content=json.dumps(
+                    {
+                        "assessments": [
+                            {
+                                "action_id": str(own.action),
+                                "outcome": "completed",
+                                "source_conversation_id": later_id,
+                                "quote": "I finished that task.",
+                            }
+                        ]
+                    }
+                )
+            )
+        return detail_response
+
+    provider.complete.side_effect = respond
     monkeypatch.setattr("app.providers.dependencies.get_ai_provider", lambda _: provider)
     url = f"/api/v1/clients/{own.client}/review"
     assert (await security.http.get(url, headers=headers(actor))).json()["data"] is None
@@ -679,7 +726,7 @@ async def test_saved_review_persists_and_hides_removed_sources(security, actor, 
     assert created.status_code == 200
     saved = await security.http.get(url, headers=headers(actor))
     assert saved.json()["data"] == created.json()["data"]
-    provider.complete.assert_awaited_once()
+    assert provider.complete.await_count == 2
     assert (
         await security.http.get(f"/api/v1/clients/{foreign.client}/review", headers=headers(actor))
     ).status_code == 404

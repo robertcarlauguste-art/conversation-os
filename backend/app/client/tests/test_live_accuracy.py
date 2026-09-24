@@ -4,11 +4,13 @@ Run with RUN_LIVE_ACCURACY=1 and configured provider credentials. These checks c
 provider usage and assess a small sample, not a general accuracy percentage.
 """
 
+import json
 import os
+from pathlib import Path
 
 import pytest
 
-from app.client.review import PROMPT, ReviewDraft, validate_sources
+from app.client.completion_review import assess_completions
 from app.core.config import get_settings
 from app.memory.schemas import ExtractionResult
 from app.memory.service import EXTRACTION_SYSTEM_PROMPT
@@ -44,21 +46,35 @@ async def test_uncertainty_does_not_create_commitments(transcript):
     assert draft.decisions == []
 
 
-async def test_explicit_completion_with_unnamed_speaker():
-    import json
-
+@pytest.mark.parametrize(
+    "case",
+    json.loads((Path(__file__).with_name("completion_cases.json")).read_text()),
+    ids=lambda case: case["name"],
+)
+async def test_focused_completion_cases(case):
+    settings = get_settings()
+    provider = ClaudeProvider(settings.anthropic_api_key, settings.anthropic_model)
     source = "00000000-0000-4000-8000-000000000001"
-    send = "00000000-0000-4000-8000-000000000002"
-    call = "00000000-0000-4000-8000-000000000003"
-    text = "I sent the two listings. Morgan Vale has not called the lender yet."
+    later = "00000000-0000-4000-8000-000000000002"
+    action = "00000000-0000-4000-8000-000000000003"
     payload = {
         "client": "Morgan Vale",
-        "sources": [{"id": source, "text": text}],
+        "sources": [
+            {
+                "id": source,
+                "uploaded_at": "2026-09-23T10:00:00+00:00",
+                "text": "I will send two listings to Morgan Vale.",
+            },
+            {"id": later, "uploaded_at": "2026-09-24T10:00:00+00:00", "text": case["text"]},
+        ],
         "open_actions": [
-            {"id": send, "task": "Send two listings to Morgan Vale", "owner": None},
-            {"id": call, "task": "Call the lender", "owner": "Morgan Vale"},
+            {
+                "id": action,
+                "task": "Send two listings to Morgan Vale",
+                "owner": None,
+                "source_conversation_id": source,
+            }
         ],
     }
-    draft = ReviewDraft.model_validate_json(await complete(PROMPT, json.dumps(payload)))
-    validate_sources(draft, {source: text}, {send: "Send listings", call: "Call lender"})
-    assert {str(item.action_id) for item in draft.completed_actions} == {send}
+    result = await assess_completions(provider, payload)
+    assert bool(result) is case["expected"]

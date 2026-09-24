@@ -1,0 +1,9 @@
+[
+  {"name":"explicit","text":"I sent the two listings to Morgan Vale.","expected":true},
+  {"name":"negation","text":"I have not sent the two listings to Morgan Vale yet.","expected":false},
+  {"name":"future","text":"I will send the two listings to Morgan Vale tomorrow.","expected":false},
+  {"name":"partial","text":"I sent one listing to Morgan Vale. I still need to send the other one.","expected":false},
+  {"name":"different-person","text":"I sent the two listings to Morgan Lane, not Morgan Vale. They are different people.","expected":false},
+  {"name":"uncertain","text":"I think I may have sent the two listings to Morgan Vale, but I cannot remember.","expected":false},
+  {"name":"correction","text":"I sent the two listings to Morgan Vale. Correction: I only saved a draft; nothing has been sent yet.","expected":false}
+]
