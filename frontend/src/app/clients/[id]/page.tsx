@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { use } from "react";
+import { use, useState } from "react";
 import { getClient, getClientConversations } from "@/lib/api";
 import { formatDate } from "@/lib/format";
 import { ClientUpdateReview } from "@/components/ClientUpdateReview";
@@ -10,6 +10,8 @@ import { ClientConversations } from "@/components/ClientConversations";
 
 export default function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const [search, setSearch] = useState("");
+  const [draftSearch, setDraftSearch] = useState("");
 
   const clientQuery = useQuery({
     queryKey: ["clients", id],
@@ -17,8 +19,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
   });
 
   const conversationsQuery = useQuery({
-    queryKey: ["clients", id, "conversations"],
-    queryFn: () => getClientConversations(id),
+    queryKey: ["clients", id, "conversations", search],
+    queryFn: () => getClientConversations(id, search),
   });
 
   if (clientQuery.isLoading) {
@@ -51,7 +53,15 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
       </div>
 
       <ClientUpdateReview key={id} clientId={id} />
-      <ClientConversations conversations={conversationsQuery.data ?? []} loading={conversationsQuery.isLoading} error={conversationsQuery.isError} onRetry={() => { void conversationsQuery.refetch(); }} />
+      <form className="flex flex-wrap items-end gap-2" onSubmit={event => { event.preventDefault(); setSearch(draftSearch.trim()); }}>
+        <label className="min-w-0 flex-1 text-sm">Search this client&apos;s conversations
+          <input className="mt-1 block min-h-11 w-full rounded-lg border border-line px-3" value={draftSearch} maxLength={100} onChange={event => setDraftSearch(event.target.value)} placeholder="Search titles, summaries or transcripts" />
+        </label>
+        <button className="min-h-11 rounded-lg bg-accent px-4 text-white" type="submit">Search</button>
+        {search && <button className="min-h-11 px-3 underline" type="button" onClick={() => { setSearch(""); setDraftSearch(""); }}>Clear search</button>}
+      </form>
+      {search && !conversationsQuery.isLoading && !conversationsQuery.isError && <p role="status">{conversationsQuery.data?.length ?? 0} conversations matching “{search}”</p>}
+      <ClientConversations searching={Boolean(search)} conversations={conversationsQuery.data ?? []} loading={conversationsQuery.isLoading} error={conversationsQuery.isError} onRetry={() => { void conversationsQuery.refetch(); }} />
       <div className="rounded-xl border border-line bg-surface p-6">
         <h3 className="text-xs font-medium uppercase tracking-wide text-ink/50">
           Fact history

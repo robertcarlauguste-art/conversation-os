@@ -11,8 +11,9 @@ function heading(item: ClientConversationItem) {
   return conversationTitle({ ...item, title: null });
 }
 
-export function ClientConversations({ conversations, loading, error, onRetry }: {
+export function ClientConversations({ conversations, loading, error, onRetry, searching = false }: {
   conversations: ClientConversationItem[];
+  searching?: boolean;
   loading: boolean;
   error: boolean;
   onRetry: () => void;
@@ -22,7 +23,7 @@ export function ClientConversations({ conversations, loading, error, onRetry }: 
     <p className="mt-1 text-sm text-ink/60">Newest first. Preview the AI summary, then open a conversation for the full notes and tasks.</p>
     {loading && <p className="mt-3" role="status">Loading conversations…</p>}
     {error && <div className="mt-3" role="alert">Couldn&apos;t load conversations. <button className="min-h-11 text-accent underline" onClick={onRetry}>Try again</button></div>}
-    {!loading && !error && conversations.length === 0 && <p className="mt-3 text-sm text-ink/60">No linked conversations yet.</p>}
+    {!loading && !error && conversations.length === 0 && <p className="mt-3 text-sm text-ink/60">{searching ? "No matching conversations. Try another word or clear your search." : "No linked conversations yet."}</p>}
     {!error && <ul className="mt-4 space-y-3">
       {conversations.map(item => <li key={item.id}>
         <Link href={`/conversations/${item.id}`} className="block min-w-0 rounded-lg border border-line p-4 transition hover:border-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent">

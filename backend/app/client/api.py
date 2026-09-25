@@ -103,6 +103,7 @@ async def get_client(
 async def get_client_conversations(
     client_id: uuid.UUID,
     principal: CurrentPrincipal,
+    search: str | None = Query(default=None, max_length=100),
     service: ClientService = Depends(get_client_service),
     session: AsyncSession = Depends(get_db_session),
 ) -> ApiResponse[list[ClientConversationItem]]:
@@ -118,7 +119,7 @@ async def get_client_conversations(
 
     conversation_repo = ConversationRepository(session, principal.user_id)
 
-    conversations = await conversation_repo.list_client_previews(client_id)
+    conversations = await conversation_repo.list_client_previews(client_id, search)
 
     return ApiResponse(
         success=True,

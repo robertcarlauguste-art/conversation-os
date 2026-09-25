@@ -27,6 +27,7 @@ from app.conversation.schemas import (
     ConversationCreateData,
     ConversationDetail,
     ConversationListItem,
+    ConversationRename,
 )
 from app.conversation.service import (
     ConversationNotFoundError,
@@ -193,3 +194,15 @@ async def retry_conversation(
             503, "Retry could not be queued. Refresh the conversation before trying again."
         ) from None
     return ApiResponse(success=True, data=ConversationDetail.model_validate(conversation))
+
+
+@router.patch("/{conversation_id}/title", status_code=204)
+async def rename_conversation(
+    conversation_id: uuid.UUID,
+    body: ConversationRename,
+    service: ConversationService = Depends(get_conversation_service),
+) -> None:
+    try:
+        await service.rename_conversation(conversation_id, body.title)
+    except ConversationNotFoundError:
+        raise HTTPException(404, "Conversation not found.") from None

@@ -172,8 +172,8 @@ export async function getClient(id: string): Promise<ClientDetail> {
   return unwrap<ClientDetail>(response);
 }
 
-export async function getClientConversations(id: string): Promise<ClientConversationItem[]> {
-  const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/clients/${id}/conversations`, {
+export async function getClientConversations(id: string, search = ""): Promise<ClientConversationItem[]> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/clients/${id}/conversations${search.trim() ? `?${new URLSearchParams({search: search.trim()})}` : ""}`, {
     cache: "no-store",
   });
   return unwrap<ClientConversationItem[]>(response);
@@ -295,4 +295,11 @@ export async function editMemoryItem(memoryId: string, itemId: string, kind: "de
   return unwrap(await authenticatedFetch(`${API_BASE_URL}/api/v1/memories/${memoryId}/${kind}/${itemId}`, {
     method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(values),
   }));
+}
+
+export async function renameConversation(id: string, title: string): Promise<void> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/conversations/${id}/title`, {
+    method: "PATCH", headers: {"Content-Type": "application/json"}, body: JSON.stringify({title}),
+  });
+  if (!response.ok) await unwrap(response);
 }

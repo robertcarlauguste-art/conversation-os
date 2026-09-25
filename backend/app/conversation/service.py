@@ -37,6 +37,11 @@ class ConversationRetryUnavailable(Exception):
 
 
 class ConversationService(BaseService[ConversationRepository]):
+    async def rename_conversation(self, conversation_id: uuid.UUID, title: str) -> None:
+        if not await self.repository.rename(conversation_id, title):
+            raise ConversationNotFoundError("Conversation not found.")
+        await self.repository.commit()
+
     def __init__(
         self,
         repository: ConversationRepository,

@@ -850,3 +850,64 @@ async def test_client_conversation_previews_are_owned_and_bounded(security, acto
         f"/api/v1/clients/{other.client}/conversations", headers=headers(actor)
     )
     assert forbidden.status_code == 404
+
+
+@pytest.mark.parametrize("actor", ["alpha", "beta"])
+async def test_rename_and_client_search_are_owned(security, actor):
+    own = security.records[actor]
+    other = security.records["beta" if actor == "alpha" else "alpha"]
+    url = f"/api/v1/conversations/{own.conversation}/title"
+    assert (await security.http.patch(url, json={"title": "No auth"})).status_code == 401
+    response = await security.http.patch(
+        url, headers=headers(actor), json={"title": "  Budget meeting  "}
+    )
+    assert response.status_code == 204
+    async with security.maker() as session:
+        conversation = await session.get(Conversation, own.conversation)
+        assert conversation.title == "Budget meeting"
+        assert conversation.status == ConversationStatus.COMPLETED
+        transcript = await session.get(Transcript, own.transcript)
+        transcript.text = "Unique spoken keyword apricot"
+        memory = await session.get(Memory, own.memory)
+        memory.summary = "Unique summary keyword nectarine"
+        await session.commit()
+    for term in ("budget MEETING", "apricot", "nectarine"):
+        result = await security.http.get(
+            f"/api/v1/clients/{own.client}/conversations",
+            params={"search": term},
+            headers=headers(actor),
+        )
+        assert [r["id"] for r in result.json()["data"]] == [str(own.conversation)]
+    for term in (other.marker, "%", "not-present"):
+        result = await security.http.get(
+            f"/api/v1/clients/{own.client}/conversations",
+            params={"search": term},
+            headers=headers(actor),
+        )
+        assert result.json()["data"] == []
+    errors = []
+    for identifier in (other.conversation, uuid.uuid4()):
+        response = await security.http.patch(
+            f"/api/v1/conversations/{identifier}/title",
+            headers=headers(actor),
+            json={"title": "Forbidden"},
+        )
+        assert response.status_code == 404
+        errors.append(response.json())
+    assert errors[0] == errors[1]
+    for body in ({"title": " "}, {"title": "x" * 256}, {"title": "Valid", "owner_id": actor}):
+        assert (
+            await security.http.patch(url, headers=headers(actor), json=body)
+        ).status_code == 422
+    from app.memory.repository import MemoryRepository
+
+    async with security.maker() as session:
+        await MemoryRepository(session, actor).set_missing_conversation_title(
+            own.conversation, "Automatic title"
+        )
+        await session.commit()
+        # Automatic extraction must not replace an explicitly chosen title.
+        conversation = await session.get(Conversation, own.conversation)
+        assert conversation.title == "Budget meeting"
+        foreign = await session.get(Conversation, other.conversation)
+        assert foreign.title == other.marker

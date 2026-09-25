@@ -10,7 +10,7 @@ don't belong on the DB row itself.
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, computed_field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
 from app.conversation.enums import ConversationSource, ConversationStatus
 from app.processing.visibility import is_stale, safe_error, stale_threshold_seconds
@@ -79,3 +79,8 @@ class ConversationDetail(ProcessingVisibility):
     processing_error: str | None = None
     processing_started_at: datetime | None = None
     processing_completed_at: datetime | None = None
+
+
+class ConversationRename(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    title: str = Field(min_length=1, max_length=255)

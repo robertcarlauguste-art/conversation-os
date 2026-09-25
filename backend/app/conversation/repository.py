@@ -12,7 +12,7 @@ import uuid
 from datetime import UTC, datetime
 
 from sqlalchemy import delete as sql_delete
-from sqlalchemy import select, update
+from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.conversation.enums import ConversationStatus
@@ -115,8 +115,8 @@ class ConversationRepository(BaseRepository[Conversation]):
         )
         return list(result.scalars().all())
 
-    async def list_client_previews(self, client_id: uuid.UUID):
-        result = await self.session.execute(
+    async def list_client_previews(self, client_id: uuid.UUID, search: str | None = None):
+        query = (
             select(Conversation, Memory.summary)
             .outerjoin(Memory, Memory.conversation_id == Conversation.id)
             .where(
@@ -125,7 +125,34 @@ class ConversationRepository(BaseRepository[Conversation]):
             )
             .order_by(Conversation.created_at.desc(), Conversation.id.desc())
         )
-        return result.all()
+        if search and search.strip():
+            term = search.strip()
+            transcript_match = (
+                select(Transcript.id)
+                .where(
+                    Transcript.conversation_id == Conversation.id,
+                    Transcript.text.icontains(term, autoescape=True),
+                )
+                .exists()
+            )
+            query = query.where(
+                or_(
+                    Conversation.title.icontains(term, autoescape=True),
+                    Conversation.filename.icontains(term, autoescape=True),
+                    Memory.summary.icontains(term, autoescape=True),
+                    transcript_match,
+                )
+            )
+        return (await self.session.execute(query)).all()
+
+    async def rename(self, conversation_id: uuid.UUID, title: str) -> bool:
+        result = await self.session.execute(
+            update(Conversation)
+            .where(Conversation.id == conversation_id, Conversation.owner_id == self.owner_id)
+            .values(title=title)
+            .returning(Conversation.id)
+        )
+        return result.scalar_one_or_none() is not None
 
     async def latest_transcript_error(self, conversation_id: uuid.UUID) -> str | None:
         result = await self.session.execute(
