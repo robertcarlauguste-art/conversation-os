@@ -11,8 +11,8 @@ import { RecordingClientChoice, type RecordingClient } from "./RecordingClientCh
 
 const ACCEPTED_EXTENSIONS = [".mp3", ".wav", ".m4a", ".aac", ".webm", ".mp4"];
 
-export function UploadDropzone() {
-  const [client, setClient] = useState<RecordingClient | null>(null);
+export function UploadDropzone({ initialClient = null }: { initialClient?: RecordingClient | null }) {
+  const [client, setClient] = useState<RecordingClient | null>(initialClient);
   const [recordingActive, setRecordingActive] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
@@ -41,6 +41,8 @@ export function UploadDropzone() {
       notify(`${file.name} uploaded successfully.`, "success");
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["clients"] });
+      queryClient.invalidateQueries({ queryKey: ["client-review"] });
       return true;
     } catch (error) {
       const message = error instanceof ApiError ? error.message : "Upload failed.";

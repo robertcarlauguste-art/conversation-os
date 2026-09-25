@@ -22,3 +22,20 @@ it.each(["existing", "later"])("sends the explicit %s assignment with uploaded a
   await user.upload(container.querySelector('input[type="file"]')!,file);
   await waitFor(() => expect(uploadConversation).toHaveBeenLastCalledWith(file,expect.any(Function),mode === "existing" ? "vale" : null));
 });
+it("opens a client follow-up with assignment ready and sends that client on upload", async () => {
+  vi.mocked(uploadConversation).mockResolvedValue({id:"followup",status:"QUEUED"});
+  const user=userEvent.setup();
+  const cache=new QueryClient(); const invalidate=vi.spyOn(cache,"invalidateQueries");
+  const {ClientFollowupRecorder}=await import("./ClientFollowupRecorder");
+  const {container}=render(<QueryClientProvider client={cache}><ClientFollowupRecorder clientId="vale" clientName="Morgan Vale" /></QueryClientProvider>);
+  expect(screen.queryByRole("button",{name:"Start recording"})).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button",{name:"Record a follow-up"}));
+  expect(screen.getByText("This recording will be saved to Morgan Vale.")).toBeInTheDocument();
+  expect(screen.getByRole("button",{name:"Start recording"})).toBeEnabled();
+  expect(listClients).not.toHaveBeenCalled();
+  const file=new File(["audio"],"followup.wav",{type:"audio/wav"});
+  await user.upload(container.querySelector('input[type="file"]')!,file);
+  await waitFor(() => expect(uploadConversation).toHaveBeenCalledWith(file,expect.any(Function),"vale"));
+  expect(invalidate).toHaveBeenCalledWith({queryKey:["clients"]});
+  expect(screen.getByRole("link",{name:/Open your conversation/})).toHaveAttribute("href","/conversations/followup");
+});

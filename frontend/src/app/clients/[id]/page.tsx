@@ -7,6 +7,7 @@ import { getClient, getClientConversations } from "@/lib/api";
 import { formatDate } from "@/lib/format";
 import { ClientUpdateReview } from "@/components/ClientUpdateReview";
 import { ClientConversations } from "@/components/ClientConversations";
+import { ClientFollowupRecorder } from "@/components/ClientFollowupRecorder";
 
 export default function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -52,6 +53,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         </p>
       </div>
 
+      <ClientFollowupRecorder key={`record-${id}`} clientId={id} clientName={client.full_name} />
       <ClientUpdateReview key={id} clientId={id} />
       <form className="flex flex-wrap items-end gap-2" onSubmit={event => { event.preventDefault(); setSearch(draftSearch.trim()); }}>
         <label className="min-w-0 flex-1 text-sm">Search this client&apos;s conversations
