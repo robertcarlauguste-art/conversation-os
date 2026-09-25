@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { expect, it, vi } from "vitest";
 import { UploadDropzone } from "./UploadDropzone";
 import { listClients, uploadConversation } from "@/lib/api";
-vi.mock("@/lib/api", () => ({ listClients: vi.fn(), uploadConversation: vi.fn(), createClient: vi.fn(), ApiError: class extends Error {} }));
+vi.mock("@/lib/api", () => ({ getConversation: vi.fn().mockResolvedValue({status:"QUEUED"}), listClients: vi.fn(), uploadConversation: vi.fn(), createClient: vi.fn(), ApiError: class extends Error {} }));
 vi.mock("./Toast", () => ({ useToast: () => ({notify: vi.fn()}) }));
 it.each(["existing", "later"])("sends the explicit %s assignment with uploaded audio", async mode => {
   vi.mocked(listClients).mockResolvedValue([{id:"vale",full_name:"Morgan Vale"}] as never);

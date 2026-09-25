@@ -6,7 +6,7 @@ import { ApiError, uploadConversation } from "@/lib/api";
 import { useToast } from "./Toast";
 import { WaveformMark } from "./WaveformMark";
 import { AudioRecorder } from "./AudioRecorder";
-import Link from "next/link";
+import { UploadedConversationStatus } from "./UploadedConversationStatus";
 import { RecordingClientChoice, type RecordingClient } from "./RecordingClientChoice";
 
 const ACCEPTED_EXTENSIONS = [".mp3", ".wav", ".m4a", ".aac", ".webm", ".mp4"];
@@ -78,7 +78,7 @@ export function UploadDropzone({ initialClient = null }: { initialClient?: Recor
       <button disabled={isUploading || recordingActive} onClick={() => setClient(null)} className="mt-2 text-accent underline disabled:opacity-50">Change client</button>
     </section>
     <AudioRecorder onSubmit={handleFile} disabled={isUploading} onActiveChange={setRecordingActive} />
-    {uploadedId && <p role="status">Audio uploaded. Processing may take a moment. <Link className="text-accent underline" href={`/conversations/${uploadedId}`}>Open your conversation to follow progress and review results.</Link></p>}
+    {uploadedId && <UploadedConversationStatus id={uploadedId} />}
     <div
       onDragOver={(e) => {
         e.preventDefault();
