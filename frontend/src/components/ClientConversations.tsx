@@ -27,8 +27,8 @@ export function ClientConversations({ conversations, loading, error, onRetry, se
     {!error && <ul className="mt-4 space-y-3">
       {conversations.map(item => <li key={item.id}>
         <Link href={`/conversations/${item.id}`} className="block min-w-0 rounded-lg border border-line p-4 transition hover:border-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent">
-          <div className="flex flex-wrap items-start justify-between gap-2">
-            <h3 className="min-w-0 flex-1 break-words font-semibold text-ink [overflow-wrap:anywhere]">{heading(item)}</h3>
+          <div className="flex flex-col items-start gap-2 sm:flex-row sm:justify-between">
+            <h3 className="w-full min-w-0 break-words font-semibold text-ink [overflow-wrap:anywhere] sm:w-auto sm:flex-1">{heading(item)}</h3>
             <StatusBadge status={item.status as ConversationStatus} />
           </div>
           <p className="mt-2 text-xs text-ink/60">Recorded <time dateTime={item.created_at}>{formatDate(item.created_at)}</time></p>
