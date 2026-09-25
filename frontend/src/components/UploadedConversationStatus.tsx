@@ -1,10 +1,12 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import Link from "next/link";
 import { getConversation } from "@/lib/api";
 
 export function UploadedConversationStatus({ id }: { id: string }) {
+  const queryClient = useQueryClient();
   const { data, isError, refetch, isFetching } = useQuery({
     queryKey: ["conversations", id],
     queryFn: () => getConversation(id),
@@ -16,6 +18,16 @@ export function UploadedConversationStatus({ id }: { id: string }) {
   });
   const ready = data?.status === "COMPLETED";
   const failed = data?.status === "FAILED";
+  useEffect(() => {
+    if (!ready && !failed) return;
+    void queryClient.invalidateQueries({
+      queryKey: ["conversations"],
+      predicate: (query) => !(query.queryKey.length === 2 && query.queryKey[1] === id),
+    });
+    for (const key of ["clients", "dashboard", "client-review"]) {
+      void queryClient.invalidateQueries({ queryKey: [key] });
+    }
+  }, [ready, failed, id, queryClient]);
   return (
     <section className="space-y-3 rounded-xl border border-line bg-surface p-4" aria-label="Uploaded recording">
       <div role="status" aria-live="polite">
