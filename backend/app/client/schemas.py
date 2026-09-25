@@ -26,6 +26,7 @@ class ClientConversationItem(BaseModel):
     id: uuid.UUID
     title: str | None
     filename: str
+    summary_preview: str | None = None
     status: str
     created_at: datetime
 

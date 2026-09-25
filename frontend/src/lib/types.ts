@@ -130,6 +130,7 @@ export interface ClientConversationItem {
   id: string;
   title: string | null;
   filename: string;
+  summary_preview?: string | null;
   status: string;
   created_at: string;
 }

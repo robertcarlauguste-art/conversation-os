@@ -817,3 +817,36 @@ async def test_edits_are_scoped_preserve_original_and_persist(security, actor, k
             for a in dashboard["next_actions"]
         )
         assert again.json()["data"]["status"] == "OPEN"
+
+
+@pytest.mark.parametrize("actor", ["alpha", "beta"])
+async def test_client_conversation_previews_are_owned_and_bounded(security, actor):
+    own = security.records[actor]
+    other = security.records["beta" if actor == "alpha" else "alpha"]
+    async with security.maker() as session:
+        memory = await session.get(Memory, own.memory)
+        memory.summary = own.marker + " summary" * 100
+        pending = await session.get(Conversation, own.failed)
+        pending.client_id = own.client
+        # Corrupt foreign link must still not expose another owner's summary.
+        foreign = await session.get(Conversation, other.conversation)
+        foreign.client_id = own.client
+        await session.commit()
+    response = await security.http.get(
+        f"/api/v1/clients/{own.client}/conversations", headers=headers(actor)
+    )
+    assert response.status_code == 200
+    rows = response.json()["data"]
+    assert {row["id"] for row in rows} == {str(own.conversation), str(own.failed)}
+    previews = {row["id"]: row["summary_preview"] for row in rows}
+    assert len(previews[str(own.conversation)]) <= 300
+    assert previews[str(own.conversation)].startswith(own.marker)
+    assert previews[str(own.failed)] is None
+    assert other.marker not in response.text
+    assert [row["created_at"] for row in rows] == sorted(
+        (row["created_at"] for row in rows), reverse=True
+    )
+    forbidden = await security.http.get(
+        f"/api/v1/clients/{other.client}/conversations", headers=headers(actor)
+    )
+    assert forbidden.status_code == 404

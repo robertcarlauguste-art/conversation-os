@@ -118,7 +118,7 @@ async def get_client_conversations(
 
     conversation_repo = ConversationRepository(session, principal.user_id)
 
-    conversations = await conversation_repo.list_by_client_id(client_id)
+    conversations = await conversation_repo.list_client_previews(client_id)
 
     return ApiResponse(
         success=True,
@@ -127,10 +127,11 @@ async def get_client_conversations(
                 id=c.id,
                 title=c.title,
                 filename=c.filename,
+                summary_preview=(summary[:300].strip() if summary else None),
                 status=c.status.value,
                 created_at=c.created_at,
             )
-            for c in conversations
+            for c, summary in conversations
         ],
     )
 

@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.conversation.enums import ConversationStatus
 from app.conversation.models import Conversation
+from app.memory.models import Memory
 from app.repositories.base import BaseRepository
 from app.transcription.models import Transcript
 
@@ -113,6 +114,18 @@ class ConversationRepository(BaseRepository[Conversation]):
             .order_by(Conversation.created_at.desc())
         )
         return list(result.scalars().all())
+
+    async def list_client_previews(self, client_id: uuid.UUID):
+        result = await self.session.execute(
+            select(Conversation, Memory.summary)
+            .outerjoin(Memory, Memory.conversation_id == Conversation.id)
+            .where(
+                Conversation.client_id == client_id,
+                Conversation.owner_id == self.owner_id,
+            )
+            .order_by(Conversation.created_at.desc(), Conversation.id.desc())
+        )
+        return result.all()
 
     async def latest_transcript_error(self, conversation_id: uuid.UUID) -> str | None:
         result = await self.session.execute(

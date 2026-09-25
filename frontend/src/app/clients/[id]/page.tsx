@@ -4,10 +4,9 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { use } from "react";
 import { getClient, getClientConversations } from "@/lib/api";
-import { conversationTitle, formatDate } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import { ClientUpdateReview } from "@/components/ClientUpdateReview";
-import { StatusBadge } from "@/components/StatusBadge";
-import type { ConversationStatus } from "@/lib/types";
+import { ClientConversations } from "@/components/ClientConversations";
 
 export default function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -52,6 +51,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
       </div>
 
       <ClientUpdateReview key={id} clientId={id} />
+      <ClientConversations conversations={conversationsQuery.data ?? []} loading={conversationsQuery.isLoading} error={conversationsQuery.isError} onRetry={() => { void conversationsQuery.refetch(); }} />
       <div className="rounded-xl border border-line bg-surface p-6">
         <h3 className="text-xs font-medium uppercase tracking-wide text-ink/50">
           Fact history
@@ -74,30 +74,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         )}
       </div>
 
-      <div className="rounded-xl border border-line bg-surface p-6">
-        <h3 className="text-xs font-medium uppercase tracking-wide text-ink/50">Conversations</h3>
-        {conversationsQuery.isLoading && (
-          <p className="mt-3 text-sm text-ink/40">Loading…</p>
-        )}
-        {conversationsQuery.data && conversationsQuery.data.length === 0 && (
-          <p className="mt-3 text-sm text-ink/40">No linked conversations yet.</p>
-        )}
-        {conversationsQuery.data && conversationsQuery.data.length > 0 && (
-          <ul className="mt-3 flex flex-col gap-2">
-            {conversationsQuery.data.map((conversation) => (
-              <li key={conversation.id} className="flex items-center justify-between text-sm">
-                <Link
-                  href={`/conversations/${conversation.id}`}
-                  className="font-medium text-ink hover:text-accent"
-                >
-                  {conversationTitle(conversation)}
-                </Link>
-                <StatusBadge status={conversation.status as ConversationStatus} />
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+
     </div>
   );
 }
