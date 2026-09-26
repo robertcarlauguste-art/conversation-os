@@ -239,6 +239,15 @@ async def generate_review(
                 "We couldn't refresh this review. Your saved review and tasks are unchanged. "
                 "Please try again shortly.",
             ) from None
+    # Provider calls can outlive edits in another tab. Re-read source rows and
+    # open tasks before publishing; task status is not part of the fingerprint.
+    _, _, _, _, current_payload, current_fingerprint = await review_context(repository, client_id)
+    if current_fingerprint != fingerprint or current_payload != payload:
+        raise HTTPException(
+            409,
+            "This client's information changed while the review was being generated. "
+            "Refresh and try again. Your saved review and tasks are unchanged.",
+        )
     await repository.session.execute(
         update(Client)
         .where(Client.id == client_id, Client.owner_id == repository.owner_id)

@@ -101,3 +101,25 @@ async def test_evidence_failure_retries_once(monkeypatch, caplog):
     assert assess.await_count == 2
     assert "category=evidence" in caplog.text
     assert "PRIVATE" not in caplog.text
+
+
+@pytest.mark.parametrize("changed_field", [4, 5])
+async def test_context_change_during_generation_rejects_stale_review(monkeypatch, changed_field):
+    repo, provider = setup(monkeypatch, ["details", "good"])
+    original = review.review_context.return_value
+    changed = list(original)
+    changed[changed_field] = "changed source or open task context"
+
+    async def complete(*args, **kwargs):
+        # Simulate another request changing sources/tasks during the AI wait.
+        review.review_context.return_value = tuple(changed)
+        return AICompletionResult(content='{"details":[]}', model="test")
+
+    provider.complete.side_effect = complete
+    monkeypatch.setattr(review, "assess_completions", AsyncMock(return_value=[]))
+    with pytest.raises(HTTPException) as error:
+        await review.generate_review(repo, uuid.uuid4(), provider)
+    assert error.value.status_code == 409
+    assert "Refresh and try again" in error.value.detail
+    repo.session.execute.assert_not_awaited()
+    repo.commit.assert_not_awaited()
