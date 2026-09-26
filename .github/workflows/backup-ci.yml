@@ -1,0 +1,27 @@
+name: backup-ci
+
+on:
+  push:
+    paths:
+      - "infrastructure/backup/**"
+      - ".github/workflows/backup-ci.yml"
+  pull_request:
+    paths:
+      - "infrastructure/backup/**"
+      - ".github/workflows/backup-ci.yml"
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infrastructure/backup
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install test dependencies
+        run: pip install boto3 cryptography pytest
+      - name: Test encrypted database and recording backups
+        run: python -m pytest -q
