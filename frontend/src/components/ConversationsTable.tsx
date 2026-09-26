@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useDeferredValue, useState } from "react";
 import { deleteConversation, listConversations } from "@/lib/api";
-import { formatDate, formatFileSize } from "@/lib/format";
+import { conversationTitle, formatDate, formatFileSize } from "@/lib/format";
 import { StatusBadge } from "./StatusBadge";
 import { WaveformMark } from "./WaveformMark";
 
@@ -17,6 +17,7 @@ export function ConversationsTable() {
   const pageSize = 20;
 
   const { data, isLoading, isError } = useQuery({
+    placeholderData: previous => previous,
     queryKey: ["conversations", page, deferredSearch, status],
     queryFn: () =>
       listConversations({
@@ -39,17 +40,17 @@ export function ConversationsTable() {
   if (isError) {
     return (
       <p className="py-10 text-center text-sm text-status-failed">
-        Couldn&apos;t load conversations. Check that the backend is running.
+        Couldn&apos;t load conversations. Please refresh the page and try again.
       </p>
     );
   }
 
-  if (!data || (data.length === 0 && page === 0)) {
+  if (!data || (data.length === 0 && page === 0 && !deferredSearch && !status)) {
     return (
       <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-line py-16 text-center">
         <WaveformMark className="h-6 w-auto text-ink/20" />
         <p className="text-sm font-medium text-ink">No conversations yet</p>
-        <p className="text-xs text-ink/50">Upload a recording above to get started.</p>
+        <p className="text-xs text-ink/50">Record a voice note or upload audio above to get started.</p>
       </div>
     );
   }
@@ -80,11 +81,11 @@ export function ConversationsTable() {
           className="rounded-md border border-line bg-surface px-3 py-2 text-sm"
         >
           <option value="">All statuses</option>
-          <option value="UPLOADED">Uploaded</option>
-          <option value="QUEUED">Queued</option>
-          <option value="PROCESSING">Processing</option>
-          <option value="COMPLETED">Completed</option>
-          <option value="FAILED">Failed</option>
+          <option value="UPLOADED">Received</option>
+          <option value="QUEUED">Waiting to start</option>
+          <option value="PROCESSING">Preparing your notes</option>
+          <option value="COMPLETED">Ready to review</option>
+          <option value="FAILED">Needs attention</option>
         </select>
       </div>
       {rows.length === 0 ? (
@@ -92,8 +93,8 @@ export function ConversationsTable() {
           No conversations match these filters.
         </p>
       ) : (
-      <table className="w-full border-collapse overflow-hidden rounded-xl border border-line bg-surface text-sm">
-      <thead>
+      <table className="block w-full min-w-0 text-sm md:table md:border-collapse md:rounded-xl md:border md:border-line md:bg-surface">
+      <thead className="hidden md:table-header-group">
         <tr className="border-b border-line bg-paper text-left text-xs uppercase tracking-wide text-ink/50">
           <th className="px-4 py-3 font-medium">Title</th>
           <th className="px-4 py-3 font-medium">Status</th>
@@ -102,35 +103,35 @@ export function ConversationsTable() {
           <th className="px-4 py-3 font-medium">Actions</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody className="block space-y-3 md:table-row-group md:space-y-0">
         {rows.map((conversation) => (
-          <tr key={conversation.id} className="border-b border-line last:border-0">
-            <td className="px-4 py-3">
+          <tr key={conversation.id} className="block min-w-0 rounded-xl border border-line bg-surface p-3 md:table-row md:rounded-none md:border-x-0 md:border-t-0 md:p-0">
+            <td className="block min-w-0 px-1 py-2 md:table-cell md:px-4 md:py-3">
               <Link
                 href={`/conversations/${conversation.id}`}
-                className="font-medium text-ink hover:text-accent"
+                className="break-all font-medium text-ink hover:text-accent"
               >
-                {conversation.title ?? "Untitled conversation"}
+                {conversationTitle(conversation)}
               </Link>
             </td>
-            <td className="px-4 py-3">
+            <td className="block min-w-0 px-1 py-2 md:table-cell md:px-4 md:py-3">
               <StatusBadge status={conversation.status} />
-              {conversation.is_stale && <span className="ml-2 text-amber-700">Possibly stalled</span>}
+              {conversation.is_stale && <span className="ml-2 text-amber-700">Taking longer than expected</span>}
             </td>
-            <td className="px-4 py-3 text-ink/70">{formatDate(conversation.created_at)}</td>
-            <td className="px-4 py-3 text-ink/70">{formatFileSize(conversation.file_size)}</td>
-            <td className="px-4 py-3">
+            <td className="block px-1 py-1 text-ink/70 md:table-cell md:px-4 md:py-3"><span className="md:hidden">Uploaded: </span>{formatDate(conversation.created_at)}</td>
+            <td className="block px-1 py-1 text-ink/70 md:table-cell md:px-4 md:py-3"><span className="md:hidden">File size: </span>{formatFileSize(conversation.file_size)}</td>
+            <td className="block min-w-0 px-1 py-2 md:table-cell md:px-4 md:py-3">
               <div className="flex gap-3">
                 <Link
                   href={`/conversations/${conversation.id}`}
-                  className="text-xs font-medium text-steel hover:underline"
+                  className="inline-flex min-h-11 items-center text-sm font-medium text-steel hover:underline"
                 >
                   View
                 </Link>
                 <button
                   type="button"
                   onClick={() => deleteMutation.mutate(conversation.id)}
-                  className="text-xs font-medium text-status-failed hover:underline disabled:opacity-50"
+                  className="min-h-11 text-sm font-medium text-status-failed hover:underline disabled:opacity-50"
                   disabled={deleteMutation.isPending}
                 >
                   Delete

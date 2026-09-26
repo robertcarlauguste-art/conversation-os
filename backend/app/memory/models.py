@@ -22,6 +22,7 @@ from enum import Enum as PyEnum
 
 from sqlalchemy import (
     ARRAY,
+    JSON,
     DateTime,
     Enum,
     Float,
@@ -160,6 +161,8 @@ class Memory(Base):
 class Decision(Base):
     __tablename__ = "decisions"
 
+    original: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
@@ -193,6 +196,8 @@ class Decision(Base):
 
 class ActionItem(Base):
     __tablename__ = "action_items"
+
+    original: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),

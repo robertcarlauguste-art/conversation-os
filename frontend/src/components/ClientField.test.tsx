@@ -1,0 +1,22 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { expect, it, vi } from "vitest";
+import { ClientField } from "./ClientField";
+import { listClients, linkConversationToClient } from "@/lib/api";
+vi.mock("@/lib/api", () => ({ listClients: vi.fn(), getClient: vi.fn(), linkConversationToClient: vi.fn(), unlinkConversationFromClient: vi.fn() }));
+it("links an existing client by name and keeps the choice on failure", async () => {
+  vi.mocked(listClients).mockResolvedValue([{ id: "client-j", full_name: "Jordan", email: null }] as never);
+  vi.mocked(linkConversationToClient).mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce();
+  const user = userEvent.setup();
+  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><ClientField conversationId="conversation" clientId={null} /></QueryClientProvider>);
+  await screen.findByRole("option", { name: "Jordan" });
+  expect(screen.queryByPlaceholderText("Client ID")).not.toBeInTheDocument();
+  await user.selectOptions(screen.getByLabelText("Client to link"), "client-j");
+  await user.click(screen.getByRole("button", { name: "Link client" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't update");
+  expect(screen.getByLabelText("Client to link")).toHaveValue("client-j");
+  await user.click(screen.getByRole("button", { name: "Link client" }));
+  await waitFor(() => expect(linkConversationToClient).toHaveBeenCalledWith("client-j", "conversation"));
+  await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
+});

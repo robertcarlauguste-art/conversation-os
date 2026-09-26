@@ -14,17 +14,13 @@ import type {
   DashboardOverview,
   DashboardPriority,
 } from "@/lib/types";
-import { formatDate } from "@/lib/format";
+import { conversationTitle, formatDate } from "@/lib/format";
 import { useToast } from "./Toast";
 
 const CARDS: { key: keyof DashboardOverview; label: string }[] = [
   { key: "clients", label: "Clients" },
   { key: "conversations", label: "Conversations" },
-  { key: "queued", label: "Queued" },
-  { key: "stale", label: "Possibly stalled" },
-  { key: "processing", label: "Processing" },
-  { key: "completed", label: "Completed" },
-  { key: "failed", label: "Failed" },
+
 ];
 
 const PRIORITY_STYLES: Record<DashboardPriority["severity"], string> = {
@@ -139,6 +135,208 @@ export function SummaryCards() {
 
   return (
     <div className="flex flex-col gap-8">
+      <section className="rounded-xl border border-line bg-surface p-6">
+        <div>
+          <h2 className="text-lg font-semibold">Next Actions</h2>
+          <p className="mt-1 text-sm text-ink/50">
+            Review, edit, and complete tasks from your conversations. Open a task to see its recording and edit the details.
+          </p>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-3">
+          {nextActions.length > 0 ? (
+            nextActions.map((action) => (
+              <div
+                key={action.id}
+                className="grid gap-3 rounded-lg border border-line bg-paper p-4 sm:grid-cols-[1fr_auto] sm:items-center"
+              >
+                <span>
+                  <Link href={action.href} className="block font-medium hover:underline">
+                    {action.task}
+                  </Link>
+                  <span className="mt-1 block text-sm text-ink/50">
+                    {action.client_name ??
+                      action.conversation_title ??
+                      "Unassigned conversation"}
+                    {action.owner ? ` · Owner: ${action.owner}` : ""}
+                    {action.source_count > 1
+                      ? ` · ${action.source_count} identical source items`
+                      : ""}
+                  </span>
+                </span>
+                <span className="flex flex-col items-start gap-2 sm:items-end">
+                  <span className="text-sm text-ink/50">
+                    {action.due ? `Due ${action.due}` : "No due date"}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={actionItemMutation.isPending}
+                    onClick={() => actionItemMutation.mutate(action.action_item_ids)}
+                    className="rounded-md bg-ink px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+                  >
+                    {action.source_count > 1
+                      ? `Complete all ${action.source_count}`
+                      : "Complete"}
+                  </button>
+                </span>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-ink/50">
+              No open conversation actions need attention.
+            </p>
+          )}
+        </div>
+        {actionItemMutation.isError ? (
+          <p role="alert" className="mt-3 text-sm text-red-700">
+            {actionItemMutation.error instanceof Error
+              ? actionItemMutation.error.message
+              : "The action item could not be completed."}
+          </p>
+        ) : null}
+      </section>
+      <section className="rounded-xl border border-line bg-surface p-6">
+        <div>
+          <h2 className="text-lg font-semibold">Who to Contact First</h2>
+          <p className="mt-1 text-sm text-ink/50">
+            Suggested follow-ups based on your conversations. Review what matters today.
+          </p>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-3">
+          {clientRecommendations.length > 0 ? (
+            clientRecommendations.map((recommendation) => (
+              <div
+                key={recommendation.client_id}
+                className="grid gap-3 rounded-lg border border-line bg-paper p-4 hover:border-ink/30 sm:grid-cols-[2.5rem_1fr_auto] sm:items-center"
+              >
+                <span className="font-display text-2xl text-ink/50">
+                  {recommendation.rank}
+                </span>
+                <span>
+                  <Link
+                    href={recommendation.href}
+                    className="block font-semibold hover:underline"
+                  >
+                    {recommendation.client_name}
+                  </Link>
+                  <span className="mt-1 block text-sm text-ink/60">
+                    {recommendation.reason} {recommendation.recommended_action}
+                  </span>
+                </span>
+                <span className="flex flex-col items-start gap-2 sm:items-end">
+                  <span className="text-xs font-medium uppercase tracking-wide text-amber-700">
+                    Urgency {recommendation.urgency_score}
+                  </span>
+                  <span className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={followupMutation.isPending}
+                      onClick={() =>
+                        followupMutation.mutate({
+                          clientId: recommendation.client_id,
+                          action: "record_contact",
+                        })
+                      }
+                      className="rounded-md bg-ink px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+                    >
+                      Record contact
+                    </button>
+                    <button
+                      type="button"
+                      disabled={followupMutation.isPending}
+                      onClick={() =>
+                        followupMutation.mutate({
+                          clientId: recommendation.client_id,
+                          action: "snooze",
+                          snoozeDays: 1,
+                        })
+                      }
+                      className="rounded-md border border-line bg-surface px-3 py-1.5 text-xs font-medium disabled:opacity-50"
+                    >
+                      Snooze 1 day
+                    </button>
+                    <button
+                      type="button"
+                      disabled={followupMutation.isPending}
+                      onClick={() =>
+                        followupMutation.mutate({
+                          clientId: recommendation.client_id,
+                          action: "complete",
+                        })
+                      }
+                      className="rounded-md border border-line bg-surface px-3 py-1.5 text-xs font-medium disabled:opacity-50"
+                    >
+                      Complete
+                    </button>
+                  </span>
+                </span>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-ink/50">
+              No client follow-ups are due right now.
+            </p>
+          )}
+        </div>
+        {followupMutation.isError ? (
+          <p role="alert" className="mt-3 text-sm text-red-700">
+            {followupMutation.error instanceof Error
+              ? followupMutation.error.message
+              : "The follow-up action could not be saved."}
+          </p>
+        ) : null}
+      </section>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-xl border border-line bg-surface p-6">
+          <h2 className="text-lg font-semibold">Recent Conversations</h2>
+
+          <div className="mt-4 flex flex-col gap-3">
+            {conversations.length > 0 ? (
+              conversations.slice(0, 5).map((conversation) => (
+                <Link
+                  key={conversation.id}
+                  href={`/conversations/${conversation.id}`}
+                  className="flex items-center justify-between rounded-lg border border-line p-3 hover:bg-paper"
+                >
+                  <span>{conversationTitle(conversation)}</span>
+                  <span className="text-xs text-ink/50">{({ COMPLETED: "Ready to review", QUEUED: "Waiting to start", UPLOADED: "Waiting to start", PROCESSING: "Preparing your notes", FAILED: "Needs attention" })[conversation.status]}</span>
+                </Link>
+              ))
+            ) : (
+              <p className="text-sm text-ink/50">
+                Upload a conversation to begin building your briefing.
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-line bg-surface p-6">
+          <h2 className="text-lg font-semibold">Recent Clients</h2>
+
+          <div className="mt-4 flex flex-col gap-3">
+            {clients.length > 0 ? (
+              clients.slice(0, 5).map((client) => (
+                <Link
+                  key={client.id}
+                  href={`/clients/${client.id}`}
+                  className="rounded-lg border border-line p-3 hover:bg-paper"
+                >
+                  <div className="font-medium">{client.full_name}</div>
+                  <div className="text-sm text-ink/50">
+                    {client.email ?? "No email"}
+                  </div>
+                </Link>
+              ))
+            ) : (
+              <p className="text-sm text-ink/50">
+                Clients will appear after conversation processing identifies them.
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         {CARDS.map((card) => (
           <div
@@ -156,6 +354,8 @@ export function SummaryCards() {
         ))}
       </div>
 
+      <details className="rounded-xl border border-line bg-surface p-4">
+        <summary className="cursor-pointer text-sm">Activity overview</summary>
       <section className="rounded-xl border border-line bg-surface p-6">
         <h2 className="text-lg font-semibold">Today&apos;s Brief</h2>
         <p className="mt-1 text-sm text-ink/50">
@@ -178,6 +378,7 @@ export function SummaryCards() {
           )}
         </div>
       </section>
+      </details>
 
       <section className="rounded-xl border border-line bg-surface p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -290,159 +491,9 @@ export function SummaryCards() {
         ) : null}
       </section>
 
-      <section className="rounded-xl border border-line bg-surface p-6">
-        <div>
-          <h2 className="text-lg font-semibold">Next Actions</h2>
-          <p className="mt-1 text-sm text-ink/50">
-            Open commitments extracted from processed conversations.
-          </p>
-        </div>
 
-        <div className="mt-4 flex flex-col gap-3">
-          {nextActions.length > 0 ? (
-            nextActions.map((action) => (
-              <div
-                key={action.id}
-                className="grid gap-3 rounded-lg border border-line bg-paper p-4 sm:grid-cols-[1fr_auto] sm:items-center"
-              >
-                <span>
-                  <Link href={action.href} className="block font-medium hover:underline">
-                    {action.task}
-                  </Link>
-                  <span className="mt-1 block text-sm text-ink/50">
-                    {action.client_name ??
-                      action.conversation_title ??
-                      "Unassigned conversation"}
-                    {action.owner ? ` · Owner: ${action.owner}` : ""}
-                    {action.source_count > 1
-                      ? ` · ${action.source_count} identical source items`
-                      : ""}
-                  </span>
-                </span>
-                <span className="flex flex-col items-start gap-2 sm:items-end">
-                  <span className="text-sm text-ink/50">
-                    {action.due ? `Due ${action.due}` : "No due date"}
-                  </span>
-                  <button
-                    type="button"
-                    disabled={actionItemMutation.isPending}
-                    onClick={() => actionItemMutation.mutate(action.action_item_ids)}
-                    className="rounded-md bg-ink px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
-                  >
-                    {action.source_count > 1
-                      ? `Complete all ${action.source_count}`
-                      : "Complete"}
-                  </button>
-                </span>
-              </div>
-            ))
-          ) : (
-            <p className="text-sm text-ink/50">
-              No open conversation actions need attention.
-            </p>
-          )}
-        </div>
-        {actionItemMutation.isError ? (
-          <p role="alert" className="mt-3 text-sm text-red-700">
-            {actionItemMutation.error instanceof Error
-              ? actionItemMutation.error.message
-              : "The action item could not be completed."}
-          </p>
-        ) : null}
-      </section>
 
-      <section className="rounded-xl border border-line bg-surface p-6">
-        <div>
-          <h2 className="text-lg font-semibold">Who to Contact First</h2>
-          <p className="mt-1 text-sm text-ink/50">
-            Explainable recommendations ranked from stored conversation activity.
-          </p>
-        </div>
 
-        <div className="mt-4 flex flex-col gap-3">
-          {clientRecommendations.length > 0 ? (
-            clientRecommendations.map((recommendation) => (
-              <div
-                key={recommendation.client_id}
-                className="grid gap-3 rounded-lg border border-line bg-paper p-4 hover:border-ink/30 sm:grid-cols-[2.5rem_1fr_auto] sm:items-center"
-              >
-                <span className="font-display text-2xl text-ink/50">
-                  {recommendation.rank}
-                </span>
-                <span>
-                  <Link
-                    href={recommendation.href}
-                    className="block font-semibold hover:underline"
-                  >
-                    {recommendation.client_name}
-                  </Link>
-                  <span className="mt-1 block text-sm text-ink/60">
-                    {recommendation.reason} {recommendation.recommended_action}
-                  </span>
-                </span>
-                <span className="flex flex-col items-start gap-2 sm:items-end">
-                  <span className="text-xs font-medium uppercase tracking-wide text-amber-700">
-                    Urgency {recommendation.urgency_score}
-                  </span>
-                  <span className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      disabled={followupMutation.isPending}
-                      onClick={() =>
-                        followupMutation.mutate({
-                          clientId: recommendation.client_id,
-                          action: "record_contact",
-                        })
-                      }
-                      className="rounded-md bg-ink px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
-                    >
-                      Record contact
-                    </button>
-                    <button
-                      type="button"
-                      disabled={followupMutation.isPending}
-                      onClick={() =>
-                        followupMutation.mutate({
-                          clientId: recommendation.client_id,
-                          action: "snooze",
-                          snoozeDays: 1,
-                        })
-                      }
-                      className="rounded-md border border-line bg-surface px-3 py-1.5 text-xs font-medium disabled:opacity-50"
-                    >
-                      Snooze 1 day
-                    </button>
-                    <button
-                      type="button"
-                      disabled={followupMutation.isPending}
-                      onClick={() =>
-                        followupMutation.mutate({
-                          clientId: recommendation.client_id,
-                          action: "complete",
-                        })
-                      }
-                      className="rounded-md border border-line bg-surface px-3 py-1.5 text-xs font-medium disabled:opacity-50"
-                    >
-                      Complete
-                    </button>
-                  </span>
-                </span>
-              </div>
-            ))
-          ) : (
-            <p className="text-sm text-ink/50">
-              No client follow-ups are due right now.
-            </p>
-          )}
-        </div>
-        {followupMutation.isError ? (
-          <p role="alert" className="mt-3 text-sm text-red-700">
-            {followupMutation.error instanceof Error
-              ? followupMutation.error.message
-              : "The follow-up action could not be saved."}
-          </p>
-        ) : null}
-      </section>
 
       <section className="rounded-xl border border-line bg-surface p-6">
         <div>
@@ -523,55 +574,7 @@ export function SummaryCards() {
         </section>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-xl border border-line bg-surface p-6">
-          <h2 className="text-lg font-semibold">Recent Conversations</h2>
 
-          <div className="mt-4 flex flex-col gap-3">
-            {conversations.length > 0 ? (
-              conversations.slice(0, 5).map((conversation) => (
-                <Link
-                  key={conversation.id}
-                  href={`/conversations/${conversation.id}`}
-                  className="flex items-center justify-between rounded-lg border border-line p-3 hover:bg-paper"
-                >
-                  <span>{conversation.title ?? "Untitled conversation"}</span>
-                  <span className="text-xs text-ink/50">{conversation.status}</span>
-                </Link>
-              ))
-            ) : (
-              <p className="text-sm text-ink/50">
-                Upload a conversation to begin building your briefing.
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-line bg-surface p-6">
-          <h2 className="text-lg font-semibold">Recent Clients</h2>
-
-          <div className="mt-4 flex flex-col gap-3">
-            {clients.length > 0 ? (
-              clients.slice(0, 5).map((client) => (
-                <Link
-                  key={client.id}
-                  href={`/clients/${client.id}`}
-                  className="rounded-lg border border-line p-3 hover:bg-paper"
-                >
-                  <div className="font-medium">{client.full_name}</div>
-                  <div className="text-sm text-ink/50">
-                    {client.email ?? "No email"}
-                  </div>
-                </Link>
-              ))
-            ) : (
-              <p className="text-sm text-ink/50">
-                Clients will appear after conversation processing identifies them.
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

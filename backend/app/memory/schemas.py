@@ -118,6 +118,8 @@ class DecisionOut(BaseModel):
 
     description: str
 
+    original: dict | None = None
+
 
 class ActionItemOut(BaseModel):
 
@@ -134,6 +136,20 @@ class ActionItemOut(BaseModel):
     status: str
 
     completed_at: datetime | None
+
+    original: dict | None = None
+
+
+class DecisionEdit(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    description: str = Field(min_length=1, max_length=5000)
+
+
+class ActionItemEdit(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    task: str = Field(min_length=1, max_length=5000)
+    owner: str | None = Field(max_length=255)
+    due: str | None = Field(max_length=255)
 
 
 class PersonOut(BaseModel):

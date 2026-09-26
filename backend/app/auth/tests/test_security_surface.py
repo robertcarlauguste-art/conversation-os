@@ -114,6 +114,7 @@ async def security(db_session, monkeypatch):
             memory=memory.id,
             transcript=transcript.id,
             action=memory.action_items[0].id,
+            decision=memory.decisions[0].id,
             person=memory.people[0].id,
             failed=failed.id,
             fact=fact.id,
@@ -179,6 +180,49 @@ async def security(db_session, monkeypatch):
 
 def headers(actor):
     return {"Authorization": f"Bearer {actor}", "X-User-Id": "forged", "X-Role": "admin"}
+
+
+@pytest.mark.parametrize("actor", ["alpha", "beta"])
+async def test_upload_selection_and_named_client_are_tenant_scoped(security, actor):
+    own = security.records[actor]
+    foreign = security.records["beta" if actor == "alpha" else "alpha"]
+    responses = []
+    for client_id in (foreign.client, uuid.uuid4()):
+        responses.append(
+            await security.http.post(
+                "/api/v1/conversations",
+                headers=headers(actor),
+                data={"client_id": str(client_id), "client_assignment_manual": "true"},
+                files={"file": ("test.wav", b"audio", "audio/wav")},
+            )
+        )
+    assert [r.status_code for r in responses] == [404, 404]
+    assert responses[0].json() == responses[1].json()
+    security.storage.save.assert_not_awaited()
+    security.enqueue.assert_not_awaited()
+    for client_id in (own.client, None):
+        data = {"client_assignment_manual": "true"}
+        if client_id:
+            data["client_id"] = str(client_id)
+        response = await security.http.post(
+            "/api/v1/conversations",
+            headers=headers(actor),
+            data=data,
+            files={"file": ("test.wav", b"audio", "audio/wav")},
+        )
+        assert response.status_code == 200
+        async with security.maker() as session:
+            row = await session.get(Conversation, uuid.UUID(response.json()["data"]["id"]))
+            assert row.owner_id == actor
+            assert row.client_id == client_id
+            assert row.client_assignment_manual is True
+    created = await security.http.post(
+        "/api/v1/clients", headers=headers(actor), json={"full_name": "Typed client"}
+    )
+    assert created.status_code == 201
+    async with security.maker() as session:
+        client = await session.get(Client, uuid.UUID(created.json()["data"]["id"]))
+        assert client.owner_id == actor
 
 
 def targeted(record):
@@ -374,7 +418,7 @@ async def test_every_business_route_requires_authentication(security):
                 response = await security.http.request(method, concrete, **kwargs)
                 assert response.status_code == 401, (method, concrete, response.text)
             count += 1
-    assert count == 21
+    assert count == 27  # Includes explicit client creation and conversation title editing.
     security.storage.save.assert_not_awaited()
     security.enqueue.assert_not_awaited()
 
@@ -542,3 +586,328 @@ async def test_briefing_provider_receives_only_actor_data(security, actor, monke
     assert own.marker in prompt
     assert foreign.marker not in prompt
     assert str(foreign.client) not in prompt
+
+
+@pytest.mark.parametrize("actor", ["alpha", "beta"])
+async def test_client_review_scopes_sources_and_rejects_foreign_ids(security, actor, monkeypatch):
+    import json
+
+    own = security.records[actor]
+    foreign = security.records["beta" if actor == "alpha" else "alpha"]
+    draft = {
+        "details": [
+            {
+                "label": "Test detail",
+                "value": own.marker,
+                "source_conversation_id": str(own.conversation),
+                "quote": own.marker,
+            }
+        ],
+        "completed_actions": [],
+    }
+    assessments = {"assessments": [{"action_id": str(own.action), "outcome": "not_completed"}]}
+
+    async def respond(*args, **kwargs):
+        body = assessments if "EVERY supplied open action" in kwargs.get("system", "") else draft
+        return SimpleNamespace(content=json.dumps(body))
+
+    provider = SimpleNamespace(complete=AsyncMock(side_effect=respond))
+    monkeypatch.setattr("app.providers.dependencies.get_ai_provider", lambda _: provider)
+    for target in (foreign.client, uuid.uuid4()):
+        response = await security.http.post(
+            f"/api/v1/clients/{target}/review", headers=headers(actor)
+        )
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Client not found."
+    provider.complete.assert_not_awaited()
+    response = await security.http.post(
+        f"/api/v1/clients/{own.client}/review", headers=headers(actor)
+    )
+    assert response.status_code == 200
+    async with security.maker() as session:
+        action = await session.get(ActionItem, own.action)
+        assert action.status == ActionStatus.OPEN
+    prompt = provider.complete.await_args.args[0][0].content
+    assert own.marker in prompt and foreign.marker not in prompt
+    assert str(foreign.action) not in prompt
+    assessments["assessments"] = [
+        {
+            "action_id": str(foreign.action),
+            "outcome": "completed",
+            "source_conversation_id": str(own.conversation),
+            "quote": own.marker,
+        }
+    ]
+    response = await security.http.post(
+        f"/api/v1/clients/{own.client}/review", headers=headers(actor)
+    )
+    assert response.status_code == 502
+    assert foreign.marker not in response.text
+
+
+@pytest.mark.parametrize("actor", ["alpha", "beta"])
+async def test_saved_review_persists_and_hides_removed_sources(security, actor, monkeypatch):
+    import json
+
+    own = security.records[actor]
+    foreign = security.records["beta" if actor == "alpha" else "alpha"]
+    async with security.maker() as session:
+        later = Conversation(
+            owner_id=actor,
+            filename="later.wav",
+            storage_path="test",
+            mime_type="audio/wav",
+            file_size=1,
+            client_id=own.client,
+            status=ConversationStatus.COMPLETED,
+            source=ConversationSource.UPLOAD,
+        )
+        session.add(later)
+        await session.flush()
+        session.add(
+            Transcript(
+                conversation_id=later.id,
+                text="I finished that task.",
+                status=TranscriptionStatus.COMPLETED,
+            )
+        )
+        await session.commit()
+        later_id = str(later.id)
+    provider = SimpleNamespace(
+        complete=AsyncMock(
+            return_value=SimpleNamespace(
+                content=json.dumps(
+                    {
+                        "details": [
+                            {
+                                "label": "Detail",
+                                "value": own.marker,
+                                "source_conversation_id": str(own.conversation),
+                                "quote": own.marker,
+                            }
+                        ],
+                        "completed_actions": [
+                            {
+                                "action_id": str(own.action),
+                                "source_conversation_id": str(own.conversation),
+                                "quote": own.marker,
+                            }
+                        ],
+                    }
+                )
+            )
+        )
+    )
+    detail_response = provider.complete.return_value
+
+    async def respond(*args, **kwargs):
+        if "EVERY supplied open action" in kwargs.get("system", ""):
+            return SimpleNamespace(
+                content=json.dumps(
+                    {
+                        "assessments": [
+                            {
+                                "action_id": str(own.action),
+                                "outcome": "completed",
+                                "source_conversation_id": later_id,
+                                "quote": "I finished that task.",
+                            }
+                        ]
+                    }
+                )
+            )
+        return detail_response
+
+    provider.complete.side_effect = respond
+    monkeypatch.setattr("app.providers.dependencies.get_ai_provider", lambda _: provider)
+    url = f"/api/v1/clients/{own.client}/review"
+    assert (await security.http.get(url, headers=headers(actor))).json()["data"] is None
+    created = await security.http.post(url, headers=headers(actor))
+    assert created.status_code == 200
+    saved = await security.http.get(url, headers=headers(actor))
+    assert saved.json()["data"] == created.json()["data"]
+    assert provider.complete.await_count == 2
+    assert (
+        await security.http.get(f"/api/v1/clients/{foreign.client}/review", headers=headers(actor))
+    ).status_code == 404
+    await security.http.post(
+        f"/api/v1/memories/action-items/{own.action}/complete", headers=headers(actor)
+    )
+    saved = (await security.http.get(url, headers=headers(actor))).json()["data"]
+    assert saved["completed_actions"] == []
+    assert saved["details"]
+    edited = await security.http.patch(
+        f"/api/v1/memories/{own.memory}/action-items/{own.action}",
+        json={"task": "Corrected completed task", "owner": None, "due": None},
+        headers=headers(actor),
+    )
+    assert edited.status_code == 200
+    assert edited.json()["data"]["status"] == "COMPLETED"
+    assert edited.json()["data"]["completed_at"] is not None
+    changed_review = (await security.http.get(url, headers=headers(actor))).json()["data"]
+    assert changed_review["stale"] and changed_review["completed_actions"] == []
+    assert changed_review["details"] == []
+    await security.http.delete(
+        f"/api/v1/clients/{own.client}/conversations/{own.conversation}", headers=headers(actor)
+    )
+    saved = (await security.http.get(url, headers=headers(actor))).json()["data"]
+    assert saved["stale"] and saved["details"] == [] and saved["actions"] == {}
+
+
+@pytest.mark.parametrize("actor", ["alpha", "beta"])
+@pytest.mark.parametrize("kind", ["action-items", "decisions"])
+async def test_edits_are_scoped_preserve_original_and_persist(security, actor, kind):
+    own = security.records[actor]
+    foreign = security.records["beta" if actor == "alpha" else "alpha"]
+    attr = "action" if kind == "action-items" else "decision"
+    body = (
+        {"task": "Corrected task", "owner": "Jordan", "due": "Wednesday"}
+        if attr == "action"
+        else {"description": "Corrected decision"}
+    )
+
+    def url(memory, item):
+        return f"/api/v1/memories/{memory}/{kind}/{item}"
+
+    missing = await security.http.patch(
+        url(uuid.uuid4(), uuid.uuid4()), json=body, headers=headers(actor)
+    )
+    for memory, item in (
+        (foreign.memory, getattr(foreign, attr)),
+        (own.memory, getattr(foreign, attr)),
+        (foreign.memory, getattr(own, attr)),
+    ):
+        denied = await security.http.patch(url(memory, item), json=body, headers=headers(actor))
+        assert denied.status_code == missing.status_code == 404
+        assert denied.json() == missing.json()
+    endpoint = url(own.memory, getattr(own, attr))
+    for invalid in (
+        {**body, "owner_id": "beta"},
+        {**body, "task" if attr == "action" else "description": "  "},
+    ):
+        assert (
+            await security.http.patch(endpoint, json=invalid, headers=headers(actor))
+        ).status_code == 422
+    response = await security.http.patch(endpoint, json=body, headers=headers(actor))
+    assert response.status_code == 200, response.text
+    original = response.json()["data"]["original"]
+    assert original["task" if attr == "action" else "description"] == own.marker
+    key = "task" if attr == "action" else "description"
+    body[key] = "Second correction"
+    again = await security.http.patch(endpoint, json=body, headers=headers(actor))
+    assert again.json()["data"]["original"] == original
+    read = (
+        await security.http.get(f"/api/v1/memories/{own.memory}", headers=headers(actor))
+    ).json()["data"]
+    assert read["action_items" if attr == "action" else "decisions"][0][key] == "Second correction"
+    foreign_read = (
+        await security.http.get(
+            f"/api/v1/memories/{foreign.memory}", headers=headers(foreign.owner)
+        )
+    ).json()["data"]
+    assert (
+        foreign_read["action_items" if attr == "action" else "decisions"][0][key] == foreign.marker
+    )
+    if attr == "action":
+        dashboard = (await security.http.get("/api/v1/dashboard", headers=headers(actor))).json()[
+            "data"
+        ]
+        assert any(
+            a["task"] == "Second correction" and a["owner"] == "Jordan" and a["due"] == "Wednesday"
+            for a in dashboard["next_actions"]
+        )
+        assert again.json()["data"]["status"] == "OPEN"
+
+
+@pytest.mark.parametrize("actor", ["alpha", "beta"])
+async def test_client_conversation_previews_are_owned_and_bounded(security, actor):
+    own = security.records[actor]
+    other = security.records["beta" if actor == "alpha" else "alpha"]
+    async with security.maker() as session:
+        memory = await session.get(Memory, own.memory)
+        memory.summary = own.marker + " summary" * 100
+        pending = await session.get(Conversation, own.failed)
+        pending.client_id = own.client
+        # Corrupt foreign link must still not expose another owner's summary.
+        foreign = await session.get(Conversation, other.conversation)
+        foreign.client_id = own.client
+        await session.commit()
+    response = await security.http.get(
+        f"/api/v1/clients/{own.client}/conversations", headers=headers(actor)
+    )
+    assert response.status_code == 200
+    rows = response.json()["data"]
+    assert {row["id"] for row in rows} == {str(own.conversation), str(own.failed)}
+    previews = {row["id"]: row["summary_preview"] for row in rows}
+    assert len(previews[str(own.conversation)]) <= 300
+    assert previews[str(own.conversation)].startswith(own.marker)
+    assert previews[str(own.failed)] is None
+    assert other.marker not in response.text
+    assert [row["created_at"] for row in rows] == sorted(
+        (row["created_at"] for row in rows), reverse=True
+    )
+    forbidden = await security.http.get(
+        f"/api/v1/clients/{other.client}/conversations", headers=headers(actor)
+    )
+    assert forbidden.status_code == 404
+
+
+@pytest.mark.parametrize("actor", ["alpha", "beta"])
+async def test_rename_and_client_search_are_owned(security, actor):
+    own = security.records[actor]
+    other = security.records["beta" if actor == "alpha" else "alpha"]
+    url = f"/api/v1/conversations/{own.conversation}/title"
+    assert (await security.http.patch(url, json={"title": "No auth"})).status_code == 401
+    response = await security.http.patch(
+        url, headers=headers(actor), json={"title": "  Budget meeting  "}
+    )
+    assert response.status_code == 204
+    async with security.maker() as session:
+        conversation = await session.get(Conversation, own.conversation)
+        assert conversation.title == "Budget meeting"
+        assert conversation.status == ConversationStatus.COMPLETED
+        transcript = await session.get(Transcript, own.transcript)
+        transcript.text = "Unique spoken keyword apricot"
+        memory = await session.get(Memory, own.memory)
+        memory.summary = "Unique summary keyword nectarine"
+        await session.commit()
+    for term in ("budget MEETING", "apricot", "nectarine"):
+        result = await security.http.get(
+            f"/api/v1/clients/{own.client}/conversations",
+            params={"search": term},
+            headers=headers(actor),
+        )
+        assert [r["id"] for r in result.json()["data"]] == [str(own.conversation)]
+    for term in (other.marker, "%", "not-present"):
+        result = await security.http.get(
+            f"/api/v1/clients/{own.client}/conversations",
+            params={"search": term},
+            headers=headers(actor),
+        )
+        assert result.json()["data"] == []
+    errors = []
+    for identifier in (other.conversation, uuid.uuid4()):
+        response = await security.http.patch(
+            f"/api/v1/conversations/{identifier}/title",
+            headers=headers(actor),
+            json={"title": "Forbidden"},
+        )
+        assert response.status_code == 404
+        errors.append(response.json())
+    assert errors[0] == errors[1]
+    for body in ({"title": " "}, {"title": "x" * 256}, {"title": "Valid", "owner_id": actor}):
+        assert (
+            await security.http.patch(url, headers=headers(actor), json=body)
+        ).status_code == 422
+    from app.memory.repository import MemoryRepository
+
+    async with security.maker() as session:
+        await MemoryRepository(session, actor).set_missing_conversation_title(
+            own.conversation, "Automatic title"
+        )
+        await session.commit()
+        # Automatic extraction must not replace an explicitly chosen title.
+        conversation = await session.get(Conversation, own.conversation)
+        assert conversation.title == "Budget meeting"
+        foreign = await session.get(Conversation, other.conversation)
+        assert foreign.title == other.marker

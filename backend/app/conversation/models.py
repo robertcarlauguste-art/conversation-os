@@ -12,6 +12,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     DateTime,
     Enum,
     ForeignKey,
@@ -36,6 +37,10 @@ from app.models.base import Base
 
 class Conversation(Base):
     __tablename__ = "conversations"
+
+    client_assignment_manual: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),

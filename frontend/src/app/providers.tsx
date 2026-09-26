@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
 import { useState } from "react";
 import { AuthTokenBridge } from "@/components/AuthTokenBridge";
+import { Welcome } from "@/components/Welcome";
 
 export function Providers({
   children,
@@ -21,7 +22,8 @@ export function Providers({
 
 function AuthenticatedProviders({ children }: { children: React.ReactNode }) {
   const { isLoaded, userId, sessionId } = useAuth();
-  if (!isLoaded) return null;
+  if (!isLoaded) return <p role="status" className="p-8">Loading your account…</p>;
+  if (!userId) return <Welcome />;
   // Remount the cache and its consumers before rendering a different identity.
   // In-flight responses from the previous session remain in its detached cache.
   return (

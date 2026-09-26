@@ -17,7 +17,7 @@ tracked tradeoff rather than a background job.
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import CurrentPrincipal
@@ -27,6 +27,7 @@ from app.conversation.schemas import (
     ConversationCreateData,
     ConversationDetail,
     ConversationListItem,
+    ConversationRename,
 )
 from app.conversation.service import (
     ConversationNotFoundError,
@@ -72,6 +73,8 @@ async def upload_conversation(
     file: UploadFile,
     principal: CurrentPrincipal,
     title: str | None = None,
+    client_id: uuid.UUID | None = Form(default=None),
+    client_assignment_manual: bool = Form(default=False),
     service: ConversationService = Depends(get_conversation_service),
     session: AsyncSession = Depends(get_db_session),
     storage: StorageBackend = Depends(get_storage_backend),
@@ -84,7 +87,11 @@ async def upload_conversation(
             content_type=file.content_type,
             content=content,
             title=title,
+            client_id=client_id,
+            client_assignment_manual=client_assignment_manual,
         )
+    except ConversationNotFoundError:
+        raise HTTPException(status_code=404, detail="Client not found.") from None
     except ValidationError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
@@ -187,3 +194,15 @@ async def retry_conversation(
             503, "Retry could not be queued. Refresh the conversation before trying again."
         ) from None
     return ApiResponse(success=True, data=ConversationDetail.model_validate(conversation))
+
+
+@router.patch("/{conversation_id}/title", status_code=204)
+async def rename_conversation(
+    conversation_id: uuid.UUID,
+    body: ConversationRename,
+    service: ConversationService = Depends(get_conversation_service),
+) -> None:
+    try:
+        await service.rename_conversation(conversation_id, body.title)
+    except ConversationNotFoundError:
+        raise HTTPException(404, "Conversation not found.") from None

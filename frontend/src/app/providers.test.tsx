@@ -10,7 +10,7 @@ const identity = vi.hoisted(() => ({
   sessionId: "alpha-session" as string | null,
   getToken: vi.fn(async () => "alpha" as string | null),
 }));
-vi.mock("@clerk/nextjs", () => ({ useAuth: () => identity }));
+vi.mock("@clerk/nextjs", () => ({ useAuth: () => identity, SignInButton: ({ children }: { children: React.ReactNode }) => children, SignUpButton: ({ children }: { children: React.ReactNode }) => children }));
 
 describe("tenant browser cache", () => {
   it("isolates account switches, late responses, sign-out and session changes", async () => {
@@ -52,9 +52,25 @@ describe("tenant browser cache", () => {
     identity.getToken = vi.fn(async () => null);
     view.rerender(<Providers authEnabled><Probe /></Providers>);
     expect(screen.queryByText("data:beta")).not.toBeInTheDocument();
-    expect(await screen.findByText("data:null")).toBeInTheDocument();
-    expect(clients).toHaveLength(4);
+    expect(await screen.findByText("Create an account")).toBeInTheDocument(); expect(tokens).not.toContain(null);
+    expect(clients).toHaveLength(3);
     view.unmount();
     expect(await getAccessToken()).toBeNull();
   });
+});
+
+
+it("does not mount private pages while signed out or loading", () => {
+  identity.userId = null;
+  identity.sessionId = null;
+  identity.isLoaded = false;
+  const mount = vi.fn();
+  function PrivatePage() { mount(); return <div>Private page</div>; }
+  const view = render(<Providers authEnabled><PrivatePage /></Providers>);
+  expect(screen.getByRole("status")).toHaveTextContent("Loading your account");
+  expect(mount).not.toHaveBeenCalled();
+  identity.isLoaded = true;
+  view.rerender(<Providers authEnabled><PrivatePage /></Providers>);
+  expect(screen.getByText("Create an account")).toBeInTheDocument();
+  expect(mount).not.toHaveBeenCalled();
 });

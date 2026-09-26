@@ -104,6 +104,7 @@ export async function deleteConversation(id: string): Promise<void> {
 export async function uploadConversation(
   file: File,
   onProgress: (percent: number) => void,
+  clientId?: string | null,
 ): Promise<{ id: string; status: string }> {
   const token = await getAccessToken();
   return new Promise((resolve, reject) => {
@@ -136,6 +137,10 @@ export async function uploadConversation(
 
     const formData = new FormData();
     formData.append("file", file);
+    if (clientId !== undefined) {
+      formData.append("client_assignment_manual", "true");
+      if (clientId) formData.append("client_id", clientId);
+    }
     xhr.send(formData);
   });
 }
@@ -167,8 +172,8 @@ export async function getClient(id: string): Promise<ClientDetail> {
   return unwrap<ClientDetail>(response);
 }
 
-export async function getClientConversations(id: string): Promise<ClientConversationItem[]> {
-  const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/clients/${id}/conversations`, {
+export async function getClientConversations(id: string, search = ""): Promise<ClientConversationItem[]> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/clients/${id}/conversations${search.trim() ? `?${new URLSearchParams({search: search.trim()})}` : ""}`, {
     cache: "no-store",
   });
   return unwrap<ClientConversationItem[]>(response);
@@ -261,4 +266,40 @@ export async function retryConversation(id: string): Promise<ConversationDetail>
   } catch {
     throw new ApiError("Couldn't queue the retry. Refresh the conversation before trying again.");
   }
+}
+
+export interface ClientReview {
+  saved_at?: string | null;
+  stale?: boolean;
+  conversation_count: number;
+  details: { label: string; value: string; source_conversation_id: string; quote: string }[];
+  completed_actions: { action_id: string; source_conversation_id: string; quote: string }[];
+  actions: Record<string, string>;
+}
+
+export async function createClient(fullName: string): Promise<ClientListItem> {
+  return unwrap<ClientListItem>(await authenticatedFetch(`${API_BASE_URL}/api/v1/clients`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ full_name: fullName }),
+  }));
+}
+
+export async function reviewClientUpdates(clientId: string): Promise<ClientReview> {
+  return unwrap<ClientReview>(await authenticatedFetch(`${API_BASE_URL}/api/v1/clients/${clientId}/review`, { method: "POST" }));
+}
+
+export async function getSavedClientReview(clientId: string): Promise<ClientReview | null> {
+  return unwrap<ClientReview | null>(await authenticatedFetch(`${API_BASE_URL}/api/v1/clients/${clientId}/review`, { cache: "no-store" }));
+}
+
+export async function editMemoryItem(memoryId: string, itemId: string, kind: "decisions" | "action-items", values: { description: string } | { task: string; owner: string | null; due: string | null }): Promise<unknown> {
+  return unwrap(await authenticatedFetch(`${API_BASE_URL}/api/v1/memories/${memoryId}/${kind}/${itemId}`, {
+    method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(values),
+  }));
+}
+
+export async function renameConversation(id: string, title: string): Promise<void> {
+  const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/conversations/${id}/title`, {
+    method: "PATCH", headers: {"Content-Type": "application/json"}, body: JSON.stringify({title}),
+  });
+  if (!response.ok) await unwrap(response);
 }

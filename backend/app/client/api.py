@@ -13,6 +13,7 @@ from app.auth.dependencies import CurrentPrincipal
 from app.client.repository import ClientRepository
 from app.client.schemas import (
     ClientConversationItem,
+    ClientCreate,
     ClientDetail,
     ClientListItem,
 )
@@ -35,6 +36,15 @@ def get_client_service(
     session: AsyncSession = Depends(get_db_session),
 ) -> ClientService:
     return ClientService(ClientRepository(session, principal.user_id))
+
+
+@router.post("", response_model=ApiResponse[ClientListItem], status_code=201)
+async def create_client(
+    body: ClientCreate,
+    service: ClientService = Depends(get_client_service),
+) -> ApiResponse[ClientListItem]:
+    client = await service.create_named_client(body.full_name)
+    return ApiResponse(success=True, data=ClientListItem.model_validate(client))
 
 
 @router.get(
@@ -93,6 +103,7 @@ async def get_client(
 async def get_client_conversations(
     client_id: uuid.UUID,
     principal: CurrentPrincipal,
+    search: str | None = Query(default=None, max_length=100),
     service: ClientService = Depends(get_client_service),
     session: AsyncSession = Depends(get_db_session),
 ) -> ApiResponse[list[ClientConversationItem]]:
@@ -108,7 +119,7 @@ async def get_client_conversations(
 
     conversation_repo = ConversationRepository(session, principal.user_id)
 
-    conversations = await conversation_repo.list_by_client_id(client_id)
+    conversations = await conversation_repo.list_client_previews(client_id, search)
 
     return ApiResponse(
         success=True,
@@ -117,10 +128,11 @@ async def get_client_conversations(
                 id=c.id,
                 title=c.title,
                 filename=c.filename,
+                summary_preview=(summary[:300].strip() if summary else None),
                 status=c.status.value,
                 created_at=c.created_at,
             )
-            for c in conversations
+            for c, summary in conversations
         ],
     )
 
@@ -157,6 +169,7 @@ async def link_conversation(
         )
 
     conversation.client_id = client_id
+    conversation.client_assignment_manual = True
 
     await conversation_repo.commit()
 
@@ -193,5 +206,40 @@ async def unlink_conversation(
         )
 
     conversation.client_id = None
+    conversation.client_assignment_manual = True
 
     await conversation_repo.commit()
+
+
+@router.post("/{client_id}/review")
+async def review_client_updates(
+    client_id: uuid.UUID,
+    principal: CurrentPrincipal,
+    session: AsyncSession = Depends(get_db_session),
+):
+    from app.client.review import generate_review
+    from app.core.config import get_settings
+    from app.providers.dependencies import get_ai_provider
+
+    repository = ClientRepository(session, principal.user_id)
+    if await repository.get(client_id) is None:
+        raise HTTPException(404, "Client not found.")
+    try:
+        provider = get_ai_provider(get_settings())
+    except RuntimeError:
+        raise HTTPException(503, "Client review is currently unavailable.") from None
+    return ApiResponse(success=True, data=await generate_review(repository, client_id, provider))
+
+
+@router.get("/{client_id}/review")
+async def get_saved_client_review(
+    client_id: uuid.UUID,
+    principal: CurrentPrincipal,
+    session: AsyncSession = Depends(get_db_session),
+):
+    from app.client.review import load_review
+
+    return ApiResponse(
+        success=True,
+        data=await load_review(ClientRepository(session, principal.user_id), client_id),
+    )

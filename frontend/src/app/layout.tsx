@@ -4,6 +4,7 @@ import "./globals.css";
 import { Nav } from "@/components/Nav";
 import { ToastProvider } from "@/components/Toast";
 import { Providers } from "./providers";
+import { PilotGuide } from "@/components/PilotGuide";
 
 export const metadata: Metadata = {
   title: "ConversationOS",
@@ -18,7 +19,7 @@ export default function RootLayout({
     <Providers authEnabled={authEnabled}>
       <ToastProvider>
         <Nav authEnabled={authEnabled} />
-        <main className="mx-auto max-w-6xl px-6 py-10">{children}</main>
+        <main className="mx-auto max-w-6xl px-6 py-10"><a href="#pilot-help" className="mb-4 block text-sm text-accent underline">Help: getting started, privacy & limits</a>{children}<PilotGuide /></main>
       </ToastProvider>
     </Providers>
   );

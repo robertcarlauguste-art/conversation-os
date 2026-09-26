@@ -1,10 +1,12 @@
 "use client";
+import { ConversationTasks } from "./ConversationTasks";
 
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { getMemoryByConversation, getTranscriptByConversation } from "@/lib/api";
 import type { ConversationStatus } from "@/lib/types";
 import { WaveformMark } from "./WaveformMark";
+import { MemoryItemEditor } from "./MemoryItemEditor";
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -91,7 +93,7 @@ export function MemoryPanel({
     return (
       <div className="rounded-xl border border-status-failed/30 bg-surface p-6 text-center">
         <p className="text-sm text-status-failed">
-          Couldn&apos;t load this conversation&apos;s memory. Check that the backend is running.
+          Couldn&apos;t load this conversation&apos;s memory. Please refresh the page and try again.
         </p>
       </div>
     );
@@ -129,20 +131,16 @@ export function MemoryPanel({
           </div>
         )}
         <p className="mt-4 text-xs text-ink/40">
-          {Math.round(memory.confidence * 100)}% confidence · {memory.source}
+          AI-generated summary. Check important details and follow-up actions against the transcript; AI can make mistakes.
         </p>
       </SectionCard>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <SectionCard title="Decisions">
-          <BulletList items={memory.decisions.map((d) => d.description)} />
+          {memory.decisions.length ? <ul className="flex flex-col gap-3">{memory.decisions.map(item => <MemoryItemEditor key={item.id} memoryId={memory.id} item={item} />)}</ul> : <EmptyNote>None identified.</EmptyNote>}
         </SectionCard>
         <SectionCard title="Action Items">
-          <BulletList
-            items={memory.action_items.map((a) =>
-              a.owner ? `${a.task} (${a.owner})` : a.task,
-            )}
-          />
+          <ConversationTasks memoryId={memory.id} items={memory.action_items} />
         </SectionCard>
         <SectionCard title="People">
           <BulletList

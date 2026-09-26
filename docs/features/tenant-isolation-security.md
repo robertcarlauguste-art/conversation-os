@@ -162,3 +162,7 @@ authorization without manufacturing a hosted failure.
 
 See `docs/deployment/tenant-isolation-staging.md` for the exact proposed release,
 two-account smoke, evidence collection and rollback procedure.
+
+## Pilot corrections — September 22, 2026
+
+The two client review GET/POST operations plus two correction PATCH operations bring the authenticated surface to 25 operations. PATCH `/memories/{memory_id}/action-items/{item_id}` and PATCH `/memories/{memory_id}/decisions/{item_id}` resolve the item through its specified memory and an owned conversation before a row-locked update. Foreign, absent and mismatched nested IDs share `404 Item not found.` Required content has length/blank validation; extra fields, ownership changes and status changes are rejected. Original extraction fields are snapshotted once. Completion state is preserved. Conversation updated_at changes to invalidate saved client reviews after corrections. Both-user PostgreSQL HTTP tests cover nested substitution, denied mutations, persistent corrections, original preservation, dashboard propagation and saved-review invalidation.

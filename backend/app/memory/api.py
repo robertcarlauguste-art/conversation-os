@@ -1,6 +1,6 @@
 """
-Memory API routes. Read-only — memories are created by the
-orchestrator's pipeline, not via a direct API call.
+Memory reads and owner-scoped corrections. Memories are created by the
+orchestrator's pipeline; users can correct existing decisions and tasks.
 """
 
 import uuid
@@ -10,12 +10,52 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import CurrentPrincipal
 from app.core.database import get_db_session
+from app.memory.models import ActionItem, Decision
 from app.memory.repository import MemoryRepository
-from app.memory.schemas import ActionItemOut, MemoryDetail, MemoryListItem
+from app.memory.schemas import (
+    ActionItemEdit,
+    ActionItemOut,
+    DecisionEdit,
+    DecisionOut,
+    MemoryDetail,
+    MemoryListItem,
+)
 from app.memory.service import ActionItemNotFoundError, ActionItemService
 from app.schemas.envelope import ApiResponse
 
 router = APIRouter(prefix="/memories", tags=["memories"])
+
+
+@router.patch("/{memory_id}/action-items/{item_id}", response_model=ApiResponse[ActionItemOut])
+async def edit_action_item(
+    memory_id: uuid.UUID,
+    item_id: uuid.UUID,
+    body: ActionItemEdit,
+    principal: CurrentPrincipal,
+    session: AsyncSession = Depends(get_db_session),
+) -> ApiResponse[ActionItemOut]:
+    item = await MemoryRepository(session, principal.user_id).edit_item(
+        memory_id, item_id, ActionItem, body.model_dump()
+    )
+    if item is None:
+        raise HTTPException(404, "Item not found.")
+    return ApiResponse(success=True, data=ActionItemOut.model_validate(item))
+
+
+@router.patch("/{memory_id}/decisions/{item_id}", response_model=ApiResponse[DecisionOut])
+async def edit_decision(
+    memory_id: uuid.UUID,
+    item_id: uuid.UUID,
+    body: DecisionEdit,
+    principal: CurrentPrincipal,
+    session: AsyncSession = Depends(get_db_session),
+) -> ApiResponse[DecisionOut]:
+    item = await MemoryRepository(session, principal.user_id).edit_item(
+        memory_id, item_id, Decision, body.model_dump()
+    )
+    if item is None:
+        raise HTTPException(404, "Item not found.")
+    return ApiResponse(success=True, data=DecisionOut.model_validate(item))
 
 
 @router.post(

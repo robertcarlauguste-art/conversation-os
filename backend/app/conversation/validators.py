@@ -9,7 +9,7 @@ size limit change.
 
 from dataclasses import dataclass
 
-ALLOWED_EXTENSIONS: tuple[str, ...] = ("mp3", "wav", "m4a", "aac")
+ALLOWED_EXTENSIONS: tuple[str, ...] = ("mp3", "wav", "m4a", "aac", "webm", "mp4")
 
 
 class ValidationError(Exception):

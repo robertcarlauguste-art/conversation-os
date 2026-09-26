@@ -15,6 +15,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
+    JSON,
     DateTime,
     Float,
     ForeignKey,
@@ -34,6 +35,8 @@ from app.models.base import Base
 
 class Client(Base):
     __tablename__ = "clients"
+
+    saved_review: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),

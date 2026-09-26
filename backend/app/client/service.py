@@ -47,6 +47,13 @@ class InvalidClientEntityError(Exception):
 
 
 class ClientService(BaseService[ClientRepository]):
+    async def create_named_client(self, name: str) -> Client:
+        # A name alone is insufficient evidence to merge identities.
+        client = Client(owner_id=self.repository.owner_id, full_name=name)
+        await self.repository.add(client)
+        await self.repository.commit()
+        return client
+
     def _normalize_role(
         self,
         role: str | None,

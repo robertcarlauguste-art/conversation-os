@@ -39,6 +39,8 @@ async def test_extract_and_persist_creates_memory_with_children(db_session: Asyn
     assert len(memory.people) == 2
     assert memory.topics == ["financing", "offer terms", "timeline"]
     assert memory.source == "fake-claude"
+    await db_session.refresh(conversation)
+    assert "financing" in conversation.title
 
 
 async def test_extract_and_persist_raises_on_invalid_json(db_session: AsyncSession) -> None:
@@ -83,3 +85,21 @@ async def test_get_by_conversation_id(db_session: AsyncSession) -> None:
     fetched = await service.get_by_conversation_id(conversation.id)
     assert fetched is not None
     assert fetched.id == created.id
+
+
+async def test_generated_title_preserves_existing_title_and_tenant_boundary(db_session):
+    conversation = await _make_conversation(db_session)
+    repository = MemoryRepository(db_session)
+    await MemoryRepository(db_session, owner_id="other-user").set_missing_conversation_title(
+        conversation.id, "Foreign title"
+    )
+    await db_session.refresh(conversation)
+    assert conversation.title is None
+    await repository.set_missing_conversation_title(conversation.id, "Jordan — Home buying")
+    await repository.commit()
+    await db_session.refresh(conversation)
+    assert conversation.title == "Jordan — Home buying"
+    await repository.set_missing_conversation_title(conversation.id, "Replacement")
+    await repository.commit()
+    await db_session.refresh(conversation)
+    assert conversation.title == "Jordan — Home buying"
