@@ -22,6 +22,6 @@ jobs:
         with:
           python-version: "3.13"
       - name: Install test dependencies
-        run: pip install boto3 cryptography pytest
+        run: pip install boto3 cryptography httpx pytest
       - name: Test encrypted database and recording backups
         run: python -m pytest -q

@@ -24,7 +24,7 @@ it("polls until ready and then stops, with a direct results link", async () => {
   expect(cache.getQueryState(["conversations", "list", 1])?.isInvalidated).toBe(true);
   expect(cache.getQueryState(["dashboard"])?.isInvalidated).toBe(true);
   expect(cache.getQueryState(["conversations", "mine"])?.isInvalidated).toBe(false);
-});
+}, 15000); // Covers a 3-second poll plus a second interval proving polling stopped.
 it("offers a manual status retry without exposing server errors", async () => {
   vi.mocked(getConversation).mockRejectedValueOnce(new Error("private server detail")).mockResolvedValue({status:"COMPLETED"} as never);
   setup();
