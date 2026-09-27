@@ -4,6 +4,7 @@ import hashlib
 import json
 import logging
 import uuid
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 
 from fastapi import HTTPException
@@ -183,9 +184,14 @@ async def load_review(repository: ClientRepository, client_id: uuid.UUID) -> Cli
 
 
 async def generate_review(
-    repository: ClientRepository, client_id: uuid.UUID, provider: AIProvider
+    repository: ClientRepository,
+    client_id: uuid.UUID,
+    provider: AIProvider,
+    before_provider: Callable[[], Awaitable[None]] | None = None,
 ) -> ClientReview:
     _, rows, sources, actions, payload, fingerprint = await review_context(repository, client_id)
+    if rows and before_provider is not None:
+        await before_provider()
     # One retry total; no writes occur until the entire review validates.
     for attempt in (1, 2):
         stage = "details"

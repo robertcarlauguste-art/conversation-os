@@ -18,6 +18,14 @@ import { authenticatedFetch, getAccessToken } from "./auth-token";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
+type Allowances = Record<"recordings" | "storage_bytes" | "uploads" | "audio_seconds" | "ai" | "retries", number>;
+export type PilotUsageData = { enabled: false } | {
+  enabled: true; used: Allowances; limits: Allowances; remaining: Allowances; resets_at: string;
+};
+export async function getPilotUsage(): Promise<PilotUsageData> {
+  return unwrap<PilotUsageData>(await authenticatedFetch(`${API_BASE_URL}/api/v1/usage`, { cache: "no-store" }));
+}
+
 export class ApiError extends Error {
   constructor(message: string) {
     super(message);

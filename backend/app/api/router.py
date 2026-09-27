@@ -22,6 +22,7 @@ from app.dashboard.api import router as dashboard_router
 from app.memory.api import router as memory_router
 from app.operations.api import router as operations_router
 from app.transcription.api import router as transcription_router
+from app.usage.api import router as usage_router
 
 api_router = APIRouter()
 
@@ -73,3 +74,5 @@ api_router.include_router(
     prefix="/api/v1",
     dependencies=protected_dependencies,
 )
+
+api_router.include_router(usage_router, prefix="/api/v1", dependencies=protected_dependencies)

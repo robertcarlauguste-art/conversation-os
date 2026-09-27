@@ -22,6 +22,7 @@ from app.client.service import (
     ClientService,
 )
 from app.conversation.repository import ConversationRepository
+from app.core.config import Settings, get_settings
 from app.core.database import get_db_session
 from app.schemas.envelope import ApiResponse
 
@@ -216,19 +217,30 @@ async def review_client_updates(
     client_id: uuid.UUID,
     principal: CurrentPrincipal,
     session: AsyncSession = Depends(get_db_session),
+    settings: Settings = Depends(get_settings),
 ):
     from app.client.review import generate_review
-    from app.core.config import get_settings
     from app.providers.dependencies import get_ai_provider
 
     repository = ClientRepository(session, principal.user_id)
     if await repository.get(client_id) is None:
         raise HTTPException(404, "Client not found.")
     try:
-        provider = get_ai_provider(get_settings())
+        provider = get_ai_provider(settings)
     except RuntimeError:
         raise HTTPException(503, "Client review is currently unavailable.") from None
-    return ApiResponse(success=True, data=await generate_review(repository, client_id, provider))
+    from app.usage.service import UsageService
+
+    allowance = UsageService(session, principal.user_id) if settings.pilot_limits_enabled else None
+    return ApiResponse(
+        success=True,
+        data=await generate_review(
+            repository,
+            client_id,
+            provider,
+            before_provider=allowance.consume_ai if allowance else None,
+        ),
+    )
 
 
 @router.get("/{client_id}/review")
