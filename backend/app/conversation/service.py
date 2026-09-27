@@ -87,10 +87,10 @@ class ConversationService(BaseService[ConversationRepository]):
 
             seconds = None
             if self._pilot_limits_enabled:
+                allowance = UsageService(self.repository.session, self.repository.owner_id)
+                await allowance.admit("uploads", size=len(content), reserve=False)
                 seconds = await audio_seconds(content)
-                await UsageService(self.repository.session, self.repository.owner_id).admit(
-                    "uploads", size=len(content), seconds=seconds
-                )
+                await allowance.admit("uploads", size=len(content), seconds=seconds)
             storage_path = await self._storage.save(filename=filename, content=content)
 
             conversation = Conversation(

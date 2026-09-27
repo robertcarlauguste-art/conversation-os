@@ -919,7 +919,8 @@ async def test_pilot_allowance_http_isolation_and_upload_gate(security, monkeypa
     from app.usage.service import UsageService
 
     security.settings.pilot_limits_enabled = True
-    monkeypatch.setattr("app.conversation.service.audio_seconds", AsyncMock(return_value=180))
+    decoder = AsyncMock(return_value=180)
+    monkeypatch.setattr("app.conversation.service.audio_seconds", decoder)
     async with security.maker() as session:
         await session.execute(text("DELETE FROM pilot_usage WHERE owner_id IN ('alpha','beta')"))
         await session.commit()
@@ -946,6 +947,7 @@ async def test_pilot_allowance_http_isolation_and_upload_gate(security, monkeypa
     )
     assert r.status_code == 429
     security.storage.save.assert_not_awaited()
+    decoder.assert_not_awaited()
     r = await security.http.get("/api/v1/conversations", headers=headers("alpha"))
     assert r.status_code == 200
 

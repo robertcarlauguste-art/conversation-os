@@ -69,7 +69,7 @@ class UsageService:
             "resets_at": (day + timedelta(days=1)).isoformat() + "T00:00:00Z",
         }
 
-    async def admit(self, kind: str, *, size: int = 0, seconds: int = 0):
+    async def admit(self, kind: str, *, size: int = 0, seconds: int = 0, reserve: bool = True):
         if kind not in ("uploads", "ai", "retries"):
             raise ValueError("Unknown allowance")
         await self.lock()
@@ -87,6 +87,9 @@ class UsageService:
                     "Try again after " + state["resets_at"] + "."
                 )
                 raise HTTPException(429, message)
+        if not reserve:
+            # Keep the owner lock until the caller validates audio and admits or rolls back.
+            return
         # Column names come only from the fixed allowlist above.
         day = date.fromisoformat(state["resets_at"][:10]) - timedelta(days=1)
         await self.session.execute(
