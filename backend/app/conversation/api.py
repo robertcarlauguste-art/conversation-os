@@ -65,6 +65,7 @@ def get_conversation_service(
         storage,
         allowed_mime_types=settings.allowed_audio_mime_types,
         max_upload_size_bytes=settings.max_upload_size_bytes,
+        pilot_limits_enabled=settings.pilot_limits_enabled,
     )
 
 
@@ -80,7 +81,9 @@ async def upload_conversation(
     storage: StorageBackend = Depends(get_storage_backend),
     settings: Settings = Depends(get_settings),
 ) -> ApiResponse[ConversationCreateData]:
-    content = await file.read()
+    content = await file.read(settings.max_upload_size_bytes + 1)
+    if len(content) > settings.max_upload_size_bytes:
+        raise HTTPException(422, "The recording exceeds the upload size limit.")
     try:
         conversation = await service.upload(
             filename=file.filename or "unknown",

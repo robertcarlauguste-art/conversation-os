@@ -11,6 +11,8 @@ import uuid
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 
+from fastapi import HTTPException
+
 from app.conversation.enums import ConversationSource, ConversationStatus
 from app.conversation.events import emit_conversation_uploaded
 from app.conversation.models import Conversation
@@ -20,6 +22,8 @@ from app.conversation.storage import StorageBackend
 from app.conversation.validators import UploadCandidate, ValidationError, validate_upload
 from app.processing.visibility import safe_error
 from app.services.base import BaseService
+from app.usage.audio import audio_seconds
+from app.usage.service import UsageService
 
 logger = logging.getLogger("conversation_os.conversation")
 
@@ -49,8 +53,10 @@ class ConversationService(BaseService[ConversationRepository]):
         *,
         allowed_mime_types: tuple[str, ...],
         max_upload_size_bytes: int,
+        pilot_limits_enabled: bool = False,
     ) -> None:
         super().__init__(repository)
+        self._pilot_limits_enabled = pilot_limits_enabled
         self._storage = storage
         self._allowed_mime_types = allowed_mime_types
         self._max_upload_size_bytes = max_upload_size_bytes
@@ -79,6 +85,12 @@ class ConversationService(BaseService[ConversationRepository]):
                 max_size_bytes=self._max_upload_size_bytes,
             )
 
+            seconds = None
+            if self._pilot_limits_enabled:
+                seconds = await audio_seconds(content)
+                await UsageService(self.repository.session, self.repository.owner_id).admit(
+                    "uploads", size=len(content), seconds=seconds
+                )
             storage_path = await self._storage.save(filename=filename, content=content)
 
             conversation = Conversation(
@@ -90,6 +102,7 @@ class ConversationService(BaseService[ConversationRepository]):
                 storage_path=storage_path,
                 mime_type=content_type or "application/octet-stream",
                 file_size=len(content),
+                duration_seconds=seconds,
                 status=ConversationStatus.UPLOADED,
                 source=ConversationSource.UPLOAD,
             )
@@ -114,7 +127,9 @@ class ConversationService(BaseService[ConversationRepository]):
                 duration_ms,
                 safe_error(str(exc)),
             )
-            if isinstance(exc, ValidationError):
+            if self._pilot_limits_enabled:
+                await self.repository.rollback()
+            if isinstance(exc, (ValidationError, HTTPException)):
                 raise
             raise RuntimeError("Upload failed. Check storage and database availability.") from None
 
@@ -159,6 +174,10 @@ class ConversationService(BaseService[ConversationRepository]):
                 raise ConversationNotFoundError("Conversation not found.")
             if conversation.status != ConversationStatus.FAILED:
                 raise ConversationRetryConflict("Only failed conversations can be retried.")
+            if self._pilot_limits_enabled:
+                await UsageService(self.repository.session, self.repository.owner_id).admit(
+                    "retries"
+                )
             conversation.status = ConversationStatus.QUEUED
             conversation.processing_error = None
             conversation.processing_completed_at = None
@@ -166,7 +185,7 @@ class ConversationService(BaseService[ConversationRepository]):
             async with asyncio.timeout(10):
                 await enqueue(conversation.id, conversation.processing_attempts)
             await self.repository.commit()
-        except (ConversationNotFoundError, ConversationRetryConflict):
+        except (ConversationNotFoundError, ConversationRetryConflict, HTTPException):
             await self._rollback_retry()
             raise
         except Exception:

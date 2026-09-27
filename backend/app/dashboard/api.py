@@ -51,6 +51,8 @@ def get_dashboard_service(
 
 
 def get_dashboard_briefing_service(
+    principal: CurrentPrincipal,
+    session: AsyncSession = Depends(get_db_session),
     dashboard_service: DashboardService = Depends(get_dashboard_service),
     settings: Settings = Depends(get_settings),
 ) -> DashboardBriefingService:
@@ -58,10 +60,14 @@ def get_dashboard_briefing_service(
     if settings.anthropic_api_key:
         provider = get_ai_provider(settings)
 
+    from app.usage.service import UsageService
+
+    allowance = UsageService(session, principal.user_id) if settings.pilot_limits_enabled else None
     return DashboardBriefingService(
         dashboard_service,
         provider,
         model=settings.anthropic_model,
+        before_provider=allowance.consume_ai if allowance else None,
     )
 
 

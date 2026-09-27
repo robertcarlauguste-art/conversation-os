@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     port: int = Field(default=8000, ge=1, le=65535)
     version: str = Field(default="0.1.0")
 
+    # Enable only after migration 0012 and ffmpeg are deployed.
+    pilot_limits_enabled: bool = False
+
     # Data stores
     database_url: str = Field(
         default="postgresql+psycopg://postgres:postgres@postgres:5432/conversation_os"

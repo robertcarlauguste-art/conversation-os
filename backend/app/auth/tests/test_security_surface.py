@@ -418,7 +418,7 @@ async def test_every_business_route_requires_authentication(security):
                 response = await security.http.request(method, concrete, **kwargs)
                 assert response.status_code == 401, (method, concrete, response.text)
             count += 1
-    assert count == 27  # Includes explicit client creation and conversation title editing.
+    assert count == 28  # Includes the authenticated, owner-scoped allowance endpoint.
     security.storage.save.assert_not_awaited()
     security.enqueue.assert_not_awaited()
 
@@ -911,3 +911,69 @@ async def test_rename_and_client_search_are_owned(security, actor):
         assert conversation.title == "Budget meeting"
         foreign = await session.get(Conversation, other.conversation)
         assert foreign.title == other.marker
+
+
+async def test_pilot_allowance_http_isolation_and_upload_gate(security, monkeypatch):
+    from sqlalchemy import text
+
+    from app.usage.service import UsageService
+
+    security.settings.pilot_limits_enabled = True
+    monkeypatch.setattr("app.conversation.service.audio_seconds", AsyncMock(return_value=180))
+    async with security.maker() as session:
+        await session.execute(text("DELETE FROM pilot_usage WHERE owner_id IN ('alpha','beta')"))
+        await session.commit()
+        for _ in range(5):
+            await UsageService(session, "alpha").admit("uploads", size=10, seconds=180)
+            await session.commit()
+    r = await security.http.get("/api/v1/usage?owner_id=alpha", headers=headers("beta"))
+    assert r.status_code == 200 and r.json()["data"]["remaining"]["uploads"] == 5
+    r = await security.http.get("/api/v1/usage", headers=headers("alpha"))
+    assert r.json()["data"]["remaining"]["uploads"] == 0
+    foreign = security.records["beta"].client
+    for client in (foreign, uuid.uuid4()):
+        r = await security.http.post(
+            "/api/v1/conversations",
+            headers=headers("alpha"),
+            files={"file": ("note.wav", b"audio", "audio/wav")},
+            data={"client_id": str(client)},
+        )
+        assert r.status_code == 404
+    r = await security.http.post(
+        "/api/v1/conversations",
+        headers=headers("alpha"),
+        files={"file": ("note.wav", b"audio", "audio/wav")},
+    )
+    assert r.status_code == 429
+    security.storage.save.assert_not_awaited()
+    r = await security.http.get("/api/v1/conversations", headers=headers("alpha"))
+    assert r.status_code == 200
+
+
+async def test_ai_allowance_shared_by_review_and_briefing(security, monkeypatch):
+    from sqlalchemy import text
+
+    from app.usage.service import UsageService
+
+    security.settings.pilot_limits_enabled = True
+    security.settings.anthropic_api_key = "sk_test_fake"
+    provider = SimpleNamespace(complete=AsyncMock())
+    monkeypatch.setattr("app.providers.dependencies.get_ai_provider", lambda _: provider)
+    monkeypatch.setattr("app.dashboard.api.get_ai_provider", lambda _: provider)
+    async with security.maker() as session:
+        await session.execute(text("DELETE FROM pilot_usage WHERE owner_id IN ('alpha','beta')"))
+        await session.commit()
+        for _ in range(5):
+            await UsageService(session, "alpha").consume_ai()
+    own = security.records["alpha"].client
+    foreign = security.records["beta"].client
+    for path in (f"/clients/{own}/review", "/dashboard/briefing"):
+        response = await security.http.post("/api/v1" + path, headers=headers("alpha"))
+        assert response.status_code == 429, response.text
+    response = await security.http.post(
+        f"/api/v1/clients/{foreign}/review", headers=headers("alpha")
+    )
+    assert response.status_code == 404
+    response = await security.http.get(f"/api/v1/clients/{own}/review", headers=headers("alpha"))
+    assert response.status_code == 200
+    provider.complete.assert_not_awaited()

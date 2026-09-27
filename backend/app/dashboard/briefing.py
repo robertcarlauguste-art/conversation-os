@@ -1,6 +1,6 @@
 import json
 import logging
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 
 from app.providers.ai_provider import AIMessage, AIProvider
@@ -21,7 +21,9 @@ class DashboardBriefingService:
         *,
         model: str | None,
         clock: Callable[[], datetime] | None = None,
+        before_provider: Callable[[], Awaitable[None]] | None = None,
     ) -> None:
+        self._before_provider = before_provider
         self._dashboard = dashboard_service
         self._ai = ai_provider
         self._model = model
@@ -65,6 +67,8 @@ class DashboardBriefingService:
                 generated_at=generated_at,
             )
 
+        if self._before_provider is not None:
+            await self._before_provider()
         try:
             result = await self._ai.complete(
                 [AIMessage(role="user", content=self._prompt(dashboard))],
