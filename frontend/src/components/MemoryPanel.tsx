@@ -11,7 +11,7 @@ import { MemoryItemEditor } from "./MemoryItemEditor";
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="rounded-xl border border-line bg-surface p-6">
-      <h3 className="text-xs font-medium uppercase tracking-wide text-ink/50">{title}</h3>
+      <h3 className="font-display text-xl text-ink">{title}</h3>
       <div className="mt-3">{children}</div>
     </div>
   );
@@ -135,13 +135,14 @@ export function MemoryPanel({
         </p>
       </SectionCard>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+        <SectionCard title="Tasks to review">
+          <ConversationTasks memoryId={memory.id} items={memory.action_items} />
+        </SectionCard>
+      <div className="grid gap-4 sm:grid-cols-2">
         <SectionCard title="Decisions">
           {memory.decisions.length ? <ul className="flex flex-col gap-3">{memory.decisions.map(item => <MemoryItemEditor key={item.id} memoryId={memory.id} item={item} />)}</ul> : <EmptyNote>None identified.</EmptyNote>}
         </SectionCard>
-        <SectionCard title="Action Items">
-          <ConversationTasks memoryId={memory.id} items={memory.action_items} />
-        </SectionCard>
+
         <SectionCard title="People">
           <BulletList
             items={memory.people.map((p) => (p.role ? `${p.name} — ${p.role}` : p.name))}
@@ -153,6 +154,8 @@ export function MemoryPanel({
         <div className="rounded-xl border border-line bg-surface p-6">
           <button
             type="button"
+            aria-expanded={transcriptOpen}
+            aria-controls="conversation-transcript"
             onClick={() => setTranscriptOpen((open) => !open)}
             className="flex w-full items-center justify-between text-left"
           >
@@ -162,7 +165,7 @@ export function MemoryPanel({
             <span className="text-xs text-ink/40">{transcriptOpen ? "Hide" : "Show"}</span>
           </button>
           {transcriptOpen && (
-            <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-ink/80">
+            <p id="conversation-transcript" className="mt-3 break-words whitespace-pre-wrap text-sm leading-relaxed text-ink/80">
               {transcript.text}
             </p>
           )}
