@@ -97,10 +97,12 @@ describe("SummaryCards interactions", () => {
       alerts: ["2 conversations are possibly stalled. Review the conversation list."],
     });
     renderDashboard();
-    await screen.findByRole("heading", { name: "Next Actions" });
+    await screen.findByRole("heading", { name: "Tasks needing attention" });
     expect(screen.queryByText("Queued")).not.toBeInTheDocument();
     expect(screen.queryByText("Possibly stalled")).not.toBeInTheDocument();
-    expect(screen.getAllByRole("heading")[0]).toHaveTextContent("Next Actions");
+    expect(screen.getByRole("heading", { name: "Tasks needing attention" })).toBeVisible();
+    expect(screen.getByText("Client follow-ups").closest("details")).not.toHaveAttribute("open");
+    expect(screen.getByText("Activity & completed tasks").closest("details")).not.toHaveAttribute("open");
     expect(screen.getByText(/2 conversations are possibly stalled/)).toBeInTheDocument();
   });
 
@@ -115,6 +117,8 @@ describe("SummaryCards interactions", () => {
     const user = userEvent.setup();
     renderDashboard();
 
+    await user.click(await screen.findByText("Client follow-ups"));
+    await user.click(await screen.findByText("Why follow up & actions"));
     await user.click(await screen.findByRole("button", { name: "Record contact" }));
 
     await waitFor(() =>
@@ -145,6 +149,7 @@ describe("SummaryCards interactions", () => {
     const user = userEvent.setup();
     renderDashboard();
 
+    await user.click(await screen.findByText("Activity & completed tasks"));
     await user.click(await screen.findByRole("button", { name: "Reopen" }));
 
     await waitFor(() =>
