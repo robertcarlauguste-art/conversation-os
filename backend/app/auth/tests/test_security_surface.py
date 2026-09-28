@@ -183,6 +183,45 @@ def headers(actor):
 
 
 @pytest.mark.parametrize("actor", ["alpha", "beta"])
+async def test_followup_http_auth_and_nested_isolation(security, actor, monkeypatch):
+    from app.memory import api
+    from app.providers.ai_provider import AICompletionResult
+
+    own = security.records[actor]
+    foreign = security.records["beta" if actor == "alpha" else "alpha"]
+    provider = SimpleNamespace(
+        complete=AsyncMock(
+            return_value=AICompletionResult(
+                '{"subject":"Follow-up","body":"Please review next steps."}', "fake"
+            )
+        )
+    )
+    monkeypatch.setattr(api, "get_ai_provider", lambda _: provider)
+    security.settings.anthropic_api_key = "test"
+    url = f"/api/v1/memories/by-conversation/{own.conversation}/follow-up"
+    body = {"channel": "email", "include_summary": True}
+    assert (await security.http.post(url, json=body)).status_code == 401
+    responses = []
+    for target in (foreign.conversation, uuid.uuid4()):
+        response = await security.http.post(
+            f"/api/v1/memories/by-conversation/{target}/follow-up",
+            json=body,
+            headers=headers(actor),
+        )
+        assert response.status_code == 404
+        responses.append(response.json()["detail"])
+    assert responses[0] == responses[1]
+    response = await security.http.post(
+        url, headers=headers(actor), json={"channel": "text", "action_ids": [str(foreign.action)]}
+    )
+    assert response.status_code == 404
+    provider.complete.assert_not_called()
+    response = await security.http.post(url, headers=headers(actor), json=body)
+    assert response.status_code == 200
+    assert foreign.marker not in provider.complete.call_args.args[0][0].content
+
+
+@pytest.mark.parametrize("actor", ["alpha", "beta"])
 async def test_upload_selection_and_named_client_are_tenant_scoped(security, actor):
     own = security.records[actor]
     foreign = security.records["beta" if actor == "alpha" else "alpha"]

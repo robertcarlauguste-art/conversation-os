@@ -17,7 +17,7 @@ export function PilotUsage() {
       <li>{Math.floor(r.storage_bytes / (1024 * 1024))} MiB audio storage remaining.</li>
       <li>{Math.floor(r.audio_seconds / 60)} minutes of new audio left today; three minutes maximum per recording or uploaded file.</li>
       <li>{r.retries} processing retries left today.</li>
-      <li>Client reviews and dashboard briefings share the AI allowance.</li>
+      <li>Client reviews, dashboard briefings and follow-up drafts share the AI allowance.</li>
     </ul>
     <p className="mt-3">Daily allowances reset {new Date(data.resets_at).toLocaleString()}. Reading and editing saved notes remain available. Deleting a recording frees storage, but does not refund today&apos;s usage.</p>
     <p className="mt-2">AI requests count once processing starts, including unsuccessful or outdated reviews. This display updates every 30 seconds.</p>
