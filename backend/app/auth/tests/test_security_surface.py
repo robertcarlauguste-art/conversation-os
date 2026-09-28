@@ -457,7 +457,7 @@ async def test_every_business_route_requires_authentication(security):
                 response = await security.http.request(method, concrete, **kwargs)
                 assert response.status_code == 401, (method, concrete, response.text)
             count += 1
-    assert count == 28  # Includes the authenticated, owner-scoped allowance endpoint.
+    assert count == 29  # Includes the owner-scoped follow-up drafting endpoint.
     security.storage.save.assert_not_awaited()
     security.enqueue.assert_not_awaited()
 
