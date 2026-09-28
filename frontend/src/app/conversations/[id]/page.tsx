@@ -60,21 +60,10 @@ export default function ConversationDetailPage({
         <ConversationTitleEditor key={id} id={id} title={data.title} />
       </div>
 
-      <dl className="grid grid-cols-2 gap-x-8 gap-y-4 rounded-xl border border-line bg-surface p-6 sm:grid-cols-3">
-        <Field label="Filename" value={data.filename} />
-        <Field label="Upload Date" value={formatDate(data.created_at)} />
-        <Field label="Status" value={<StatusBadge status={data.status} />} />
-        <Field label="File Size" value={formatFileSize(data.file_size)} />
-        <Field label="Duration" value={formatDuration(data.duration_seconds)} />
-        <Field label="Source" value={data.source} />
-        <Field label="Processing Attempts" value={String(data.processing_attempts)} />
-        <Field
-          label="Client"
-          value={<ClientField conversationId={data.id} clientId={data.client_id} />}
-        />
+      <dl className="grid gap-4 rounded-xl border border-line bg-surface p-4 sm:grid-cols-2">
+        <Field label="Client" value={<ClientField conversationId={data.id} clientId={data.client_id} />} />
+        <Field label="Added" value={formatDate(data.created_at)} />
       </dl>
-
-      <ProcessingDetails conversation={data} />
       <RetryConversation key={data.id} id={data.id} status={data.status} />
 
       <MemoryPanel
@@ -82,15 +71,26 @@ export default function ConversationDetailPage({
         status={data.status}
         processingError={data.processing_error}
       />
+      <details className="rounded-xl border border-line bg-surface p-4">
+        <summary className="cursor-pointer py-2 text-sm font-semibold">Recording & processing details</summary>
+        <dl className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="Filename" value={data.filename} />
+          <Field label="File size" value={formatFileSize(data.file_size)} />
+          <Field label="Duration" value={formatDuration(data.duration_seconds)} />
+          <Field label="Source" value={data.source} />
+          <Field label="Processing attempts" value={String(data.processing_attempts)} />
+        </dl>
+        <div className="mt-4"><ProcessingDetails conversation={data} /></div>
+      </details>
     </div>
   );
 }
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div>
+    <div className="min-w-0">
       <dt className="text-xs font-medium uppercase tracking-wide text-ink/50">{label}</dt>
-      <dd className="mt-1 text-sm text-ink">{value}</dd>
+      <dd className="mt-1 break-words text-sm text-ink [overflow-wrap:anywhere]">{value}</dd>
     </div>
   );
 }
