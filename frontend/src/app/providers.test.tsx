@@ -52,7 +52,7 @@ describe("tenant browser cache", () => {
     identity.getToken = vi.fn(async () => null);
     view.rerender(<Providers authEnabled><Probe /></Providers>);
     expect(screen.queryByText("data:beta")).not.toBeInTheDocument();
-    expect(await screen.findByText("Create an account")).toBeInTheDocument(); expect(tokens).not.toContain(null);
+    expect(await screen.findByText("Try your first recording")).toBeInTheDocument(); expect(tokens).not.toContain(null);
     expect(clients).toHaveLength(3);
     view.unmount();
     expect(await getAccessToken()).toBeNull();
@@ -71,6 +71,6 @@ it("does not mount private pages while signed out or loading", () => {
   expect(mount).not.toHaveBeenCalled();
   identity.isLoaded = true;
   view.rerender(<Providers authEnabled><PrivatePage /></Providers>);
-  expect(screen.getByText("Create an account")).toBeInTheDocument();
+  expect(screen.getByText("Try your first recording")).toBeInTheDocument();
   expect(mount).not.toHaveBeenCalled();
 });
