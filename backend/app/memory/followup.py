@@ -1,6 +1,7 @@
 """Draft from explicitly selected, owner-scoped facts; never send or complete tasks."""
 
 import json
+import re
 import uuid
 from typing import Literal
 
@@ -65,7 +66,13 @@ async def generate_draft(provider: AIProvider, channel: str, facts: dict) -> Fol
             ),
             max_tokens=900,
         )
-        draft = FollowupDraft.model_validate_json(result.content.strip())
+        content = result.content.strip()
+        # Providers may wrap valid JSON in one Markdown fence despite instructions.
+        # Accept only that complete wrapper; surrounding prose still fails validation.
+        wrapped = re.fullmatch(r"```(?:json)?\s*\n(.*?)\n```", content, flags=re.DOTALL)
+        if wrapped:
+            content = wrapped.group(1).strip()
+        draft = FollowupDraft.model_validate_json(content)
         if not draft.body.strip():
             raise ValueError("Empty draft")
         if channel == "text":
