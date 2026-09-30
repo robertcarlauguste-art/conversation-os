@@ -2,7 +2,7 @@
 
 Purpose: help busy professionals turn a conversation into follow-through without replacing their CRM or messaging tools.
 
-On a completed conversation, expand **Prepare follow-up**, select email or text, and explicitly select details safe to share. Nothing is selected by default. Review and edit the generated subject/message, then copy it into the tool you already use. Copying does not send a message or complete any task.
+On a completed conversation, click **Draft email or text** directly below the summary, select email or text, and explicitly select details safe to share. Nothing is selected by default. Review and edit the generated subject/message, then copy it into the tool you already use. Copying does not send a message or complete any task.
 
 ## Initial scope
 

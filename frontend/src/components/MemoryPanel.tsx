@@ -136,10 +136,10 @@ export function MemoryPanel({
         </p>
       </SectionCard>
 
+      <PrepareFollowup key={conversationId} conversationId={conversationId} memory={memory} />
         <SectionCard title="Tasks to review">
           <ConversationTasks memoryId={memory.id} items={memory.action_items} />
         </SectionCard>
-      <PrepareFollowup key={conversationId} conversationId={conversationId} memory={memory} />
       <div className="grid gap-4 sm:grid-cols-2">
         <SectionCard title="Decisions">
           {memory.decisions.length ? <ul className="flex flex-col gap-3">{memory.decisions.map(item => <MemoryItemEditor key={item.id} memoryId={memory.id} item={item} />)}</ul> : <EmptyNote>None identified.</EmptyNote>}

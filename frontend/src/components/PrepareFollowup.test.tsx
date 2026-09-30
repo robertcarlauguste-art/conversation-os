@@ -17,7 +17,10 @@ it("requires explicit selection and copies the edited draft without completing t
   const copy = vi.fn().mockResolvedValue(undefined);
   Object.defineProperty(navigator, "clipboard", { value: { writeText: copy }, configurable: true });
   render(<PrepareFollowup conversationId="conversation" memory={memory} />);
-  fireEvent.click(screen.getByText("Prepare follow-up"));
+  expect(screen.getByRole("button", { name: "Draft email or text" })).toHaveAttribute("aria-expanded", "false");
+  expect(screen.queryByRole("button", { name: "Prepare draft" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Draft email or text" }));
+  expect(screen.getByRole("button", { name: "Draft email or text" })).toHaveAttribute("aria-expanded", "true");
   expect(screen.getByRole("button", { name: "Prepare draft" })).toBeDisabled();
   fireEvent.click(screen.getByRole("checkbox", { name: /Send proposal/ }));
   fireEvent.click(screen.getByRole("button", { name: "Prepare draft" }));
@@ -32,7 +35,7 @@ it("requires explicit selection and copies the edited draft without completing t
 it("shows allowance errors and keeps selected details for retry", async () => {
   vi.mocked(prepareFollowup).mockRejectedValue(new Error("Today's allowance is used."));
   render(<PrepareFollowup conversationId="conversation" memory={memory} />);
-  fireEvent.click(screen.getByText("Prepare follow-up"));
+  fireEvent.click(screen.getByRole("button", { name: "Draft email or text" }));
   fireEvent.click(screen.getByRole("checkbox", { name: /Include summary/ }));
   fireEvent.click(screen.getByRole("button", { name: "Prepare draft" }));
   expect(await screen.findByText("Today's allowance is used.")).toBeInTheDocument();
@@ -43,7 +46,7 @@ it("offers text format and a manual copy fallback", async () => {
   vi.mocked(prepareFollowup).mockResolvedValue({ subject: "", body: "Next steps" });
   Object.defineProperty(navigator, "clipboard", { value: { writeText: vi.fn().mockRejectedValue(new Error()) }, configurable: true });
   render(<PrepareFollowup conversationId="conversation" memory={memory} />);
-  fireEvent.click(screen.getByText("Prepare follow-up"));
+  fireEvent.click(screen.getByRole("button", { name: "Draft email or text" }));
   fireEvent.change(screen.getByLabelText("Message format"), { target: { value: "text" } });
   fireEvent.click(screen.getByRole("checkbox", { name: /Include summary/ }));
   fireEvent.click(screen.getByRole("button", { name: "Prepare draft" }));

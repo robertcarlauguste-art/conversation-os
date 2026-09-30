@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { prepareFollowup } from "@/lib/api";
 import type { MemoryDetail } from "@/lib/types";
 
 export function PrepareFollowup({ conversationId, memory }: { conversationId: string; memory: MemoryDetail }) {
+  const [open, setOpen] = useState(false);
+  const controlsId = useId();
   const [channel, setChannel] = useState<"email" | "text">("email");
   const [summary, setSummary] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
@@ -30,9 +32,10 @@ export function PrepareFollowup({ conversationId, memory }: { conversationId: st
     } catch { setNotice("Couldn't copy automatically. Select the draft text and copy it manually."); }
   }
 
-  return <details className="rounded-xl border border-line bg-surface p-6">
-    <summary className="cursor-pointer py-2 font-display text-xl text-ink">Prepare follow-up</summary>
+  return <section className="rounded-xl border border-line bg-surface p-6">
+    <button type="button" aria-expanded={open} aria-controls={controlsId} onClick={() => setOpen(value => !value)} className="min-h-11 w-full rounded bg-accent px-4 py-3 font-medium text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:w-auto">Draft email or text</button>
     <p className="mt-3 text-sm text-ink/70">Turn selected details into an email or text. Nothing is sent, and tasks stay unchanged.</p>
+    <div id={controlsId} hidden={!open}>
     {!draft ? <>
       <label className="mt-4 block text-sm">Message format
         <select className={field} value={channel} disabled={busy} onChange={e => setChannel(e.target.value as "email" | "text")}>
@@ -62,5 +65,6 @@ export function PrepareFollowup({ conversationId, memory }: { conversationId: st
       </div>
     </>}
     <p role="status" aria-live="polite" className="mt-3 text-sm">{notice}</p>
-  </details>;
+    </div>
+  </section>;
 }
