@@ -129,3 +129,27 @@ async def test_text_has_no_subject():
         )
     )
     assert (await generate_draft(provider, "text", {})).subject == ""
+
+
+@pytest.mark.parametrize("fence", ["```json", "```"])
+async def test_complete_json_fence_is_accepted(fence):
+    provider = SimpleNamespace(
+        complete=AsyncMock(
+            return_value=AICompletionResult(
+                fence + '\n{"subject":"Next steps","body":"Please review."}\n```', "fake"
+            )
+        )
+    )
+    assert (await generate_draft(provider, "email", {})).body == "Please review."
+
+
+async def test_prose_around_fenced_json_is_rejected():
+    provider = SimpleNamespace(
+        complete=AsyncMock(
+            return_value=AICompletionResult(
+                'Here is a draft: ```json\n{"body":"Please review."}\n```', "fake"
+            )
+        )
+    )
+    with pytest.raises(HTTPException):
+        await generate_draft(provider, "email", {})
