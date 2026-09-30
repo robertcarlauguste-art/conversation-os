@@ -1,5 +1,6 @@
 "use client";
 import { ConversationTasks } from "./ConversationTasks";
+import { PrepareFollowup } from "./PrepareFollowup";
 
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -135,6 +136,7 @@ export function MemoryPanel({
         </p>
       </SectionCard>
 
+      <PrepareFollowup key={conversationId} conversationId={conversationId} memory={memory} />
         <SectionCard title="Tasks to review">
           <ConversationTasks memoryId={memory.id} items={memory.action_items} />
         </SectionCard>

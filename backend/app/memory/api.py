@@ -9,7 +9,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import CurrentPrincipal
+from app.conversation.enums import ConversationStatus
+from app.conversation.repository import ConversationRepository
+from app.core.config import Settings, get_settings
 from app.core.database import get_db_session
+from app.memory.followup import FollowupDraft, FollowupRequest, generate_draft, selected_facts
 from app.memory.models import ActionItem, Decision
 from app.memory.repository import MemoryRepository
 from app.memory.schemas import (
@@ -21,9 +25,40 @@ from app.memory.schemas import (
     MemoryListItem,
 )
 from app.memory.service import ActionItemNotFoundError, ActionItemService
+from app.providers.dependencies import get_ai_provider
 from app.schemas.envelope import ApiResponse
+from app.usage.service import UsageService
 
 router = APIRouter(prefix="/memories", tags=["memories"])
+
+
+@router.post(
+    "/by-conversation/{conversation_id}/follow-up", response_model=ApiResponse[FollowupDraft]
+)
+async def prepare_followup(
+    conversation_id: uuid.UUID,
+    body: FollowupRequest,
+    principal: CurrentPrincipal,
+    session: AsyncSession = Depends(get_db_session),
+    settings: Settings = Depends(get_settings),
+) -> ApiResponse[FollowupDraft]:
+    conversation = await ConversationRepository(session, principal.user_id).get(conversation_id)
+    if conversation is None:
+        raise HTTPException(404, "Conversation results not found.")
+    if conversation.status != ConversationStatus.COMPLETED:
+        raise HTTPException(409, "Wait until this conversation finishes processing.")
+    memory = await MemoryRepository(session, principal.user_id).get_by_conversation_id(
+        conversation_id
+    )
+    if memory is None:
+        raise HTTPException(404, "Conversation results not found.")
+    facts = selected_facts(memory, body)
+    if not settings.anthropic_api_key:
+        raise HTTPException(503, "Drafting is temporarily unavailable.")
+    if settings.pilot_limits_enabled:
+        await UsageService(session, principal.user_id).consume_ai()
+    draft = await generate_draft(get_ai_provider(settings), body.channel, facts)
+    return ApiResponse(success=True, data=draft)
 
 
 @router.patch("/{memory_id}/action-items/{item_id}", response_model=ApiResponse[ActionItemOut])

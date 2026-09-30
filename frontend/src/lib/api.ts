@@ -18,6 +18,14 @@ import { authenticatedFetch, getAccessToken } from "./auth-token";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
+export async function prepareFollowup(conversationId: string, selection: {
+  channel: "email" | "text"; include_summary: boolean; action_ids: string[];
+}): Promise<{ subject: string; body: string }> {
+  return unwrap(await authenticatedFetch(`${API_BASE_URL}/api/v1/memories/by-conversation/${conversationId}/follow-up`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(selection),
+  }));
+}
+
 type Allowances = Record<"recordings" | "storage_bytes" | "uploads" | "audio_seconds" | "ai" | "retries", number>;
 export type PilotUsageData = { enabled: false } | {
   enabled: true; used: Allowances; limits: Allowances; remaining: Allowances; resets_at: string;
