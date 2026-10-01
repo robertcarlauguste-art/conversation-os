@@ -17,6 +17,20 @@ On a completed conversation, click **Draft email or text** directly below the su
 
 Prompt instructions are not a guarantee of factual accuracy or redaction. The user must choose safe source details and review the draft. Continue using fictional pilot data until the wider privacy/release gates are met.
 
+## Wording review cases
+
+Drafting instructions now avoid invented recipient/sender identities and team language, preserve uncertain completion, and prefer a neutral topical question over narration about the recording. Existing saved drafts are not rewritten.
+
+| Selected facts | Review requirement |
+| --- | --- |
+| Sending Alex property listings appears completed; no tasks | No assumed greeting to Alex, no claim of sending/receipt, no team voice. A neutral question such as “Any update on the property listings?” is appropriate. |
+| Alex owns “Contact lender”; task marked completed | Do not write “I contacted the lender” or treat the completion flag as proof of contact. |
+| Sender and recipient are unspecified | Omit named greeting/signature; do not infer either from a person mentioned. |
+| A team explicitly promises a proposal Friday | Team wording is permitted only with that support; preserve the owner and Friday commitment. |
+| Listings may have been sent, dates conflict | Do not resolve uncertainty by asserting delivery or choosing a date. |
+
+The local source-fidelity tests verify uncertainty and task ownership reach the provider unchanged for both formats. Mocked outputs do not measure model wording quality. Evaluate actual generated messages against these cases in a later authorized pilot run; no extra provider calls are required for the local checks.
+
 ## Staging acceptance procedure
 
 Deploy API before frontend after CI passes. With fictional data, test email and text for a consulting conversation, vendor discussion and property showing. Check future versus already-completed statements, ambiguous ownership, conflicting dates/budgets and an internal aside. Omit the summary and verify its unique private detail does not reach the draft. Inspect generated content manually for unsupported claims. Test edits, clipboard fallback, discard confirmation and page-refresh behavior. Verify AI usage increases once and task status remains unchanged.
