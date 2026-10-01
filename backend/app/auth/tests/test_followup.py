@@ -1,3 +1,4 @@
+import json
 import uuid
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -103,6 +104,44 @@ def test_empty_selection_rejected():
     with pytest.raises(HTTPException) as error:
         selected_facts(SimpleNamespace(action_items=[]), FollowupRequest(channel="email"))
     assert error.value.status_code == 422
+
+
+@pytest.mark.parametrize("channel", ["email", "text"])
+async def test_uncertain_completion_and_other_owner_reach_provider_unchanged(channel):
+    # This checks source fidelity, not the quality of a mocked model's prose.
+    task_id = uuid.uuid4()
+    summary = (
+        "The speaker mentioned sending Alex property listings; this appears to be "
+        "a completed action rather than a pending task."
+    )
+    memory = SimpleNamespace(
+        summary=summary,
+        action_items=[
+            SimpleNamespace(
+                id=task_id, task="Contact lender", owner="Alex", due=None, status="COMPLETED"
+            )
+        ],
+    )
+    facts = selected_facts(
+        memory, FollowupRequest(channel=channel, include_summary=True, action_ids=[task_id])
+    )
+    provider = SimpleNamespace(
+        complete=AsyncMock(
+            return_value=AICompletionResult(
+                '{"subject":"Property listings","body":"Any update on the property listings?"}',
+                "fake",
+            )
+        )
+    )
+    await generate_draft(provider, channel, facts)
+    payload = json.loads(provider.complete.call_args.args[0][0].content)
+    assert payload["facts"]["summary"] == summary
+    assert payload["facts"]["tasks"] == [
+        {"task": "Contact lender", "owner": "Alex", "due": None, "status": "COMPLETED"}
+    ]
+    assert set(payload) == {"channel", "facts"}
+    assert set(payload["facts"]) == {"summary", "tasks"}
+    provider.complete.assert_awaited_once()
 
 
 @pytest.mark.parametrize("content", ["not json", '{"body":""}', '{"body":"   "}'])
