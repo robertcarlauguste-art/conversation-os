@@ -13,6 +13,7 @@ from app.conversation.enums import ConversationStatus
 from app.conversation.repository import ConversationRepository
 from app.core.config import Settings, get_settings
 from app.core.database import get_db_session
+from app.memory.drafts import Channel, DraftRepository, SavedDraft, SaveDraft
 from app.memory.followup import FollowupDraft, FollowupRequest, generate_draft, selected_facts
 from app.memory.models import ActionItem, Decision
 from app.memory.repository import MemoryRepository
@@ -30,6 +31,34 @@ from app.schemas.envelope import ApiResponse
 from app.usage.service import UsageService
 
 router = APIRouter(prefix="/memories", tags=["memories"])
+
+
+@router.get(
+    "/by-conversation/{conversation_id}/drafts/{channel}",
+    response_model=ApiResponse[SavedDraft | None],
+)
+async def read_saved_draft(
+    conversation_id: uuid.UUID,
+    channel: Channel,
+    principal: CurrentPrincipal,
+    session: AsyncSession = Depends(get_db_session),
+):
+    draft = await DraftRepository(session, principal.user_id).get(conversation_id, channel)
+    return ApiResponse(success=True, data=draft)
+
+
+@router.put(
+    "/by-conversation/{conversation_id}/drafts/{channel}", response_model=ApiResponse[SavedDraft]
+)
+async def save_followup_draft(
+    conversation_id: uuid.UUID,
+    channel: Channel,
+    body: SaveDraft,
+    principal: CurrentPrincipal,
+    session: AsyncSession = Depends(get_db_session),
+):
+    draft = await DraftRepository(session, principal.user_id).save(conversation_id, channel, body)
+    return ApiResponse(success=True, data=draft)
 
 
 @router.post(

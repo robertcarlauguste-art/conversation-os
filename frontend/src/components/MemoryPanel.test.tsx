@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { expect, it, vi } from "vitest";
 import { MemoryPanel } from "./MemoryPanel";
 vi.mock("@/lib/api", () => ({
+  getSavedFollowup: vi.fn(async () => null),
   getMemoryByConversation: vi.fn(async () => ({ summary: "Jordan wants a home.", topics: [], confidence: 0.9, source: "model", decisions: [], action_items: [], people: [] })),
   getTranscriptByConversation: vi.fn(async () => ({ text: "Original words" })),
 }));
