@@ -11,8 +11,9 @@ On a completed conversation, click **Draft email or text** directly below the su
 - Existing user ownership checks apply to both the conversation and nested task IDs. Foreign and missing conversation IDs receive the same 404. Invalid selections do not consume allowance.
 - Each provider attempt consumes one shared AI allowance when pilot limits are enabled; provider failures are not refunded. No automatic retries.
 - Provider output must validate as bounded JSON; malformed output and provider errors return a generic error without source content or provider diagnostics.
-- Drafts are temporary page state, not durable history. Refreshing or leaving the page loses them. Discard requires confirmation. Clipboard failure offers manual copy.
-- No sending, CRM integration, reply-thread ingestion, new migration, or automatic task mutations.
+- Save draft stores one email and one text per conversation for its owner. Saving replaces the previous version of that format. Unsaved edits remain page state; browser reload/close warns, but in-app navigation can lose unsaved edits. Clipboard failure offers manual copy.
+- GET/PUT drafts endpoints check conversation ownership. Missing and foreign IDs return the same 404. Saves use a parent-row lock and expected version; stale saves return 409 without overwriting. Saving/reopening never consumes AI allowance.
+- Migration 0013 adds followup_drafts, cascade-deleted with its conversation. No sending, CRM integration, reply-thread ingestion, or automatic task mutations.
 
 Prompt instructions are not a guarantee of factual accuracy or redaction. The user must choose safe source details and review the draft. Continue using fictional pilot data until the wider privacy/release gates are met.
 
@@ -22,4 +23,8 @@ Deploy API before frontend after CI passes. With fictional data, test email and 
 
 Repeat with two independent accounts: substitute the other account's conversation and task IDs, compare foreign/missing responses, and verify allowance is unchanged on rejection. Use local automated tests for exhausted allowance and provider errors; do not fabricate a hosted processing failure.
 
-Measure draft usefulness, corrections needed and time to reviewed message with actual pilot participants. Durable draft history and one CRM integration are follow-on decisions, not shipped capabilities of this version.
+For saved drafts, save each format, refresh and reopen, edit and save again. Open two tabs: save in one, then confirm the stale tab receives a conflict and keeps its edits. Verify both accounts cannot read or overwrite each other's drafts, including direct ID substitution. Check saving/reopening at exhausted AI allowance. Deleting a disposable conversation must delete its drafts. No hosted checks are implied by local test success.
+
+Deploy migration/API before frontend. Back up before migration. Roll back application code while leaving the additive table intact; downgrading 0013 deletes all saved drafts. Include this table in the next backup/restore verification.
+
+Measure draft usefulness, corrections needed and time to reviewed message with actual pilot participants. Historical draft versions and CRM integration remain future work.

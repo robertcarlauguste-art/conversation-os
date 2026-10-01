@@ -18,6 +18,16 @@ import { authenticatedFetch, getAccessToken } from "./auth-token";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
+export type SavedFollowup = { subject: string; body: string; channel: "email" | "text"; version: number; updated_at: string };
+export async function getSavedFollowup(id: string, channel: "email" | "text"): Promise<SavedFollowup | null> {
+  return unwrap(await authenticatedFetch(`${API_BASE_URL}/api/v1/memories/by-conversation/${id}/drafts/${channel}`, { cache: "no-store" }));
+}
+export async function saveFollowup(id: string, channel: "email" | "text", draft: { subject: string; body: string }, version: number): Promise<SavedFollowup> {
+  return unwrap(await authenticatedFetch(`${API_BASE_URL}/api/v1/memories/by-conversation/${id}/drafts/${channel}`, {
+    method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...draft, expected_version: version }),
+  }));
+}
+
 export async function prepareFollowup(conversationId: string, selection: {
   channel: "email" | "text"; include_summary: boolean; action_ids: string[];
 }): Promise<{ subject: string; body: string }> {

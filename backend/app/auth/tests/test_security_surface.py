@@ -183,6 +183,38 @@ def headers(actor):
 
 
 @pytest.mark.parametrize("actor", ["alpha", "beta"])
+async def test_saved_drafts_http_persistence_and_isolation(security, actor, monkeypatch):
+    from app.usage.service import UsageService
+
+    consume = AsyncMock(side_effect=AssertionError("Saving must not consume AI allowance"))
+    monkeypatch.setattr(UsageService, "consume_ai", consume)
+    own = security.records[actor].conversation
+    foreign = security.records["beta" if actor == "alpha" else "alpha"].conversation
+    url = f"/api/v1/memories/by-conversation/{own}/drafts/email"
+    body = {"subject": "Saved", "body": "Private editable message", "expected_version": 0}
+    response = await security.http.put(url, headers=headers(actor), json=body)
+    assert response.status_code == 200
+    assert response.json()["data"]["version"] == 1
+    reopened = await security.http.get(url, headers=headers(actor))
+    assert reopened.json()["data"]["body"] == body["body"]
+    assert (await security.http.put(url, headers=headers(actor), json=body)).status_code == 409
+    for method in ("GET", "PUT"):
+        responses = []
+        for target in (foreign, uuid.uuid4()):
+            response = await security.http.request(
+                method,
+                f"/api/v1/memories/by-conversation/{target}/drafts/email",
+                headers=headers(actor),
+                **({"json": body} if method == "PUT" else {}),
+            )
+            assert response.status_code == 404
+            responses.append(response.json())
+        assert responses[0] == responses[1]
+    assert (await security.http.get(url, headers=headers(actor))).json() == reopened.json()
+    consume.assert_not_called()
+
+
+@pytest.mark.parametrize("actor", ["alpha", "beta"])
 async def test_followup_http_auth_and_nested_isolation(security, actor, monkeypatch):
     from app.memory import api
     from app.providers.ai_provider import AICompletionResult
@@ -457,7 +489,7 @@ async def test_every_business_route_requires_authentication(security):
                 response = await security.http.request(method, concrete, **kwargs)
                 assert response.status_code == 401, (method, concrete, response.text)
             count += 1
-    assert count == 29  # Includes the owner-scoped follow-up drafting endpoint.
+    assert count == 31  # Includes the owner-scoped follow-up drafting endpoint.
     security.storage.save.assert_not_awaited()
     security.enqueue.assert_not_awaited()
 
