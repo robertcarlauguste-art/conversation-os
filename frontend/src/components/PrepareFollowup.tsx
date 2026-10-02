@@ -34,8 +34,20 @@ export function PrepareFollowup({ conversationId, memory }: { conversationId: st
   useEffect(() => {
     if (!dirty) return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    const warnOnLink = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const link = event.target instanceof Element ? event.target.closest("a[href]") : null;
+      if (!(link instanceof HTMLAnchorElement) || link.hasAttribute("download") || (link.target && link.target !== "_self")) return;
+      const destination = new URL(link.href, window.location.href);
+      if (!["http:", "https:"].includes(destination.protocol)) return;
+      if (destination.origin === location.origin && destination.pathname === location.pathname && destination.search === location.search) return;
+      if (!window.confirm("This draft has unsaved changes. Leave without saving? Choose Cancel to stay and save your draft.")) {
+        event.preventDefault(); event.stopImmediatePropagation();
+      }
+    };
     window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
+    document.addEventListener("click", warnOnLink, true);
+    return () => { window.removeEventListener("beforeunload", warn); document.removeEventListener("click", warnOnLink, true); };
   }, [dirty]);
   const field = "mt-1 block w-full rounded border border-line bg-paper p-3 text-ink";
 
@@ -71,6 +83,7 @@ export function PrepareFollowup({ conversationId, memory }: { conversationId: st
   return <section className="rounded-xl border border-line bg-surface p-6">
     <button type="button" aria-expanded={open} aria-controls={controlsId} onClick={() => setOpen(value => !value)} className="min-h-11 w-full rounded bg-accent px-4 py-3 font-medium text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:w-auto">Draft email or text</button>
     <p className="mt-3 text-sm text-ink/70">Turn selected details into an email or text. Nothing is sent, and tasks stay unchanged.</p>
+    {dirty && <p role="status" className="mt-3 rounded border border-amber-500 bg-amber-50 p-3 font-medium text-amber-950">Unsaved draft — open the editor and choose Save draft before leaving.</p>}
     <div id={controlsId} hidden={!open}>
       <label className="mt-4 block text-sm">Message format
         <select className={field} value={channel} disabled={busy || loading} onChange={e => { if (!dirty || window.confirm("Leave unsaved edits? Your last saved draft will remain.")) setChannel(e.target.value as "email" | "text"); }}>

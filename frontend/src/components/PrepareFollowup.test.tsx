@@ -12,6 +12,31 @@ const memory = {
 } as MemoryDetail;
 beforeEach(() => { vi.clearAllMocks(); vi.mocked(getSavedFollowup).mockResolvedValue(null); });
 
+it("cancels leaving by app link until edits are saved and keeps a collapsed warning", async () => {
+  const saved = { subject: "Saved", body: "Original", channel: "email" as const, version: 1, updated_at: "2026-10-01T12:00:00Z" };
+  vi.mocked(getSavedFollowup).mockResolvedValue(saved);
+  vi.mocked(saveFollowup).mockResolvedValue({ ...saved, body: "Edited", version: 2 });
+  const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+  // A plain anchor deliberately tests the document navigation guard without a router.
+  // eslint-disable-next-line @next/next/no-html-link-for-pages
+  render(<><a href="/clients" onClick={(event) => event.preventDefault()}>Leave for clients</a><a href="#help">Help here</a><PrepareFollowup conversationId="conversation" memory={memory} /></>);
+  fireEvent.click(screen.getByRole("button", { name: "Draft email or text" }));
+  fireEvent.change(await screen.findByLabelText("Message"), { target: { value: "Edited" } });
+  expect(fireEvent.click(screen.getByRole("link", { name: "Leave for clients" }))).toBe(false);
+  expect(confirm).toHaveBeenCalledOnce();
+  fireEvent.click(screen.getByRole("link", { name: "Help here" }));
+  expect(confirm).toHaveBeenCalledOnce();
+  fireEvent.click(screen.getByRole("button", { name: "Draft email or text" }));
+  expect(screen.getByText(/Unsaved draft —/)).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Draft email or text" }));
+  fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+  await screen.findByText("Draft saved. You can return to this conversation later.");
+  expect(screen.queryByText(/Unsaved draft —/)).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("link", { name: "Leave for clients" }));
+  expect(confirm).toHaveBeenCalledOnce();
+  confirm.mockRestore();
+});
+
 it("defaults to no recipient and sends only an explicitly chosen confirmed person ID", async () => {
   vi.mocked(prepareFollowup).mockResolvedValue({ subject: "Hello", body: "Follow-up" });
   render(<PrepareFollowup conversationId="conversation" memory={{ ...memory, people: [
