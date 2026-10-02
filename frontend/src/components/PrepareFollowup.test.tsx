@@ -12,6 +12,25 @@ const memory = {
 } as MemoryDetail;
 beforeEach(() => { vi.clearAllMocks(); vi.mocked(getSavedFollowup).mockResolvedValue(null); });
 
+it("defaults to no recipient and sends only an explicitly chosen confirmed person ID", async () => {
+  vi.mocked(prepareFollowup).mockResolvedValue({ subject: "Hello", body: "Follow-up" });
+  render(<PrepareFollowup conversationId="conversation" memory={{ ...memory, people: [
+    { id: "confirmed", name: "Morgan Vail", confirmed_name: "Morgan Vale", role: null },
+    { id: "unconfirmed", name: "Other person", role: null },
+  ] }} />);
+  fireEvent.click(screen.getByRole("button", { name: "Draft email or text" }));
+  const recipient = await screen.findByLabelText("Who is this message for?");
+  expect(recipient).toHaveValue("");
+  expect(screen.queryByRole("option", { name: "Other person" })).not.toBeInTheDocument();
+  fireEvent.change(recipient, { target: { value: "confirmed" } });
+  fireEvent.click(screen.getByRole("checkbox", { name: /Send proposal/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Prepare draft" }));
+  await screen.findByLabelText("Message");
+  expect(prepareFollowup).toHaveBeenCalledWith("conversation", {
+    channel: "email", include_summary: false, action_ids: ["task"], recipient_person_id: "confirmed",
+  });
+});
+
 it("reopens saved content and saves edits with its version without generating AI", async () => {
   const saved = { subject: "Saved subject", body: "Saved message", channel: "email" as const, version: 2, updated_at: "2026-10-01T12:00:00Z" };
   vi.mocked(getSavedFollowup).mockResolvedValue(saved);

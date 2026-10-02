@@ -9,6 +9,7 @@ export function PrepareFollowup({ conversationId, memory }: { conversationId: st
   const controlsId = useId();
   const [channel, setChannel] = useState<"email" | "text">("email");
   const [summary, setSummary] = useState(false);
+  const [recipient, setRecipient] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const [draft, setDraft] = useState<{ subject: string; body: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -41,7 +42,7 @@ export function PrepareFollowup({ conversationId, memory }: { conversationId: st
   async function generate() {
     setBusy(true); setNotice("");
     try {
-      setDraft(await prepareFollowup(conversationId, { channel, include_summary: summary, action_ids: selected }));
+      setDraft(await prepareFollowup(conversationId, { channel, include_summary: summary, action_ids: selected, ...(recipient ? { recipient_person_id: recipient } : {}) }));
       setDirty(true);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Couldn't prepare a draft.");
@@ -79,6 +80,13 @@ export function PrepareFollowup({ conversationId, memory }: { conversationId: st
     {loading ? <p role="status">Loading saved draft…</p> : loadError ? <button type="button" className="min-h-11 underline" onClick={() => setReload(n => n + 1)}>Retry loading draft</button> : !draft ? <>
       <fieldset disabled={busy} className="mt-4 space-y-3">
         <legend className="mb-2 text-sm font-medium">Choose details safe to share with the recipient</legend>
+        <label className="block text-sm">Who is this message for?
+          <select className={field} value={recipient} onChange={e => setRecipient(e.target.value)}>
+            <option value="">Recipient unspecified — neutral wording</option>
+            {memory.people?.filter(p => p.confirmed_name).map(p => <option key={p.id} value={p.id}>{p.confirmed_name}</option>)}
+          </select>
+        </label>
+        <p className="text-xs text-ink/70">To add a choice, confirm the person in the People section below. Selecting a recipient shares their confirmed and original name with AI for this draft only. It does not send a message or change saved drafts.</p>
         <label className="flex items-start gap-3 rounded border border-line p-3 text-sm">
           <input type="checkbox" checked={summary} onChange={e => setSummary(e.target.checked)} className="mt-1" />
           <span>Include summary<span className="mt-1 block break-words text-ink/70">{memory.summary}</span></span>

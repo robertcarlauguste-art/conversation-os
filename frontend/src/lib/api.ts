@@ -29,7 +29,7 @@ export async function saveFollowup(id: string, channel: "email" | "text", draft:
 }
 
 export async function prepareFollowup(conversationId: string, selection: {
-  channel: "email" | "text"; include_summary: boolean; action_ids: string[];
+  channel: "email" | "text"; include_summary: boolean; action_ids: string[]; recipient_person_id?: string;
 }): Promise<{ subject: string; body: string }> {
   return unwrap(await authenticatedFetch(`${API_BASE_URL}/api/v1/memories/by-conversation/${conversationId}/follow-up`, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(selection),
