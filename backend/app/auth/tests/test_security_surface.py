@@ -183,6 +183,51 @@ def headers(actor):
 
 
 @pytest.mark.parametrize("actor", ["alpha", "beta"])
+async def test_person_confirmation_preserves_source_and_hides_foreign_ids(security, actor):
+    own = security.records[actor]
+    other = security.records["beta" if actor == "alpha" else "alpha"]
+
+    def url(memory, person):
+        return f"/api/v1/memories/{memory}/people/{person}/confirmation"
+
+    for memory, person, client in (
+        (other.memory, other.person, own.client),
+        (own.memory, other.person, own.client),
+        (own.memory, own.person, other.client),
+        (own.memory, own.person, uuid.uuid4()),
+        (own.memory, uuid.uuid4(), own.client),
+    ):
+        result = await security.http.put(
+            url(memory, person), headers=headers(actor), json={"client_id": str(client)}
+        )
+        assert result.status_code == 404
+        assert result.json()["detail"] == "Person or client not found."
+    async with security.maker() as session:
+        client = await session.get(Client, own.client)
+        client.full_name = "Confirmed spelling"
+        await session.commit()
+    result = await security.http.put(
+        url(own.memory, own.person), headers=headers(actor), json={"client_id": str(own.client)}
+    )
+    assert result.status_code == 200
+    assert result.json()["data"]["confirmed_name"] == "Confirmed spelling"
+    async with security.maker() as session:
+        person = await session.get(Person, own.person)
+        assert person.name == own.marker
+        assert person.confirmed_name == "Confirmed spelling"
+        assert (await session.get(Memory, own.memory)).summary == own.marker
+        assert (await session.get(Transcript, own.transcript)).text == own.marker
+        assert (await session.get(ActionItem, own.action)).task == own.marker
+        assert (await session.get(Conversation, own.conversation)).client_id == own.client
+    result = await security.http.put(
+        url(own.memory, own.person), headers=headers(actor), json={"client_id": None}
+    )
+    assert result.status_code == 200
+    assert result.json()["data"]["confirmed_name"] is None
+    assert result.json()["data"]["name"] == own.marker
+
+
+@pytest.mark.parametrize("actor", ["alpha", "beta"])
 async def test_saved_drafts_http_persistence_and_isolation(security, actor, monkeypatch):
     from app.usage.service import UsageService
 
@@ -489,7 +534,7 @@ async def test_every_business_route_requires_authentication(security):
                 response = await security.http.request(method, concrete, **kwargs)
                 assert response.status_code == 401, (method, concrete, response.text)
             count += 1
-    assert count == 31  # Includes the owner-scoped follow-up drafting endpoint.
+    assert count == 32  # Includes explicit person confirmation.
     security.storage.save.assert_not_awaited()
     security.enqueue.assert_not_awaited()
 

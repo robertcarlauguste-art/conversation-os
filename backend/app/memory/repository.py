@@ -10,6 +10,37 @@ from app.repositories.base import BaseRepository
 
 
 class MemoryRepository(BaseRepository[Memory]):
+    async def confirm_person(
+        self, memory_id: uuid.UUID, person_id: uuid.UUID, client_id: uuid.UUID | None
+    ) -> Person | None:
+        person = await self.session.scalar(
+            select(Person)
+            .join(Memory)
+            .join(Conversation)
+            .where(
+                Person.id == person_id,
+                Memory.id == memory_id,
+                Conversation.owner_id == self.owner_id,
+            )
+            .with_for_update(of=Person)
+        )
+        if person is None:
+            return None
+        if client_id is None:
+            person.confirmed_name = None
+            person.client_id = None
+        else:
+            client = await self.session.scalar(
+                select(Client).where(Client.id == client_id, Client.owner_id == self.owner_id)
+            )
+            if client is None:
+                return None
+            person.client_id = client.id
+            person.confirmed_name = client.full_name
+        await self.session.commit()
+        await self.session.refresh(person)
+        return person
+
     async def edit_item(
         self,
         memory_id: uuid.UUID,
