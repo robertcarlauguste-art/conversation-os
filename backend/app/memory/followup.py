@@ -15,6 +15,7 @@ class FollowupRequest(BaseModel):
     channel: Literal["email", "text"]
     include_summary: bool = False
     action_ids: list[uuid.UUID] = Field(default_factory=list, max_length=30)
+    recipient_person_id: uuid.UUID | None = None
 
 
 class FollowupDraft(BaseModel):
@@ -23,6 +24,12 @@ class FollowupDraft(BaseModel):
 
 
 def selected_facts(memory, request: FollowupRequest) -> dict:
+    recipient = None
+    if request.recipient_person_id is not None:
+        person = next((p for p in memory.people if p.id == request.recipient_person_id), None)
+        if person is None or not person.confirmed_name:
+            raise HTTPException(404, "Confirmed person not found.")
+        recipient = {"name": person.confirmed_name, "original_name": person.name}
     actions = {item.id: item for item in memory.action_items}
     if any(item_id not in actions for item_id in request.action_ids):
         raise HTTPException(404, "Item not found.")
@@ -40,6 +47,8 @@ def selected_facts(memory, request: FollowupRequest) -> dict:
             for key in dict.fromkeys(request.action_ids)
         ],
     }
+    if recipient is not None:
+        payload["recipient"] = recipient
     if len(json.dumps(payload)) > 20000:
         raise HTTPException(422, "Choose fewer details for this draft.")
     return payload
@@ -58,8 +67,16 @@ async def generate_draft(provider: AIProvider, channel: str, facts: dict) -> Fol
                 "Do not invent names, dates, promises, links, attachments, "
                 "availability or actions. "
                 "Write natural, direct language, not a report about the recording. "
+                "If facts.recipient is present, the user explicitly chose that confirmed "
+                "person as the recipient. Address them using recipient.name; original_name "
+                "is the spelling of that same person in this conversation, not a second person. "
+                "You may use you for that person's responsibilities only. Recipient selection "
+                "does not identify the sender or transfer another person's commitments. "
+                "If recipient is absent, do not assume that a mentioned person is the reader "
+                "or direct their tasks at you; use a neutral topical question. "
                 "A person mentioned in the facts is not necessarily the message recipient or "
-                "the sender. Do not invent a greeting, signature or sender identity. "
+                "the sender. Use a named greeting only for an explicitly selected recipient; "
+                "never invent a signature or sender identity. "
                 "Do not assume a team: avoid we, us and our unless the selected facts explicitly "
                 "establish a team speaking. Do not turn another person's task into I will. "
                 "When roles are unclear, omit the greeting and use a short neutral question "

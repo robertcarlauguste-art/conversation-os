@@ -292,6 +292,12 @@ async def test_followup_http_auth_and_nested_isolation(security, actor, monkeypa
         url, headers=headers(actor), json={"channel": "text", "action_ids": [str(foreign.action)]}
     )
     assert response.status_code == 404
+    for person_id in (foreign.person, uuid.uuid4(), own.person):
+        response = await security.http.post(
+            url, headers=headers(actor), json={**body, "recipient_person_id": str(person_id)}
+        )
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Confirmed person not found."
     provider.complete.assert_not_called()
     response = await security.http.post(url, headers=headers(actor), json=body)
     assert response.status_code == 200

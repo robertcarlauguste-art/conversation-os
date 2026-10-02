@@ -6,6 +6,8 @@ On a completed conversation, click **Draft email or text** directly below the su
 
 ## Initial scope
 
+- Before generation, the optional **Who is this message for?** selector lists confirmed people from this conversation. Nothing is selected automatically. The server validates the person belongs to the selected memory and has a confirmed name; foreign, missing and unconfirmed IDs return the same 404 before AI charging. Only the selected confirmed name and original spelling are added to the provider facts. No other client history/contact details are sent. Confirmation supplies a recipient identity, not a sender identity or permission to transfer commitments. An unspecified recipient requests neutral wording. Existing saved drafts are not changed; recipient choices are generation inputs, not stored recipient metadata or delivery addresses.
+
 - Drafts use only the selected summary and/or tasks from this conversation. No automatic transcript, other conversation, client history, original extraction, or internal-note inclusion.
 - Task owner, due wording and status accompany selected tasks. The prompt prohibits invented details and treating a completion flag as proof of delivery.
 - Existing user ownership checks apply to both the conversation and nested task IDs. Foreign and missing conversation IDs receive the same 404. Invalid selections do not consume allowance.

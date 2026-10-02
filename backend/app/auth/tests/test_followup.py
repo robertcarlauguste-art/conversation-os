@@ -106,6 +106,24 @@ def test_empty_selection_rejected():
     assert error.value.status_code == 422
 
 
+def test_recipient_requires_confirmed_person_from_selected_memory():
+    person = SimpleNamespace(id=uuid.uuid4(), name="Morgan Vail", confirmed_name="Morgan Vale")
+    memory = SimpleNamespace(summary="Listings sent", action_items=[], people=[person])
+    request = FollowupRequest(channel="email", include_summary=True, recipient_person_id=person.id)
+    assert selected_facts(memory, request)["recipient"] == {
+        "name": "Morgan Vale",
+        "original_name": "Morgan Vail",
+    }
+    assert "recipient" not in selected_facts(
+        memory, FollowupRequest(channel="email", include_summary=True)
+    )
+    for invalid in (uuid.uuid4(), person.id):
+        person.confirmed_name = None
+        with pytest.raises(HTTPException) as error:
+            selected_facts(memory, request.model_copy(update={"recipient_person_id": invalid}))
+        assert (error.value.status_code, error.value.detail) == (404, "Confirmed person not found.")
+
+
 @pytest.mark.parametrize("channel", ["email", "text"])
 async def test_uncertain_completion_and_other_owner_reach_provider_unchanged(channel):
     # This checks source fidelity, not the quality of a mocked model's prose.
