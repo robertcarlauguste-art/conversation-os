@@ -153,6 +153,7 @@ class ActionItemEdit(BaseModel):
 
 
 class PersonOut(BaseModel):
+    confirmed_name: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

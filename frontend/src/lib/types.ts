@@ -78,6 +78,7 @@ export interface ActionItemOut {
 }
 
 export interface PersonOut {
+  confirmed_name?: string | null;
   id: string;
   name: string;
   role: string | null;

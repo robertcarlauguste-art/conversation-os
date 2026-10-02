@@ -255,6 +255,7 @@ class ActionItem(Base):
 
 
 class Person(Base):
+    confirmed_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     __tablename__ = "people"
 
     id: Mapped[uuid.UUID] = mapped_column(

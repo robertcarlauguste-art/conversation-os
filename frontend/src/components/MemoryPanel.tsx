@@ -1,6 +1,7 @@
 "use client";
 import { ConversationTasks } from "./ConversationTasks";
 import { PrepareFollowup } from "./PrepareFollowup";
+import { PersonConfirmation } from "./PersonConfirmation";
 
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -22,19 +23,6 @@ function EmptyNote({ children }: { children: React.ReactNode }) {
   return <p className="text-sm text-ink/40">{children}</p>;
 }
 
-function BulletList({ items }: { items: string[] }) {
-  if (items.length === 0) return <EmptyNote>None identified.</EmptyNote>;
-  return (
-    <ul className="flex flex-col gap-2 text-sm text-ink">
-      {items.map((item, i) => (
-        <li key={i} className="flex gap-2">
-          <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-ink/30" />
-          <span>{item}</span>
-        </li>
-      ))}
-    </ul>
-  );
-}
 
 export function MemoryPanel({
   conversationId,
@@ -146,9 +134,7 @@ export function MemoryPanel({
         </SectionCard>
 
         <SectionCard title="People">
-          <BulletList
-            items={memory.people.map((p) => (p.role ? `${p.name} — ${p.role}` : p.name))}
-          />
+          {memory.people.length ? <ul className="space-y-3">{memory.people.map(p => <PersonConfirmation key={p.id} memoryId={memory.id} person={p} />)}</ul> : <EmptyNote>None identified.</EmptyNote>}
         </SectionCard>
       </div>
 

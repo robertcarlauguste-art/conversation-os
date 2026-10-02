@@ -191,6 +191,12 @@ export async function listClients(options: ClientListOptions = {}): Promise<Clie
   return unwrap<ClientListItem[]>(response);
 }
 
+export async function confirmPerson(memoryId: string, personId: string, clientId: string | null): Promise<void> {
+  await unwrap(await authenticatedFetch(`${API_BASE_URL}/api/v1/memories/${memoryId}/people/${personId}/confirmation`, {
+    method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ client_id: clientId }),
+  }));
+}
+
 export async function getClient(id: string): Promise<ClientDetail> {
   const response = await authenticatedFetch(`${API_BASE_URL}/api/v1/clients/${id}`, {
     cache: "no-store",

@@ -6,6 +6,7 @@ orchestrator's pipeline; users can correct existing decisions and tasks.
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import CurrentPrincipal
@@ -24,6 +25,7 @@ from app.memory.schemas import (
     DecisionOut,
     MemoryDetail,
     MemoryListItem,
+    PersonOut,
 )
 from app.memory.service import ActionItemNotFoundError, ActionItemService
 from app.providers.dependencies import get_ai_provider
@@ -31,6 +33,26 @@ from app.schemas.envelope import ApiResponse
 from app.usage.service import UsageService
 
 router = APIRouter(prefix="/memories", tags=["memories"])
+
+
+class PersonConfirmation(BaseModel):
+    client_id: uuid.UUID | None
+
+
+@router.put("/{memory_id}/people/{person_id}/confirmation", response_model=ApiResponse[PersonOut])
+async def confirm_person(
+    memory_id: uuid.UUID,
+    person_id: uuid.UUID,
+    body: PersonConfirmation,
+    principal: CurrentPrincipal,
+    session: AsyncSession = Depends(get_db_session),
+):
+    person = await MemoryRepository(session, principal.user_id).confirm_person(
+        memory_id, person_id, body.client_id
+    )
+    if person is None:
+        raise HTTPException(404, "Person or client not found.")
+    return ApiResponse(success=True, data=PersonOut.model_validate(person))
 
 
 @router.get(
