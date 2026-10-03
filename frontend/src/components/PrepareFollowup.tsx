@@ -47,7 +47,22 @@ export function PrepareFollowup({ conversationId, memory }: { conversationId: st
     };
     window.addEventListener("beforeunload", warn);
     document.addEventListener("click", warnOnLink, true);
-    return () => { window.removeEventListener("beforeunload", warn); document.removeEventListener("click", warnOnLink, true); };
+    // Only cancel history traversals the browser explicitly allows us to cancel.
+    // Do not push synthetic history entries or interfere with Next's router state.
+    const navigation = (window as Window & { navigation?: EventTarget }).navigation;
+    const warnOnHistory = (event: Event) => {
+      const navigationEvent = event as Event & { navigationType?: string; destination?: { url: string }; hashChange?: boolean };
+      if (navigationEvent.navigationType !== "traverse" || !event.cancelable || event.defaultPrevented || navigationEvent.hashChange || !navigationEvent.destination) return;
+      const destination = new URL(navigationEvent.destination.url, window.location.href);
+      if (destination.origin === location.origin && destination.pathname === location.pathname && destination.search === location.search) return;
+      if (!window.confirm("This draft has unsaved changes. Leave without saving? Choose Cancel to stay and save your draft.")) event.preventDefault();
+    };
+    navigation?.addEventListener("navigate", warnOnHistory);
+    return () => {
+      window.removeEventListener("beforeunload", warn);
+      document.removeEventListener("click", warnOnLink, true);
+      navigation?.removeEventListener("navigate", warnOnHistory);
+    };
   }, [dirty]);
   const field = "mt-1 block w-full rounded border border-line bg-paper p-3 text-ink";
 
