@@ -37,6 +37,48 @@ it("cancels leaving by app link until edits are saved and keeps a collapsed warn
   confirm.mockRestore();
 });
 
+it("guards cancelable history navigation only while dirty and releases listeners on unmount", async () => {
+  const navigation = new EventTarget();
+  vi.stubGlobal("navigation", navigation);
+  const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+  const saved = { subject: "Saved", body: "Original", channel: "email" as const, version: 1, updated_at: "2026-10-01T12:00:00Z" };
+  vi.mocked(getSavedFollowup).mockResolvedValue(saved);
+  vi.mocked(saveFollowup).mockResolvedValue({ ...saved, body: "Edited", version: 2 });
+  const traverse = (cancelable = true, url = "/clients", navigationType = "traverse") => {
+    const event = new Event("navigate", { cancelable });
+    Object.assign(event, { navigationType, destination: { url } });
+    return navigation.dispatchEvent(event);
+  };
+  const view = render(<PrepareFollowup conversationId="conversation" memory={memory} />);
+  try {
+    fireEvent.click(screen.getByRole("button", { name: "Draft email or text" }));
+    await screen.findByLabelText("Message");
+    expect(traverse()).toBe(true);
+    expect(confirm).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText("Message"), { target: { value: "Edited" } });
+    expect(traverse()).toBe(false);
+    expect(screen.getByLabelText("Message")).toHaveValue("Edited");
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(traverse(false)).toBe(true);
+    expect(traverse(true, "#help")).toBe(true);
+    expect(traverse(true, "/clients", "push")).toBe(true);
+    expect(confirm).toHaveBeenCalledOnce();
+    confirm.mockReturnValueOnce(true);
+    expect(traverse()).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+    await screen.findByText("Draft saved. You can return to this conversation later.");
+    expect(traverse()).toBe(true);
+    expect(confirm).toHaveBeenCalledTimes(2);
+    fireEvent.change(screen.getByLabelText("Message"), { target: { value: "Another edit" } });
+    view.unmount();
+    expect(traverse()).toBe(true);
+    expect(confirm).toHaveBeenCalledTimes(2);
+  } finally {
+    view.unmount();
+    confirm.mockRestore();
+    vi.unstubAllGlobals();
+  }
+});
 it("defaults to no recipient and sends only an explicitly chosen confirmed person ID", async () => {
   vi.mocked(prepareFollowup).mockResolvedValue({ subject: "Hello", body: "Follow-up" });
   render(<PrepareFollowup conversationId="conversation" memory={{ ...memory, people: [
