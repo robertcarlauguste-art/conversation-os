@@ -1,5 +1,6 @@
 "use client";
 
+import { LanguageSelector, useLanguage } from "./LanguageProvider";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Show, SignInButton, UserButton } from "@clerk/nextjs";
@@ -12,6 +13,7 @@ const LINKS = [
 ];
 
 export function Nav({ authEnabled = false }: { authEnabled?: boolean }) {
+  const { t, language } = useLanguage();
   const pathname = usePathname();
 
   return (
@@ -21,7 +23,8 @@ export function Nav({ authEnabled = false }: { authEnabled?: boolean }) {
           <WaveformMark className="h-5 w-auto text-accent" />
           <span className="font-display text-lg tracking-tight">ConversationOS</span>
         </Link>
-        <nav className="flex w-full items-center justify-between gap-1 sm:w-auto sm:justify-start">
+        <LanguageSelector />
+        <nav lang={language} className="flex w-full items-center justify-between gap-1 sm:w-auto sm:justify-start">
           {LINKS.map((link) => {
             const isActive =
               link.href === "/" ? pathname === "/" : pathname.startsWith(link.href);
@@ -35,7 +38,7 @@ export function Nav({ authEnabled = false }: { authEnabled?: boolean }) {
                     : "text-ink/60 hover:bg-paper hover:text-ink"
                 }`}
               >
-                {link.label}
+                {t(link.label)}
               </Link>
             );
           })}
@@ -44,7 +47,7 @@ export function Nav({ authEnabled = false }: { authEnabled?: boolean }) {
               <Show when="signed-out">
                 <SignInButton mode="modal">
                   <button className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-white">
-                    Sign in
+                    {t("Sign in")}
                   </button>
                 </SignInButton>
               </Show>

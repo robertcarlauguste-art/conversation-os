@@ -1,4 +1,5 @@
 "use client";
+import { useLanguage } from "./LanguageProvider";
 
 import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
@@ -12,6 +13,7 @@ import { RecordingClientChoice, type RecordingClient } from "./RecordingClientCh
 const ACCEPTED_EXTENSIONS = [".mp3", ".wav", ".m4a", ".aac", ".webm", ".mp4"];
 
 export function UploadDropzone({ initialClient = null }: { initialClient?: RecordingClient | null }) {
+  const { t, language } = useLanguage();
   const [client, setClient] = useState<RecordingClient | null>(initialClient);
   const [recordingActive, setRecordingActive] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -28,7 +30,7 @@ export function UploadDropzone({ initialClient = null }: { initialClient?: Recor
   async function handleFile(file: File) {
     if (busy.current || !client) return false;
     if (!file.size || file.size > 100 * 1024 * 1024) {
-      notify("Choose a non-empty audio file up to 100 MB.", "error");
+      notify(t("Choose a non-empty audio file up to 100 MB."), "error");
       return false;
     }
     busy.current = true;
@@ -38,15 +40,15 @@ export function UploadDropzone({ initialClient = null }: { initialClient?: Recor
     try {
       const result = await uploadConversation(file, setProgress, client.id);
       setUploadedId(result.id);
-      notify(`${file.name} uploaded successfully.`, "success");
+      notify(t("{name} uploaded successfully.", { name: file.name }), "success");
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["clients"] });
       queryClient.invalidateQueries({ queryKey: ["client-review"] });
       return true;
     } catch (error) {
-      const message = error instanceof ApiError ? error.message : "Upload failed.";
-      notify(message, "error");
+      const message = error instanceof ApiError ? error.message : t("Upload failed.");
+      notify(t(message), "error");
       return false;
     } finally {
       setProgress(null);
@@ -71,11 +73,11 @@ export function UploadDropzone({ initialClient = null }: { initialClient?: Recor
   if (!client) return <RecordingClientChoice onConfirm={setClient} />;
 
   return (
-    <>
+    <div lang={language} className="contents">
     <section className="rounded-xl border border-line bg-surface p-4">
-      <p>{client.id ? `This recording will be saved to ${client.name}.` : "This recording will stay unassigned."}</p>
-      <p className="mt-2 text-sm">Mention names when discussing multiple people so the notes are easier to follow.</p>
-      <button disabled={isUploading || recordingActive} onClick={() => setClient(null)} className="mt-2 text-accent underline disabled:opacity-50">Change client</button>
+      <p>{client.id ? t("This recording will be saved to {name}.", { name: client.name }) : t("This recording will stay unassigned.")}</p>
+      <p className="mt-2 text-sm">{t("Mention names when discussing multiple people so the notes are easier to follow.")}</p>
+      <button disabled={isUploading || recordingActive} onClick={() => setClient(null)} className="mt-2 text-accent underline disabled:opacity-50">{t("Change client")}</button>
     </section>
     <AudioRecorder onSubmit={handleFile} disabled={isUploading} onActiveChange={setRecordingActive} />
     {uploadedId && <UploadedConversationStatus id={uploadedId} />}
@@ -94,7 +96,7 @@ export function UploadDropzone({ initialClient = null }: { initialClient?: Recor
 
       {isUploading ? (
         <div className="mx-auto mt-4 max-w-xs">
-          <p className="text-sm font-medium text-ink">Uploading {activeFileName}…</p>
+          <p className="text-sm font-medium text-ink">{t("Uploading {name}…", { name: activeFileName ?? "" })}</p>
           <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-paper">
             <div
               className="h-full rounded-full bg-accent transition-all"
@@ -105,18 +107,15 @@ export function UploadDropzone({ initialClient = null }: { initialClient?: Recor
         </div>
       ) : (
         <>
-          <p className="mt-4 text-sm font-medium text-ink">
-            Drag an audio recording here, or{" "}
+          <p className="mt-4 text-sm font-medium text-ink">{t("Drag an audio recording here, or")}{" "}
             <button
               type="button"
               onClick={() => inputRef.current?.click()}
               className="text-accent underline underline-offset-2 hover:text-accent/80"
-            >
-              choose a file
-            </button>
+            >{t("choose a file")}</button>
           </p>
           <p className="mt-1.5 text-xs text-ink/50">
-            {ACCEPTED_EXTENSIONS.join(", ")} · up to 100 MB
+            {ACCEPTED_EXTENSIONS.join(", ")} · {t("up to 100 MB")}
           </p>
         </>
       )}
@@ -129,7 +128,7 @@ export function UploadDropzone({ initialClient = null }: { initialClient?: Recor
         className="hidden"
       />
     </div>
-    <p className="text-sm text-ink/70">Review AI summaries and actions for mistakes. You can organize conversations by linking them to a client. This pilot does not include unlimited storage.</p>
-    </>
+    <p className="text-sm text-ink/70">{t("Review AI summaries and actions for mistakes. You can organize conversations by linking them to a client. This pilot does not include unlimited storage.")}</p>
+    </div>
   );
 }

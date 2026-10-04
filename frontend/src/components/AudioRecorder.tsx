@@ -1,8 +1,10 @@
 "use client";
+import { useLanguage } from "./LanguageProvider";
 
 import { useEffect, useRef, useState } from "react";
 
 export function AudioRecorder({ onSubmit, disabled, onActiveChange }: { onSubmit: (file: File) => Promise<boolean>; disabled: boolean; onActiveChange?: (active: boolean) => void }) {
+  const { t, language } = useLanguage();
   const [phase, setPhase] = useState<"idle" | "requesting" | "recording" | "review">("idle");
   const [error, setError] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -76,20 +78,20 @@ export function AudioRecorder({ onSubmit, disabled, onActiveChange }: { onSubmit
     }
   }
 
-  return <section className="rounded-xl border border-line bg-surface p-6">
-    <h2 className="font-display text-xl">Record a voice note</h2>
-    <p className="my-3 text-sm text-ink/70">Use fictional details for this pilot. Record up to 3 minutes, listen, then submit. Recording starts only when you allow microphone access.</p>
-    {error && <p role="alert" className="my-3 text-red-700">{error}</p>}
-    {phase === "idle" && <button disabled={disabled} onClick={() => void start()} className="rounded-lg bg-accent px-5 py-3 text-white disabled:opacity-50">Start recording</button>}
-    {phase === "requesting" && <p role="status">Waiting for microphone permission…</p>}
-    {phase === "recording" && <><p role="status" className="mb-3">Recording… Stops automatically after 3 minutes.</p><button onClick={() => recorder.current?.stop()} className="rounded-lg bg-red-700 px-5 py-3 text-white">Stop and review</button></>}
+  return <section lang={language} className="rounded-xl border border-line bg-surface p-6">
+    <h2 className="font-display text-xl">{t("Record a voice note")}</h2>
+    <p className="my-3 text-sm text-ink/70">{t("Use fictional details for this pilot. Record up to 3 minutes, listen, then submit. Recording starts only when you allow microphone access.")}</p>
+    {error && <p role="alert" className="my-3 text-red-700">{t(error)}</p>}
+    {phase === "idle" && <button disabled={disabled} onClick={() => void start()} className="rounded-lg bg-accent px-5 py-3 text-white disabled:opacity-50">{t("Start recording")}</button>}
+    {phase === "requesting" && <p role="status">{t("Waiting for microphone permission…")}</p>}
+    {phase === "recording" && <><p role="status" className="mb-3">{t("Recording… Stops automatically after 3 minutes.")}</p><button onClick={() => recorder.current?.stop()} className="rounded-lg bg-red-700 px-5 py-3 text-white">{t("Stop and review")}</button></>}
     {phase === "review" && file && <>
-      <audio controls src={url} className="my-4 w-full" aria-label="Recording preview" />
+      <audio controls src={url} className="my-4 w-full" aria-label={t("Recording preview")} />
       <div className="flex flex-wrap gap-3">
-        <button disabled={disabled} className="rounded-lg bg-accent px-5 py-3 text-white disabled:opacity-50" onClick={async () => { if (await onSubmit(file)) { setFile(null); setPhase("idle"); } }}>Submit recording</button>
-        <button disabled={disabled} className="rounded-lg border border-line px-5 py-3" onClick={() => { setFile(null); setPhase("idle"); }}>Discard recording</button>
+        <button disabled={disabled} className="rounded-lg bg-accent px-5 py-3 text-white disabled:opacity-50" onClick={async () => { if (await onSubmit(file)) { setFile(null); setPhase("idle"); } }}>{t("Submit recording")}</button>
+        <button disabled={disabled} className="rounded-lg border border-line px-5 py-3" onClick={() => { setFile(null); setPhase("idle"); }}>{t("Discard recording")}</button>
       </div>
-      <p className="mt-3 text-sm">Nothing is uploaded until you select Submit recording.</p>
+      <p className="mt-3 text-sm">{t("Nothing is uploaded until you select Submit recording.")}</p>
     </>}
   </section>;
 }
