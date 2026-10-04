@@ -1,0 +1,23 @@
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { expect, it, vi } from "vitest";
+import { MergeClients } from "./MergeClients";
+const api = vi.hoisted(() => ({ previewClientMerge: vi.fn(), confirmClientMerge: vi.fn() }));
+vi.mock("@/lib/api", () => api);
+it("requires a preview and exact retained name before combining", async () => {
+  api.previewClientMerge.mockResolvedValue({ source: { full_name: "Morgan Vail" }, target: { full_name: "Morgan Vale" }, token: "token", moved: { conversations: 2, people: 1, client_facts: 1, client_followup_actions: 0 } });
+  api.confirmClientMerge.mockResolvedValue({ client_id: "b" });
+  const done = vi.fn();
+  render(<QueryClientProvider client={new QueryClient()}><MergeClients source="a" target="b" onMerged={done} /></QueryClientProvider>);
+  fireEvent.click(screen.getByText("Review merge: keep second client"));
+  const button = await screen.findByText("Confirm combine client records");
+  expect(button).toBeDisabled();
+  const input = screen.getByRole("textbox");
+  fireEvent.change(input, { target: { value: "Morgan Vail" } });
+  expect(button).toBeDisabled();
+  expect(api.confirmClientMerge).not.toHaveBeenCalled();
+  fireEvent.change(input, { target: { value: "Morgan Vale" } });
+  fireEvent.click(button);
+  await waitFor(() => expect(done).toHaveBeenCalledTimes(1));
+  expect(api.confirmClientMerge).toHaveBeenCalledWith("a", "b", "token", "Morgan Vale");
+});

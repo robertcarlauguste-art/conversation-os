@@ -53,8 +53,6 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
         </p>
       </div>
 
-      <ClientFollowupRecorder key={`record-${id}`} clientId={id} clientName={client.full_name} />
-      <ClientUpdateReview key={id} clientId={id} />
       <form className="flex flex-wrap items-end gap-2" onSubmit={event => { event.preventDefault(); setSearch(draftSearch.trim()); }}>
         <label className="min-w-0 flex-1 text-sm">Search this client&apos;s conversations
           <input className="mt-1 block min-h-11 w-full rounded-lg border border-line px-3" value={draftSearch} maxLength={100} onChange={event => setDraftSearch(event.target.value)} placeholder="Search titles, summaries or transcripts" />
@@ -64,6 +62,8 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
       </form>
       {search && !conversationsQuery.isLoading && !conversationsQuery.isError && <p role="status">{conversationsQuery.data?.length ?? 0} conversations matching “{search}”</p>}
       <ClientConversations searching={Boolean(search)} conversations={conversationsQuery.data ?? []} loading={conversationsQuery.isLoading} error={conversationsQuery.isError} onRetry={() => { void conversationsQuery.refetch(); }} />
+      <ClientFollowupRecorder key={`record-${id}`} clientId={id} clientName={client.full_name} />
+      <ClientUpdateReview key={id} clientId={id} />
       <div className="rounded-xl border border-line bg-surface p-6">
         <h3 className="text-xs font-medium uppercase tracking-wide text-ink/50">
           Fact history
