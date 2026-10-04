@@ -7,6 +7,7 @@ Read-only endpoints for CRM clients plus manual conversation linking.
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import CurrentPrincipal
@@ -254,4 +255,61 @@ async def get_saved_client_review(
     return ApiResponse(
         success=True,
         data=await load_review(ClientRepository(session, principal.user_id), client_id),
+    )
+
+
+class MergePreviewRequest(BaseModel):
+    target_id: uuid.UUID
+
+
+class MergeRequest(MergePreviewRequest):
+    expected_token: str = Field(min_length=64, max_length=64)
+    confirmed_name: str = Field(min_length=1, max_length=255)
+
+
+@router.post("/{client_id}/merge-preview")
+async def preview_client_merge(
+    client_id: uuid.UUID,
+    body: MergePreviewRequest,
+    principal: CurrentPrincipal,
+    session: AsyncSession = Depends(get_db_session),
+):
+    from app.client.merge import inspect_merge
+
+    try:
+        source, target, snapshot, token, counts = await inspect_merge(
+            session, principal.user_id, client_id, body.target_id
+        )
+        return ApiResponse(
+            success=True,
+            data={
+                "source": {k: v for k, v in snapshot["source"].items() if k != "saved_review"},
+                "target": {k: v for k, v in snapshot["target"].items() if k != "saved_review"},
+                "token": token,
+                "moved": counts,
+            },
+        )
+    finally:
+        await session.rollback()
+
+
+@router.post("/{client_id}/merge")
+async def confirm_client_merge(
+    client_id: uuid.UUID,
+    body: MergeRequest,
+    principal: CurrentPrincipal,
+    session: AsyncSession = Depends(get_db_session),
+):
+    from app.client.merge import merge_clients
+
+    return ApiResponse(
+        success=True,
+        data=await merge_clients(
+            session,
+            principal.user_id,
+            client_id,
+            body.target_id,
+            body.expected_token,
+            body.confirmed_name,
+        ),
     )

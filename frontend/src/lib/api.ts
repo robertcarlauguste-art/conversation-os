@@ -335,3 +335,11 @@ export async function renameConversation(id: string, title: string): Promise<voi
   });
   if (!response.ok) await unwrap(response);
 }
+
+export type ClientMergePreview = { source: { full_name: string; email: string | null; phone: string | null; role: string | null }; target: { full_name: string; email: string | null; phone: string | null; role: string | null }; token: string; moved: Record<string, number> };
+export async function previewClientMerge(source: string, target: string): Promise<ClientMergePreview> {
+  return unwrap(await authenticatedFetch(API_BASE_URL + "/api/v1/clients/" + source + "/merge-preview", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ target_id: target }) }));
+}
+export async function confirmClientMerge(source: string, target: string, token: string, name: string): Promise<{ client_id: string }> {
+  return unwrap(await authenticatedFetch(API_BASE_URL + "/api/v1/clients/" + source + "/merge", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ target_id: target, expected_token: token, confirmed_name: name }) }));
+}

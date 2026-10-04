@@ -1,5 +1,6 @@
 "use client";
 
+import { CompareClients } from "./CompareClients";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useDeferredValue, useState } from "react";
@@ -79,6 +80,7 @@ export function ClientsTable() {
           <option value="seller">Seller</option>
         </select>
       </div>
+      <CompareClients key={JSON.stringify([page, deferredSearch, role])} clients={rows} />
       {rows.length === 0 ? (
         <p className="rounded-xl border border-dashed border-line py-10 text-center text-sm text-ink/50">
           No clients match these filters.
