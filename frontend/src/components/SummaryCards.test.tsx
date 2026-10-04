@@ -1,3 +1,4 @@
+import { LanguageProvider, LanguageSelector } from "./LanguageProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -159,4 +160,19 @@ describe("SummaryCards interactions", () => {
       "Action item reopened.",
     );
   });
+});
+
+it("translates controls without translating saved tasks or generating a briefing", async () => {
+  localStorage.clear();
+  api.getDashboard.mockResolvedValue(dashboard);
+  const user = userEvent.setup();
+  render(<LanguageProvider><LanguageSelector /><QueryClientProvider client={new QueryClient()}><ToastProvider><SummaryCards /></ToastProvider></QueryClientProvider></LanguageProvider>);
+  await screen.findByText("Tasks needing attention");
+  await user.selectOptions(screen.getByLabelText("Language / Lang"), "ht");
+  expect(screen.getByText("Travay pou ou verifye")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Prepare rezime a", exact: true })).toBeInTheDocument();
+  expect(screen.getByText("Schedule a home showing")).toBeInTheDocument();
+  expect(screen.getByText(/Sarah/)).toBeInTheDocument();
+  expect(api.generateDashboardBriefing).not.toHaveBeenCalled();
+  localStorage.clear();
 });
