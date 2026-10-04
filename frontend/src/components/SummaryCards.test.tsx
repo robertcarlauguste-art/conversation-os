@@ -170,9 +170,10 @@ it("translates controls without translating saved tasks or generating a briefing
   await screen.findByText("Tasks needing attention");
   await user.selectOptions(screen.getByLabelText("Language / Lang"), "ht");
   expect(screen.getByText("Travay pou ou verifye")).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Prepare rezime a", exact: true })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Prepare rezime a" })).toBeInTheDocument();
   expect(screen.getByText("Schedule a home showing")).toBeInTheDocument();
   expect(screen.getByText(/Sarah/)).toBeInTheDocument();
   expect(api.generateDashboardBriefing).not.toHaveBeenCalled();
   localStorage.clear();
 });
+
