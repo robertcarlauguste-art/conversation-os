@@ -10,7 +10,9 @@ test("shows exhausted allowance without hiding saved-content access", async () =
   vi.mocked(getPilotUsage).mockResolvedValue({ enabled: true, used: values, remaining: values,
     limits: { ...values, recordings: 30 }, resets_at: "2026-09-28T00:00:00Z" });
   render(<QueryClientProvider client={new QueryClient()}><PilotUsage /><p>Saved notes</p></QueryClientProvider>);
-  expect(await screen.findByText(/0 recordings and 0 AI requests left today/)).toBeInTheDocument();
+  expect(await screen.findByText("Recordings left today: 0")).toBeInTheDocument();
+  expect(screen.getByText("AI requests left today: 0")).toBeInTheDocument();
   expect(screen.getByText("Saved notes")).toBeInTheDocument();
   expect(screen.getByText(/Reading and editing saved notes remain available/)).toBeInTheDocument();
 });
+

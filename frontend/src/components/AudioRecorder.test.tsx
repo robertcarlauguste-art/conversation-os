@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { AudioRecorder } from "./AudioRecorder";
+import { LanguageProvider, LanguageSelector } from "./LanguageProvider";
 
 const stopTrack = vi.fn();
 let active: FakeRecorder;
@@ -79,4 +80,22 @@ it("offers upload guidance when recording is unsupported", () => {
   render(<AudioRecorder onSubmit={vi.fn()} disabled={false} />);
   fireEvent.click(screen.getByText("Start recording"));
   expect(screen.getByRole("alert")).toHaveTextContent("upload an audio file");
+});
+
+it("keeps recording and preview audio when the language changes", async () => {
+  localStorage.clear();
+  const submit = vi.fn().mockResolvedValue(true);
+  render(<LanguageProvider><LanguageSelector /><AudioRecorder onSubmit={submit} disabled={false} /></LanguageProvider>);
+  fireEvent.click(screen.getByText("Start recording"));
+  await screen.findByText("Stop and review");
+  const original = active;
+  fireEvent.change(screen.getByLabelText("Language / Lang"), { target: { value: "ht" } });
+  expect(active).toBe(original);
+  expect(active.state).toBe("recording");
+  fireEvent.click(screen.getByText("Kanpe epi verifye"));
+  const preview = screen.getByLabelText("Koute anrejistreman an").getAttribute("src");
+  fireEvent.change(screen.getByLabelText("Language / Lang"), { target: { value: "es" } });
+  expect(screen.getByLabelText("Escuchar la grabación")).toHaveAttribute("src", preview);
+  expect(submit).not.toHaveBeenCalled();
+  localStorage.clear();
 });

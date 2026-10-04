@@ -1,4 +1,5 @@
 "use client";
+import { useLanguage } from "./LanguageProvider";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
@@ -29,8 +30,9 @@ const BRIEF_MARKERS: Record<DashboardBriefItem["tone"], string> = {
 };
 
 function DashboardSkeleton() {
+  const { t } = useLanguage();
   return (
-    <div aria-label="Loading dashboard" className="flex animate-pulse flex-col gap-8">
+    <div aria-label={t("Loading dashboard")} className="flex animate-pulse flex-col gap-8">
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         {CARDS.map((card) => (
           <div key={card.key} className="h-28 rounded-xl bg-ink/5" />
@@ -38,12 +40,13 @@ function DashboardSkeleton() {
       </div>
       <div className="h-40 rounded-xl bg-ink/5" />
       <div className="h-64 rounded-xl bg-ink/5" />
-      <span className="sr-only">Loading dashboard data...</span>
+      <span className="sr-only">{t("Loading dashboard data...")}</span>
     </div>
   );
 }
 
 export function SummaryCards() {
+  const { t } = useLanguage();
   const queryClient = useQueryClient();
   const { notify } = useToast();
   const dashboardQuery = useQuery({
@@ -65,7 +68,7 @@ export function SummaryCards() {
     }) => recordFollowupAction(clientId, action, snoozeDays),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      notify("Follow-up updated.", "success");
+      notify(t("Follow-up updated."), "success");
     },
   });
   const actionItemMutation = useMutation({
@@ -76,14 +79,14 @@ export function SummaryCards() {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      notify("Action item completed.", "success");
+      notify(t("Action item completed."), "success");
     },
   });
   const reopenActionMutation = useMutation({
     mutationFn: reopenActionItem,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      notify("Action item reopened.", "success");
+      notify(t("Action item reopened."), "success");
     },
   });
 
@@ -106,11 +109,11 @@ export function SummaryCards() {
         role="alert"
         className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-900"
       >
-        <h2 className="text-lg font-semibold">Dashboard unavailable</h2>
+        <h2 className="text-lg font-semibold">{t("Dashboard unavailable")}</h2>
         <p className="mt-2 text-sm text-red-800">
           {dashboardQuery.error instanceof Error
             ? dashboardQuery.error.message
-            : "ConversationOS could not load your dashboard."}
+            : t("ConversationOS could not load your dashboard.")}
         </p>
         <button
           type="button"
@@ -118,7 +121,7 @@ export function SummaryCards() {
           disabled={dashboardQuery.isFetching}
           className="mt-4 rounded-lg bg-red-800 px-4 py-2 text-sm font-medium text-white disabled:cursor-wait disabled:opacity-60"
         >
-          {dashboardQuery.isFetching ? "Retrying..." : "Try again"}
+          {dashboardQuery.isFetching ? t("Retrying...") : t("Try again")}
         </button>
       </section>
     );
@@ -129,7 +132,7 @@ export function SummaryCards() {
       {alerts.length > 0 ? (
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-xl border border-line bg-surface p-6">
-          <h2 className="text-lg font-semibold">Alerts</h2>
+          <h2 className="text-lg font-semibold">{t("Alerts")}</h2>
           <div className="mt-4 flex flex-col gap-3">
             {alerts.length > 0 ? (
               alerts.map((alert) => (
@@ -141,7 +144,7 @@ export function SummaryCards() {
                 </div>
               ))
             ) : (
-              <p className="text-sm text-ink/50">No alerts need attention.</p>
+              <p className="text-sm text-ink/50">{t("No alerts need attention.")}</p>
             )}
           </div>
         </section>
@@ -151,10 +154,8 @@ export function SummaryCards() {
       <section className="rounded-xl border border-line bg-surface p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h2 className="text-lg font-semibold">AI briefing</h2>
-            <p className="mt-1 text-sm text-ink/50">
-              A concise synthesis generated only when you request it.
-            </p>
+            <h2 className="text-lg font-semibold">{t("AI briefing")}</h2>
+            <p className="mt-1 text-sm text-ink/50">{t("A concise synthesis generated only when you request it.")}</p>
           </div>
           <button
             type="button"
@@ -163,10 +164,10 @@ export function SummaryCards() {
             className="rounded-lg bg-ink px-4 py-2 text-sm font-medium text-white disabled:cursor-wait disabled:opacity-60"
           >
             {briefingMutation.isPending
-              ? "Generating..."
+              ? t("Generating...")
               : briefingMutation.data
-                ? "Regenerate briefing"
-                : "Generate briefing"}
+                ? t("Regenerate briefing")
+                : t("Generate briefing")}
           </button>
         </div>
 
@@ -178,7 +179,7 @@ export function SummaryCards() {
             <p className="text-sm text-red-800">
               {briefingMutation.error instanceof Error
                 ? briefingMutation.error.message
-                : "The briefing could not be generated."}
+                : t("The briefing could not be generated.")}
             </p>
           </div>
         ) : null}
@@ -201,10 +202,8 @@ export function SummaryCards() {
 
       <section className="rounded-xl border border-line bg-surface p-6">
         <div>
-          <h2 className="text-lg font-semibold">Tasks needing attention</h2>
-          <p className="mt-1 text-sm text-ink/50">
-            Review, edit, and complete tasks from your conversations. Open a task to see its recording and edit the details.
-          </p>
+          <h2 className="text-lg font-semibold">{t("Tasks needing attention")}</h2>
+          <p className="mt-1 text-sm text-ink/50">{t("Review, edit, and complete tasks from your conversations. Open a task to see its recording and edit the details.")}</p>
         </div>
 
         <div className="mt-4 flex flex-col gap-3">
@@ -221,16 +220,16 @@ export function SummaryCards() {
                   <span className="mt-1 block text-sm text-ink/50">
                     {action.client_name ??
                       action.conversation_title ??
-                      "Unassigned conversation"}
-                    {action.owner ? ` · Owner: ${action.owner}` : ""}
+                      t("Unassigned conversation")}
+                    {action.owner ? t(" · Owner: {name}", { name: action.owner }) : ""}
                     {action.source_count > 1
-                      ? ` · ${action.source_count} identical source items`
+                      ? t(" · {count} identical source items", { count: String(action.source_count) })
                       : ""}
                   </span>
                 </span>
                 <span className="flex flex-col items-start gap-2 sm:items-end">
                   <span className="text-sm text-ink/50">
-                    {action.due ? `Due ${action.due}` : "No due date"}
+                    {action.due ? t("Due {date}", { date: action.due }) : t("No due date")}
                   </span>
                   <button
                     type="button"
@@ -239,29 +238,27 @@ export function SummaryCards() {
                     className="rounded-md bg-ink px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
                   >
                     {action.source_count > 1
-                      ? `Complete all ${action.source_count}`
-                      : "Complete"}
+                      ? t("Complete all {count}", { count: String(action.source_count) })
+                      : t("Complete")}
                   </button>
                 </span>
               </div>
             ))
           ) : (
-            <p className="text-sm text-ink/50">
-              No open conversation actions need attention.
-            </p>
+            <p className="text-sm text-ink/50">{t("No open conversation actions need attention.")}</p>
           )}
         </div>
         {actionItemMutation.isError ? (
           <p role="alert" className="mt-3 text-sm text-red-700">
             {actionItemMutation.error instanceof Error
               ? actionItemMutation.error.message
-              : "The action item could not be completed."}
+              : t("The action item could not be completed.")}
           </p>
         ) : null}
       </section>
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-xl border border-line bg-surface p-6">
-          <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-lg font-semibold">Recent conversations</h2><Link href="/conversations" className="text-sm text-accent underline">View all conversations</Link></div>
+          <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-lg font-semibold">{t("Recent conversations")}</h2><Link href="/conversations" className="text-sm text-accent underline">{t("View all conversations")}</Link></div>
 
           <div className="mt-4 flex flex-col gap-3">
             {conversations.length > 0 ? (
@@ -272,19 +269,17 @@ export function SummaryCards() {
                   className="flex flex-col gap-2 rounded-lg border border-line p-4 hover:bg-paper sm:flex-row sm:items-center sm:justify-between"
                 >
                   <span className="min-w-0 break-words font-medium">{conversationTitle(conversation)}</span>
-                  <span className="text-xs text-ink/50">{({ COMPLETED: "Ready to review", QUEUED: "Waiting to start", UPLOADED: "Waiting to start", PROCESSING: "Preparing your notes", FAILED: "Needs attention" })[conversation.status]}</span>
+                  <span className="text-xs text-ink/50">{({ COMPLETED: t("Ready to review"), QUEUED: t("Waiting to start"), UPLOADED: t("Waiting to start"), PROCESSING: t("Preparing your notes"), FAILED: t("Needs attention") })[conversation.status]}</span>
                 </Link>
               ))
             ) : (
-              <p className="text-sm text-ink/50">
-                Record or upload your first conversation to see it here.
-              </p>
+              <p className="text-sm text-ink/50">{t("Record or upload your first conversation to see it here.")}</p>
             )}
           </div>
         </div>
 
         <div className="rounded-xl border border-line bg-surface p-6">
-          <h2 className="text-lg font-semibold">Recent clients</h2>
+          <h2 className="text-lg font-semibold">{t("Recent clients")}</h2>
 
           <div className="mt-4 flex flex-col gap-3">
             {clients.length > 0 ? (
@@ -296,27 +291,23 @@ export function SummaryCards() {
                 >
                   <div className="font-medium">{client.full_name}</div>
                   <div className="text-sm text-ink/50">
-                    {client.email ?? "No email"}
+                    {client.email ?? t("No email")}
                   </div>
                 </Link>
               ))
             ) : (
-              <p className="text-sm text-ink/50">
-                Clients will appear after conversation processing identifies them.
-              </p>
+              <p className="text-sm text-ink/50">{t("Clients will appear after conversation processing identifies them.")}</p>
             )}
           </div>
         </div>
       </div>
 
       <details className="rounded-xl border border-line bg-surface p-4">
-        <summary className="cursor-pointer py-2 font-semibold">Client follow-ups</summary>
+        <summary className="cursor-pointer py-2 font-semibold">{t("Client follow-ups")}</summary>
       <section className="rounded-xl border border-line bg-surface p-6">
         <div>
-          <h2 className="text-lg font-semibold">Suggested client follow-ups</h2>
-          <p className="mt-1 text-sm text-ink/50">
-            Suggested follow-ups based on your conversations. Review what matters today.
-          </p>
+          <h2 className="text-lg font-semibold">{t("Suggested client follow-ups")}</h2>
+          <p className="mt-1 text-sm text-ink/50">{t("Suggested follow-ups based on your conversations. Review what matters today.")}</p>
         </div>
 
         <div className="mt-4 flex flex-col gap-3">
@@ -335,7 +326,7 @@ export function SummaryCards() {
                   </Link>
                 </span>
                 <details className="mt-2 text-sm">
-                  <summary className="cursor-pointer py-1 text-ink/60">Why follow up & actions</summary>
+                  <summary className="cursor-pointer py-1 text-ink/60">{t("Why follow up & actions")}</summary>
                   <p className="my-3 text-ink/60">{recommendation.reason} {recommendation.recommended_action}</p>
                   <span className="flex flex-wrap gap-2">
                     <button
@@ -348,9 +339,7 @@ export function SummaryCards() {
                         })
                       }
                       className="rounded-md bg-ink px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
-                    >
-                      Record contact
-                    </button>
+                    >{t("Record contact")}</button>
                     <button
                       type="button"
                       disabled={followupMutation.isPending}
@@ -362,9 +351,7 @@ export function SummaryCards() {
                         })
                       }
                       className="rounded-md border border-line bg-surface px-3 py-1.5 text-xs font-medium disabled:opacity-50"
-                    >
-                      Snooze 1 day
-                    </button>
+                    >{t("Snooze 1 day")}</button>
                     <button
                       type="button"
                       disabled={followupMutation.isPending}
@@ -375,31 +362,27 @@ export function SummaryCards() {
                         })
                       }
                       className="rounded-md border border-line bg-surface px-3 py-1.5 text-xs font-medium disabled:opacity-50"
-                    >
-                      Complete
-                    </button>
+                    >{t("Complete")}</button>
                   </span>
                 </details>
               </div>
             ))
           ) : (
-            <p className="text-sm text-ink/50">
-              No client follow-ups are due right now.
-            </p>
+            <p className="text-sm text-ink/50">{t("No client follow-ups are due right now.")}</p>
           )}
         </div>
         {followupMutation.isError ? (
           <p role="alert" className="mt-3 text-sm text-red-700">
             {followupMutation.error instanceof Error
               ? followupMutation.error.message
-              : "The follow-up action could not be saved."}
+              : t("The follow-up action could not be saved.")}
           </p>
         ) : null}
       </section>
       </details>
 
       <details className="rounded-xl border border-line bg-surface p-4">
-        <summary className="cursor-pointer py-2 font-semibold">Activity & completed tasks</summary>
+        <summary className="cursor-pointer py-2 font-semibold">{t("Activity & completed tasks")}</summary>
         <div className="mt-4 flex flex-col gap-6">
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         {CARDS.map((card) => (
@@ -408,7 +391,7 @@ export function SummaryCards() {
             className="rounded-xl border border-line bg-surface p-5"
           >
             <p className="text-xs font-medium uppercase tracking-wide text-ink/50">
-              {card.label}
+              {t(card.label)}
             </p>
 
             <p className="mt-2 font-display text-3xl text-ink">
@@ -419,12 +402,10 @@ export function SummaryCards() {
       </div>
 
       <details className="rounded-xl border border-line bg-surface p-4">
-        <summary className="cursor-pointer text-sm">Activity overview</summary>
+        <summary className="cursor-pointer text-sm">{t("Activity overview")}</summary>
       <section className="rounded-xl border border-line bg-surface p-6">
-        <h2 className="text-lg font-semibold">Today&apos;s Brief</h2>
-        <p className="mt-1 text-sm text-ink/50">
-          A concise view of what happened and what needs attention.
-        </p>
+        <h2 className="text-lg font-semibold">{t("Today's Brief")}</h2>
+        <p className="mt-1 text-sm text-ink/50">{t("A concise view of what happened and what needs attention.")}</p>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           {dailyBrief.length > 0 ? (
@@ -438,7 +419,7 @@ export function SummaryCards() {
               </div>
             ))
           ) : (
-            <p className="text-sm text-ink/50">No briefing data is available yet.</p>
+            <p className="text-sm text-ink/50">{t("No briefing data is available yet.")}</p>
           )}
         </div>
       </section>
@@ -448,10 +429,8 @@ export function SummaryCards() {
 
       <section className="rounded-xl border border-line bg-surface p-6">
         <div>
-          <h2 className="text-lg font-semibold">Recent Activity</h2>
-          <p className="mt-1 text-sm text-ink/50">
-            A durable history of follow-up decisions and recorded contact.
-          </p>
+          <h2 className="text-lg font-semibold">{t("Recent Activity")}</h2>
+          <p className="mt-1 text-sm text-ink/50">{t("A durable history of follow-up decisions and recorded contact.")}</p>
         </div>
 
         <div className="mt-4 flex flex-col gap-3">
@@ -470,7 +449,7 @@ export function SummaryCards() {
                   </Link>
                   {activity.snoozed_until ? (
                     <span className="mt-1 block text-xs text-ink/50">
-                      Snoozed until {formatDate(activity.snoozed_until)}
+                      {t("Snoozed until {date}", { date: formatDate(activity.snoozed_until) })}
                     </span>
                   ) : null}
                 </span>
@@ -484,24 +463,20 @@ export function SummaryCards() {
                       disabled={reopenActionMutation.isPending}
                       onClick={() => reopenActionMutation.mutate(activity.id)}
                       className="rounded-md border border-line bg-surface px-3 py-1.5 text-xs font-medium disabled:opacity-50"
-                    >
-                      Reopen
-                    </button>
+                    >{t("Reopen")}</button>
                   ) : null}
                 </span>
               </div>
             ))
           ) : (
-            <p className="text-sm text-ink/50">
-              Follow-up activity will appear after you take an action.
-            </p>
+            <p className="text-sm text-ink/50">{t("Follow-up activity will appear after you take an action.")}</p>
           )}
         </div>
         {reopenActionMutation.isError ? (
           <p role="alert" className="mt-3 text-sm text-red-700">
             {reopenActionMutation.error instanceof Error
               ? reopenActionMutation.error.message
-              : "The action item could not be reopened."}
+              : t("The action item could not be reopened.")}
           </p>
         ) : null}
       </section>
