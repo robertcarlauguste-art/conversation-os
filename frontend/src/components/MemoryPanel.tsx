@@ -1,4 +1,5 @@
 "use client";
+import { useLanguage } from "@/components/LanguageProvider";
 import { ConversationTasks } from "./ConversationTasks";
 import { PrepareFollowup } from "./PrepareFollowup";
 import { PersonConfirmation } from "./PersonConfirmation";
@@ -33,6 +34,7 @@ export function MemoryPanel({
   status: ConversationStatus;
   processingError?: string | null;
 }) {
+  const { t } = useLanguage();
   const memoryQuery = useQuery({
     queryKey: ["memory", conversationId, status],
     queryFn: () => getMemoryByConversation(conversationId),
@@ -52,10 +54,10 @@ export function MemoryPanel({
   if (status === "FAILED") {
     return (
       <div className="rounded-xl border border-status-failed/30 bg-surface p-6 text-center">
-        <p className="text-sm font-medium text-status-failed">Processing failed</p>
+        <p className="text-sm font-medium text-status-failed">{t("Processing failed")}</p>
         <p className="mt-1 text-xs text-ink/50">
           {processingError ??
-            "Transcription or extraction didn't complete for this conversation."}
+            t("Transcription or extraction didn't complete for this conversation.")}
         </p>
       </div>
     );
@@ -70,10 +72,8 @@ export function MemoryPanel({
     return (
       <div className="rounded-xl border border-dashed border-line bg-surface py-12 text-center">
         <WaveformMark className="mx-auto h-6 w-auto animate-pulse text-ink/30" />
-        <p className="mt-3 text-sm font-medium text-ink">Processing conversation…</p>
-        <p className="mt-1 text-xs text-ink/40">
-          Transcribing, then extracting summary and key details.
-        </p>
+        <p className="mt-3 text-sm font-medium text-ink">{t("Processing conversation…")}</p>
+        <p className="mt-1 text-xs text-ink/40">{" "}{t("Transcribing, then extracting summary and key details.")}{" "}</p>
       </div>
     );
   }
@@ -81,9 +81,7 @@ export function MemoryPanel({
   if (memoryQuery.isError) {
     return (
       <div className="rounded-xl border border-status-failed/30 bg-surface p-6 text-center">
-        <p className="text-sm text-status-failed">
-          Couldn&apos;t load this conversation&apos;s memory. Please refresh the page and try again.
-        </p>
+        <p className="text-sm text-status-failed">{" "}{t("Couldn't load this conversation's memory. Please refresh the page and try again.")}{" "}</p>
       </div>
     );
   }
@@ -95,17 +93,15 @@ export function MemoryPanel({
     return (
       <div className="rounded-xl border border-dashed border-line bg-surface py-12 text-center">
         <WaveformMark className="mx-auto h-6 w-auto text-ink/20" />
-        <p className="mt-3 text-sm font-medium text-ink">No memory yet</p>
-        <p className="mt-1 text-xs text-ink/40">
-          This conversation hasn&apos;t been processed into structured memory.
-        </p>
+        <p className="mt-3 text-sm font-medium text-ink">{t("No memory yet")}</p>
+        <p className="mt-1 text-xs text-ink/40">{" "}{t("This conversation hasn't been processed into structured memory.")}{" "}</p>
       </div>
     );
   }
 
   return (
     <div className="flex flex-col gap-4">
-      <SectionCard title="Summary">
+      <SectionCard title={t("Summary")}>
         <p className="text-sm leading-relaxed text-ink">{memory.summary}</p>
         {memory.topics.length > 0 && (
           <div className="mt-4 flex flex-wrap gap-1.5">
@@ -119,22 +115,20 @@ export function MemoryPanel({
             ))}
           </div>
         )}
-        <p className="mt-4 text-xs text-ink/40">
-          AI-generated summary. Check important details and follow-up actions against the transcript; AI can make mistakes.
-        </p>
+        <p className="mt-4 text-xs text-ink/40">{" "}{t("AI-generated summary. Check important details and follow-up actions against the transcript; AI can make mistakes.")}{" "}</p>
       </SectionCard>
 
       <PrepareFollowup key={conversationId} conversationId={conversationId} memory={memory} />
-        <SectionCard title="Tasks to review">
+        <SectionCard title={t("Tasks to review")}>
           <ConversationTasks memoryId={memory.id} items={memory.action_items} />
         </SectionCard>
       <div className="grid gap-4 sm:grid-cols-2">
-        <SectionCard title="Decisions">
-          {memory.decisions.length ? <ul className="flex flex-col gap-3">{memory.decisions.map(item => <MemoryItemEditor key={item.id} memoryId={memory.id} item={item} />)}</ul> : <EmptyNote>None identified.</EmptyNote>}
+        <SectionCard title={t("Decisions")}>
+          {memory.decisions.length ? <ul className="flex flex-col gap-3">{memory.decisions.map(item => <MemoryItemEditor key={item.id} memoryId={memory.id} item={item} />)}</ul> : <EmptyNote>{t("None identified.")}</EmptyNote>}
         </SectionCard>
 
-        <SectionCard title="People">
-          {memory.people.length ? <ul className="space-y-3">{memory.people.map(p => <PersonConfirmation key={p.id} memoryId={memory.id} person={p} />)}</ul> : <EmptyNote>None identified.</EmptyNote>}
+        <SectionCard title={t("People")}>
+          {memory.people.length ? <ul className="space-y-3">{memory.people.map(p => <PersonConfirmation key={p.id} memoryId={memory.id} person={p} />)}</ul> : <EmptyNote>{t("None identified.")}</EmptyNote>}
         </SectionCard>
       </div>
 
@@ -147,10 +141,8 @@ export function MemoryPanel({
             onClick={() => setTranscriptOpen((open) => !open)}
             className="flex w-full items-center justify-between text-left"
           >
-            <h3 className="text-xs font-medium uppercase tracking-wide text-ink/50">
-              Transcript
-            </h3>
-            <span className="text-xs text-ink/40">{transcriptOpen ? "Hide" : "Show"}</span>
+            <h3 className="text-xs font-medium uppercase tracking-wide text-ink/50">{" "}{t("Transcript")}{" "}</h3>
+            <span className="text-xs text-ink/40">{transcriptOpen ? t("Hide") : t("Show")}</span>
           </button>
           {transcriptOpen && (
             <p id="conversation-transcript" className="mt-3 break-words whitespace-pre-wrap text-sm leading-relaxed text-ink/80">

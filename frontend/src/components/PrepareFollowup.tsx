@@ -1,10 +1,12 @@
 "use client";
+import { useLanguage } from "@/components/LanguageProvider";
 
 import { useEffect, useId, useState } from "react";
 import { getSavedFollowup, prepareFollowup, saveFollowup } from "@/lib/api";
 import type { MemoryDetail } from "@/lib/types";
 
 export function PrepareFollowup({ conversationId, memory }: { conversationId: string; memory: MemoryDetail }) {
+  const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const controlsId = useId();
   const [channel, setChannel] = useState<"email" | "text">("email");
@@ -41,7 +43,7 @@ export function PrepareFollowup({ conversationId, memory }: { conversationId: st
       const destination = new URL(link.href, window.location.href);
       if (!["http:", "https:"].includes(destination.protocol)) return;
       if (destination.origin === location.origin && destination.pathname === location.pathname && destination.search === location.search) return;
-      if (!window.confirm("This draft has unsaved changes. Leave without saving? Choose Cancel to stay and save your draft.")) {
+      if (!window.confirm(t("This draft has unsaved changes. Leave without saving? Choose Cancel to stay and save your draft."))) {
         event.preventDefault(); event.stopImmediatePropagation();
       }
     };
@@ -55,7 +57,7 @@ export function PrepareFollowup({ conversationId, memory }: { conversationId: st
       if (navigationEvent.navigationType !== "traverse" || !event.cancelable || event.defaultPrevented || navigationEvent.hashChange || !navigationEvent.destination) return;
       const destination = new URL(navigationEvent.destination.url, window.location.href);
       if (destination.origin === location.origin && destination.pathname === location.pathname && destination.search === location.search) return;
-      if (!window.confirm("This draft has unsaved changes. Leave without saving? Choose Cancel to stay and save your draft.")) event.preventDefault();
+      if (!window.confirm(t("This draft has unsaved changes. Leave without saving? Choose Cancel to stay and save your draft."))) event.preventDefault();
     };
     navigation?.addEventListener("navigate", warnOnHistory);
     return () => {
@@ -63,7 +65,7 @@ export function PrepareFollowup({ conversationId, memory }: { conversationId: st
       document.removeEventListener("click", warnOnLink, true);
       navigation?.removeEventListener("navigate", warnOnHistory);
     };
-  }, [dirty]);
+  }, [dirty, t]);
   const field = "mt-1 block w-full rounded border border-line bg-paper p-3 text-ink";
 
   async function generate() {
@@ -96,49 +98,47 @@ export function PrepareFollowup({ conversationId, memory }: { conversationId: st
   }
 
   return <section className="rounded-xl border border-line bg-surface p-6">
-    <button type="button" aria-expanded={open} aria-controls={controlsId} onClick={() => setOpen(value => !value)} className="min-h-11 w-full rounded bg-accent px-4 py-3 font-medium text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:w-auto">Draft email or text</button>
-    <p className="mt-3 text-sm text-ink/70">Turn selected details into an email or text. Nothing is sent, and tasks stay unchanged.</p>
-    {dirty && <p role="status" className="mt-3 rounded border border-amber-500 bg-amber-50 p-3 font-medium text-amber-950">Unsaved draft — open the editor and choose Save draft before leaving.</p>}
+    <button type="button" aria-expanded={open} aria-controls={controlsId} onClick={() => setOpen(value => !value)} className="min-h-11 w-full rounded bg-accent px-4 py-3 font-medium text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:w-auto">{t("Draft email or text")}</button>
+    <p className="mt-3 text-sm text-ink/70">{t("Turn selected details into an email or text. Nothing is sent, and tasks stay unchanged.")}</p>
+    {dirty && <p role="status" className="mt-3 rounded border border-amber-500 bg-amber-50 p-3 font-medium text-amber-950">{t("Unsaved draft — open the editor and choose Save draft before leaving.")}</p>}
     <div id={controlsId} hidden={!open}>
-      <label className="mt-4 block text-sm">Message format
-        <select className={field} value={channel} disabled={busy || loading} onChange={e => { if (!dirty || window.confirm("Leave unsaved edits? Your last saved draft will remain.")) setChannel(e.target.value as "email" | "text"); }}>
-          <option value="email">Email</option><option value="text">Text message</option>
+      <label className="mt-4 block text-sm">{t("Message format")}{" "}<select className={field} value={channel} disabled={busy || loading} onChange={e => { if (!dirty || window.confirm(t("Leave unsaved edits? Your last saved draft will remain."))) setChannel(e.target.value as "email" | "text"); }}>
+          <option value="email">{t("Email")}</option><option value="text">{t("Text message")}</option>
         </select>
       </label>
-    {loading ? <p role="status">Loading saved draft…</p> : loadError ? <button type="button" className="min-h-11 underline" onClick={() => setReload(n => n + 1)}>Retry loading draft</button> : !draft ? <>
+    {loading ? <p role="status">{t("Loading saved draft…")}</p> : loadError ? <button type="button" className="min-h-11 underline" onClick={() => setReload(n => n + 1)}>{t("Retry loading draft")}</button> : !draft ? <>
       <fieldset disabled={busy} className="mt-4 space-y-3">
-        <legend className="mb-2 text-sm font-medium">Choose details safe to share with the recipient</legend>
-        <label className="block text-sm">Who is this message for?
-          <select className={field} value={recipient} onChange={e => setRecipient(e.target.value)}>
-            <option value="">Recipient unspecified — neutral wording</option>
+        <legend className="mb-2 text-sm font-medium">{t("Choose details safe to share with the recipient")}</legend>
+        <label className="block text-sm">{t("Who is this message for?")}{" "}<select className={field} value={recipient} onChange={e => setRecipient(e.target.value)}>
+            <option value="">{t("Recipient unspecified — neutral wording")}</option>
             {memory.people?.filter(p => p.confirmed_name).map(p => <option key={p.id} value={p.id}>{p.confirmed_name}</option>)}
           </select>
         </label>
-        <p className="text-xs text-ink/70">To add a choice, confirm the person in the People section below. Selecting a recipient shares their confirmed and original name with AI for this draft only. It does not send a message or change saved drafts.</p>
+        <p className="text-xs text-ink/70">{t("To add a choice, confirm the person in the People section below. Selecting a recipient shares their confirmed and original name with AI for this draft only. It does not send a message or change saved drafts.")}</p>
         <label className="flex items-start gap-3 rounded border border-line p-3 text-sm">
           <input type="checkbox" checked={summary} onChange={e => setSummary(e.target.checked)} className="mt-1" />
-          <span>Include summary<span className="mt-1 block break-words text-ink/70">{memory.summary}</span></span>
+          <span>{t("Include summary")}<span className="mt-1 block break-words text-ink/70">{memory.summary}</span></span>
         </label>
         {memory.action_items.map(item => <label key={item.id} className="flex items-start gap-3 rounded border border-line p-3 text-sm">
           <input type="checkbox" checked={selected.includes(item.id)} onChange={e => setSelected(ids => e.target.checked ? [...ids, item.id] : ids.filter(id => id !== item.id))} className="mt-1" />
-          <span className="break-words">{item.task}<span className="mt-1 block text-ink/60">{item.owner ? `Owner: ${item.owner}` : "Owner unspecified"}{item.due ? ` · Due: ${item.due}` : ""} · {item.status.toLowerCase()}</span></span>
+          <span className="break-words">{item.task}<span className="mt-1 block text-ink/60">{item.owner ? t("Owner: {name}", { name: item.owner }) : t("Owner unspecified")}{item.due ? t(" · Due: {date}", { date: item.due }) : ""} · {t(item.status.toLowerCase())}</span></span>
         </label>)}
       </fieldset>
-      <p className="mt-3 text-xs text-ink/70">Leave out private or internal details. Each generation uses one AI request from your shared pilot allowance, including unsuccessful attempts.</p>
-      <button type="button" disabled={busy || (!summary && !selected.length)} onClick={generate} className="mt-4 min-h-11 rounded bg-accent px-4 py-2 text-white disabled:opacity-50">{busy ? "Preparing…" : "Prepare draft"}</button>
+      <p className="mt-3 text-xs text-ink/70">{t("Leave out private or internal details. Each generation uses one AI request from your shared pilot allowance, including unsuccessful attempts.")}</p>
+      <button type="button" disabled={busy || (!summary && !selected.length)} onClick={generate} className="mt-4 min-h-11 rounded bg-accent px-4 py-2 text-white disabled:opacity-50">{busy ? t("Preparing…") : t("Prepare draft")}</button>
     </> : <>
-      <p className="mt-4 text-sm text-ink/70">Review names, dates, responsibilities and private details before sharing. Save your edits before leaving. Saving and reopening do not use AI requests.</p>
-      <p className="mt-2 text-sm" role="status">{dirty ? "Unsaved changes" : savedAt ? `Saved ${new Date(savedAt).toLocaleString()}` : "Not saved"}</p>
-      {channel === "email" && <label className="mt-3 block text-sm">Subject<input disabled={busy} maxLength={200} className={field} value={draft.subject} onChange={e => { setDraft({ ...draft, subject: e.target.value }); setDirty(true); }} /></label>}
-      <label className="mt-3 block text-sm">Message<textarea disabled={busy} rows={8} maxLength={5000} className={field} value={draft.body} onChange={e => { setDraft({ ...draft, body: e.target.value }); setDirty(true); }} /></label>
+      <p className="mt-4 text-sm text-ink/70">{t("Review names, dates, responsibilities and private details before sharing. Save your edits before leaving. Saving and reopening do not use AI requests.")}</p>
+      <p className="mt-2 text-sm" role="status">{dirty ? t("Unsaved changes") : savedAt ? t("Saved {date}", { date: new Date(savedAt).toLocaleString() }) : t("Not saved")}</p>
+      {channel === "email" && <label className="mt-3 block text-sm">{t("Subject")}<input disabled={busy} maxLength={200} className={field} value={draft.subject} onChange={e => { setDraft({ ...draft, subject: e.target.value }); setDirty(true); }} /></label>}
+      <label className="mt-3 block text-sm">{t("Message")}<textarea disabled={busy} rows={8} maxLength={5000} className={field} value={draft.body} onChange={e => { setDraft({ ...draft, body: e.target.value }); setDirty(true); }} /></label>
       <div className="mt-4 flex flex-wrap gap-3">
-        <button type="button" disabled={busy || !dirty || !draft.body.trim()} onClick={save} className="min-h-11 rounded bg-accent px-4 py-2 text-white disabled:opacity-50">{busy ? "Saving…" : "Save draft"}</button>
-        <button type="button" disabled={!draft.body.trim()} onClick={copy} className="min-h-11 rounded bg-accent px-4 py-2 text-white disabled:opacity-50">Copy draft</button>
-        <button type="button" disabled={busy} onClick={() => { if (window.confirm("Start a new draft? Unsaved edits will be lost. Your saved version stays until you save its replacement.")) { setDraft(null); setDirty(false); setNotice(""); } }} className="min-h-11 rounded border border-line px-4 py-2">Start new draft</button>
-        <button type="button" disabled={busy} onClick={() => { if (!dirty || window.confirm("Reopen the saved version and discard unsaved edits?")) setReload(n => n + 1); }} className="min-h-11 rounded border border-line px-4 py-2">Reopen saved draft</button>
+        <button type="button" disabled={busy || !dirty || !draft.body.trim()} onClick={save} className="min-h-11 rounded bg-accent px-4 py-2 text-white disabled:opacity-50">{busy ? t("Saving…") : t("Save draft")}</button>
+        <button type="button" disabled={!draft.body.trim()} onClick={copy} className="min-h-11 rounded bg-accent px-4 py-2 text-white disabled:opacity-50">{t("Copy draft")}</button>
+        <button type="button" disabled={busy} onClick={() => { if (window.confirm(t("Start a new draft? Unsaved edits will be lost. Your saved version stays until you save its replacement."))) { setDraft(null); setDirty(false); setNotice(""); } }} className="min-h-11 rounded border border-line px-4 py-2">{t("Start new draft")}</button>
+        <button type="button" disabled={busy} onClick={() => { if (!dirty || window.confirm(t("Reopen the saved version and discard unsaved edits?"))) setReload(n => n + 1); }} className="min-h-11 rounded border border-line px-4 py-2">{t("Reopen saved draft")}</button>
       </div>
     </>}
-    <p role="status" aria-live="polite" className="mt-3 text-sm">{notice}</p>
+    <p role="status" aria-live="polite" className="mt-3 text-sm">{t(notice)}</p>
     </div>
   </section>;
 }
