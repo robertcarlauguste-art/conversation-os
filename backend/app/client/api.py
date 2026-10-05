@@ -8,6 +8,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import CurrentPrincipal
@@ -260,6 +261,47 @@ async def get_saved_client_review(
 
 class MergePreviewRequest(BaseModel):
     target_id: uuid.UUID
+
+
+@router.get("/merge-history/recent")
+async def recent_merges(
+    principal: CurrentPrincipal, session: AsyncSession = Depends(get_db_session)
+):
+    from app.client.models import ClientMergeAudit
+
+    records = (
+        await session.scalars(
+            select(ClientMergeAudit)
+            .where(ClientMergeAudit.owner_id == principal.user_id)
+            .order_by(ClientMergeAudit.created_at.desc(), ClientMergeAudit.id.desc())
+            .limit(20)
+        )
+    ).all()
+    return ApiResponse(
+        success=True,
+        data=[
+            {
+                "id": str(row.id),
+                "source_name": row.snapshot["source"]["full_name"],
+                "target_name": row.snapshot["target"]["full_name"],
+                "created_at": row.created_at,
+                "undone_at": row.snapshot.get("undone_at"),
+                "supports_undo": row.snapshot.get("undo_version") == 1,
+            }
+            for row in records
+        ],
+    )
+
+
+@router.post("/merge-history/{audit_id}/undo")
+async def undo_client_merge(
+    audit_id: uuid.UUID,
+    principal: CurrentPrincipal,
+    session: AsyncSession = Depends(get_db_session),
+):
+    from app.client.undo import undo_merge
+
+    return ApiResponse(success=True, data=await undo_merge(session, principal.user_id, audit_id))
 
 
 class MergeRequest(MergePreviewRequest):

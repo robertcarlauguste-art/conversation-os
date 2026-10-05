@@ -337,6 +337,13 @@ export async function renameConversation(id: string, title: string): Promise<voi
 }
 
 export type ClientMergePreview = { source: { full_name: string; email: string | null; phone: string | null; role: string | null }; target: { full_name: string; email: string | null; phone: string | null; role: string | null }; token: string; moved: Record<string, number> };
+export type ClientMergeHistoryItem = { id: string; source_name: string; target_name: string; created_at: string; undone_at: string | null; supports_undo: boolean };
+export async function listClientMerges(): Promise<ClientMergeHistoryItem[]> {
+  return unwrap(await authenticatedFetch(API_BASE_URL + "/api/v1/clients/merge-history/recent", {cache: "no-store"}));
+}
+export async function undoClientMerge(id: string): Promise<{source_id: string; target_id: string}> {
+  return unwrap(await authenticatedFetch(API_BASE_URL + "/api/v1/clients/merge-history/" + id + "/undo", {method: "POST"}));
+}
 export async function previewClientMerge(source: string, target: string): Promise<ClientMergePreview> {
   return unwrap(await authenticatedFetch(API_BASE_URL + "/api/v1/clients/" + source + "/merge-preview", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ target_id: target }) }));
 }
