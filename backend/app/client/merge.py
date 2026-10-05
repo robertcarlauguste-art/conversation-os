@@ -39,6 +39,8 @@ async def inspect_merge(session, owner_id, source_id, target_id):
     by_id = {client.id: client for client in records}
     source, target = by_id[source_id], by_id[target_id]
     snapshot = {"source": profile(source), "target": profile(target), "links": {}}
+    snapshot["source_created_at"] = source.created_at.isoformat()
+    snapshot["manual_assignments"] = {}
     for model in (Conversation, Person, ClientFact, ClientFollowupAction):
         rows = (
             (
@@ -54,6 +56,7 @@ async def inspect_merge(session, owner_id, source_id, target_id):
         )
         for row in rows:
             if isinstance(row, Conversation):
+                snapshot["manual_assignments"][str(row.id)] = row.client_assignment_manual
                 if row.owner_id != owner_id:
                     raise HTTPException(409, "Client links need review before merging.")
                 if row.status.value not in ("COMPLETED", "FAILED"):
@@ -95,11 +98,8 @@ async def merge_clients(session, owner_id, source_id, target_id, expected_token,
         )
         if token != expected_token or confirmed_name != target.full_name:
             raise HTTPException(409, "Client details changed. Review the merge again.")
-        session.add(
-            ClientMergeAudit(
-                owner_id=owner_id, source_id=source_id, target_id=target_id, snapshot=snapshot
-            )
-        )
+        from app.client.undo import merged_state
+
         for model in (Conversation, Person, ClientFact, ClientFollowupAction):
             values = {"client_id": target_id}
             if model is Conversation:
@@ -113,6 +113,13 @@ async def merge_clients(session, owner_id, source_id, target_id, expected_token,
         # Bulk delete avoids ORM relationship cascades; children now point at the retained record.
         await session.execute(
             delete(Client).where(Client.id == source_id, Client.owner_id == owner_id)
+        )
+        snapshot["undo_version"] = 1
+        snapshot["after_digest"] = await merged_state(session, target_id)
+        session.add(
+            ClientMergeAudit(
+                owner_id=owner_id, source_id=source_id, target_id=target_id, snapshot=snapshot
+            )
         )
         await session.commit()
         return {"client_id": str(target_id), "moved": counts}

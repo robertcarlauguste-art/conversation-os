@@ -1,6 +1,7 @@
 "use client";
 
 import { CompareClients } from "./CompareClients";
+import { ClientMergeHistory } from "./ClientMergeHistory";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useDeferredValue, useState } from "react";
@@ -40,12 +41,15 @@ export function ClientsTable() {
 
   if (!data || (data.length === 0 && page === 0 && !deferredSearch && !role)) {
     return (
+      <div className="space-y-3">
+      <ClientMergeHistory />
       <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-line py-16 text-center">
         <WaveformMark className="h-6 w-auto text-ink/20" />
         <p className="text-sm font-medium text-ink">No clients yet</p>
         <p className="text-xs text-ink/50">
           Record a note mentioning a person. After processing, check the client linked to that conversation.
         </p>
+      </div>
       </div>
     );
   }
@@ -81,6 +85,7 @@ export function ClientsTable() {
         </select>
       </div>
       <CompareClients key={JSON.stringify([page, deferredSearch, role])} clients={rows} />
+      <ClientMergeHistory />
       {rows.length === 0 ? (
         <p className="rounded-xl border border-dashed border-line py-10 text-center text-sm text-ink/50">
           No clients match these filters.

@@ -540,7 +540,7 @@ async def test_every_business_route_requires_authentication(security):
                 response = await security.http.request(method, concrete, **kwargs)
                 assert response.status_code == 401, (method, concrete, response.text)
             count += 1
-    assert count == 34  # Includes person confirmation and both client-merge routes.
+    assert count == 36  # Includes merge history and guarded undo.
     security.storage.save.assert_not_awaited()
     security.enqueue.assert_not_awaited()
 
