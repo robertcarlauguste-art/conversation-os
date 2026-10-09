@@ -1,3 +1,4 @@
+import { helpCopy } from "./help-translations";
 import { workflowCopy } from "./workflow-translations";
 // Interface copy only: never translate stored names, transcripts, or AI results here.
 export const languages = { en: "English", ht: "Kreyòl ayisyen", fr: "Français", es: "Español" } as const;
@@ -159,7 +160,7 @@ export const copy = [
 
 const indexes = { en: 0, ht: 1, fr: 2, es: 3 } as const;
 export function translate(language: Language, text: string, values: Record<string, string> = {}) {
-  const row = [...copy, ...workflowCopy].find(entry => entry[0] === text);
+  const row = [...copy, ...workflowCopy, ...helpCopy].find(entry => entry[0] === text);
   const translated: string = row ? row[indexes[language]] : text;
   return translated.replace(/\{(\w+)\}/g, (match, key: string) => values[key] ?? match);
 }
