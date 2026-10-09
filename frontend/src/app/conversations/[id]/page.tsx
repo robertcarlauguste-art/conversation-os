@@ -1,4 +1,5 @@
 "use client";
+import { useLanguage } from "@/components/LanguageProvider";
 
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
@@ -17,6 +18,7 @@ export default function ConversationDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const { t } = useLanguage();
   const { id } = use(params);
 
   const { data, isLoading, isError } = useQuery({
@@ -33,16 +35,14 @@ export default function ConversationDetailPage({
   });
 
   if (isLoading) {
-    return <p className="py-10 text-center text-sm text-ink/50">Loading conversation…</p>;
+    return <p className="py-10 text-center text-sm text-ink/50">{t("Loading conversation…")}</p>;
   }
 
   if (isError || !data) {
     return (
       <div className="py-10 text-center">
-        <p className="text-sm text-status-failed">Couldn&apos;t find this conversation.</p>
-        <Link href="/conversations" className="mt-2 inline-block text-sm text-accent underline">
-          Back to Conversations
-        </Link>
+        <p className="text-sm text-status-failed">{t("Couldn't find this conversation.")}</p>
+        <Link href="/conversations" className="mt-2 inline-block text-sm text-accent underline">{" "}{t("Back to Conversations")}{" "}</Link>
       </div>
     );
   }
@@ -50,9 +50,7 @@ export default function ConversationDetailPage({
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <Link href="/conversations" className="text-xs font-medium text-ink/50 hover:text-ink">
-          ← Conversations
-        </Link>
+        <Link href="/conversations" className="text-xs font-medium text-ink/50 hover:text-ink">{" "}{t("← Conversations")}{" "}</Link>
         <div className="mt-2 flex flex-wrap items-center gap-3">
           <h1 className="min-w-0 break-words font-display text-3xl text-ink [overflow-wrap:anywhere]">{conversationTitle(data)}</h1>
           <StatusBadge status={data.status} />
@@ -61,8 +59,8 @@ export default function ConversationDetailPage({
       </div>
 
       <dl className="grid gap-4 rounded-xl border border-line bg-surface p-4 sm:grid-cols-2">
-        <Field label="Client" value={<ClientField conversationId={data.id} clientId={data.client_id} />} />
-        <Field label="Added" value={formatDate(data.created_at)} />
+        <Field label={t("Client")} value={<ClientField conversationId={data.id} clientId={data.client_id} />} />
+        <Field label={t("Added")} value={formatDate(data.created_at)} />
       </dl>
       <RetryConversation key={data.id} id={data.id} status={data.status} />
 
@@ -72,13 +70,13 @@ export default function ConversationDetailPage({
         processingError={data.processing_error}
       />
       <details className="rounded-xl border border-line bg-surface p-4">
-        <summary className="cursor-pointer py-2 text-sm font-semibold">Recording & processing details</summary>
+        <summary className="cursor-pointer py-2 text-sm font-semibold">{t("Recording & processing details")}</summary>
         <dl className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Filename" value={data.filename} />
-          <Field label="File size" value={formatFileSize(data.file_size)} />
-          <Field label="Duration" value={formatDuration(data.duration_seconds)} />
-          <Field label="Source" value={data.source} />
-          <Field label="Processing attempts" value={String(data.processing_attempts)} />
+          <Field label={t("Filename")} value={data.filename} />
+          <Field label={t("File size")} value={formatFileSize(data.file_size)} />
+          <Field label={t("Duration")} value={formatDuration(data.duration_seconds)} />
+          <Field label={t("Source")} value={data.source} />
+          <Field label={t("Processing attempts")} value={String(data.processing_attempts)} />
         </dl>
         <div className="mt-4"><ProcessingDetails conversation={data} /></div>
       </details>

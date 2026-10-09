@@ -1,4 +1,5 @@
 "use client";
+import { useLanguage } from "@/components/LanguageProvider";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
@@ -6,6 +7,7 @@ import { retryConversation } from "@/lib/api";
 import type { ConversationStatus } from "@/lib/types";
 
 export function RetryConversation({ id, status }: { id: string; status: ConversationStatus }) {
+  const { t } = useLanguage();
   const client = useQueryClient();
   const submitting = useRef(false);
   const retry = useMutation({
@@ -36,11 +38,11 @@ export function RetryConversation({ id, status }: { id: string; status: Conversa
             retry.mutate();
           }}
         >
-          {retry.isPending ? "Queueing retry…" : "Retry"}
+          {retry.isPending ? t("Queueing retry…") : t("Retry")}
         </button>
       )}
-      {retry.isSuccess && (status === "QUEUED" || status === "PROCESSING") && <p role="status">Retry queued. Processing will resume shortly.</p>}
-      {retry.isError && <p role="alert">Couldn&apos;t queue the retry. Refresh the conversation before trying again.</p>}
+      {retry.isSuccess && (status === "QUEUED" || status === "PROCESSING") && <p role="status">{t("Retry queued. Processing will resume shortly.")}</p>}
+      {retry.isError && <p role="alert">{t("Couldn't queue the retry. Refresh the conversation before trying again.")}</p>}
     </div>
   );
 }

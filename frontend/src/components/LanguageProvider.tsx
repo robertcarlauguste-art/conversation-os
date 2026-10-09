@@ -1,5 +1,5 @@
 "use client";
-import { createContext, useContext, useEffect, useState } from "react";
+import { useCallback, createContext, useContext, useEffect, useState } from "react";
 import { languages, translate, type Language } from "@/lib/onboarding-translations";
 const storageKey = "conversationos-interface-language";
 function isLanguage(value: string | null): value is Language {
@@ -22,7 +22,8 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     updateLanguage(value);
     try { localStorage.setItem(storageKey, value); } catch { /* Session-only choice. */ }
   }
-  return <LanguageContext.Provider value={{ language, setLanguage, t: (text, values) => translate(language, text, values) }}>{children}</LanguageContext.Provider>;
+  const t = useCallback((text: string, values?: Record<string, string>) => translate(language, text, values), [language]);
+  return <LanguageContext.Provider value={{ language, setLanguage, t }}>{children}</LanguageContext.Provider>;
 }
 export function useLanguage() { return useContext(LanguageContext); }
 export function LanguageSelector() {
