@@ -356,6 +356,17 @@ def targeted(record):
         ("GET", f"/clients/{record.client}", None),
         ("GET", f"/clients/{record.client}/conversations", None),
         ("GET", f"/transcriptions/by-conversation/{record.conversation}", None),
+        ("GET", f"/transcriptions/by-conversation/{record.conversation}/correction", None),
+        (
+            "PUT",
+            f"/transcriptions/by-conversation/{record.conversation}/correction",
+            {"text": "attack", "expected_version": 0},
+        ),
+        (
+            "POST",
+            f"/transcriptions/by-conversation/{record.conversation}/correction/preview",
+            {"expected_version": 1},
+        ),
         ("GET", f"/memories/by-conversation/{record.conversation}", None),
         ("GET", f"/memories/{record.memory}", None),
         ("POST", f"/memories/action-items/{record.action}/complete", None),
@@ -540,7 +551,7 @@ async def test_every_business_route_requires_authentication(security):
                 response = await security.http.request(method, concrete, **kwargs)
                 assert response.status_code == 401, (method, concrete, response.text)
             count += 1
-    assert count == 36  # Includes merge history and guarded undo.
+    assert count == 39  # Includes correction read/save and notes preview.
     security.storage.save.assert_not_awaited()
     security.enqueue.assert_not_awaited()
 
