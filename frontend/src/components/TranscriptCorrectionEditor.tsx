@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getTranscriptCorrection, saveTranscriptCorrection, previewTranscriptCorrection, type TranscriptCorrection } from "@/lib/api";
 import { useLanguage } from "./LanguageProvider";
 
-export function TranscriptCorrectionEditor({conversationId, original}: {conversationId:string; original:string}) {
+export function TranscriptCorrectionEditor({conversationId, original, currentSummary}: {conversationId:string; original:string; currentSummary?:string}) {
   const {t}=useLanguage();
   const cache=useQueryClient();
   const key=["transcript-correction",conversationId];
@@ -61,6 +61,7 @@ export function TranscriptCorrectionEditor({conversationId, original}: {conversa
       {query.data && <><p>{t("Generate a separate notes preview from the saved correction. This uses one AI request, including failed attempts. Existing work stays unchanged; review suggestions before manually editing your tasks.")}</p><button disabled={busy} onClick={()=>void generate()} className="rounded border border-line px-3 py-2">{busy?t("Generating…"):t("Preview updated notes")}</button></>}
     </>}
     {error&&<p role="alert">{t(error)}</p>}
-    {query.data?.preview&&<section className="space-y-2 rounded border border-line p-3"><h4 className="font-medium">{t("Updated notes preview — not applied")}</h4><p className="whitespace-pre-wrap">{query.data.preview.summary}</p><h5>{t("Suggested tasks")}</h5><ul>{query.data.preview.tasks.map((x,i)=><li key={i}>{x}</li>)}</ul><h5>{t("Decisions")}</h5><ul>{query.data.preview.decisions.map((x,i)=><li key={i}>{x}</li>)}</ul></section>}
+    {query.data?.preview&&<section className="space-y-2 rounded border border-line p-3"><h4 className="font-medium">{t("Updated notes preview — not applied")}</h4><p className="text-sm">{t("Compare the suggestions below. To update a task or decision, use Edit on that item. This preview does not replace your summary or drafts.")}</p><div className="grid gap-4 md:grid-cols-2">{currentSummary && <div><h5 className="font-medium">{t("Current summary")}</h5><p className="whitespace-pre-wrap break-words">{currentSummary}</p></div>}<div><h5 className="font-medium">{t("Suggested summary")}</h5><p className="whitespace-pre-wrap break-words">{query.data.preview.summary}</p></div></div><h5>{t("Suggested tasks")}</h5><ul>{query.data.preview.tasks.map((x,i)=><li key={i}>{x}</li>)}</ul><h5>{t("Decisions")}</h5><ul>{query.data.preview.decisions.map((x,i)=><li key={i}>{x}</li>)}</ul></section>}
   </div>;
 }
+
