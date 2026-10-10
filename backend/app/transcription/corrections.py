@@ -1,6 +1,8 @@
 """Owner-scoped corrections and non-destructive AI previews."""
 
 import json
+import logging
+import re
 from datetime import datetime
 
 from fastapi import HTTPException
@@ -8,6 +10,8 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import text
 
 from app.providers.ai_provider import AIMessage
+
+logger = logging.getLogger(__name__)
 
 
 class CorrectionInput(BaseModel):
@@ -129,6 +133,7 @@ class CorrectionRepository:
 
 
 async def generate_preview(provider, source):
+    stage = "provider"
     try:
         result = await provider.complete(
             [AIMessage(role="user", content=json.dumps({"corrected_transcript": source}))],
@@ -141,8 +146,16 @@ async def generate_preview(provider, source):
             "suggestions for review, not changes to existing records.",
             max_tokens=2500,
         )
-        return NotesPreview.model_validate_json(result.content)
+        stage = "response_validation"
+        content = result.content.strip()
+        # Accept a complete Markdown JSON wrapper, never surrounding prose.
+        wrapped = re.fullmatch(r"```(?:json)?\s*\n(.*?)\n```", content, flags=re.DOTALL)
+        if wrapped:
+            content = wrapped.group(1).strip()
+        return NotesPreview.model_validate_json(content)
     except Exception:
+        # Log only a fixed stage label, not provider text or transcript content.
+        logger.warning("Transcript preview failed at stage=%s", stage)
         raise HTTPException(
             502, "Could not generate updated notes. Your saved correction is safe."
         ) from None
