@@ -17,6 +17,45 @@ from app.transcription.enums import TranscriptionStatus
 from app.transcription.models import Transcript
 
 
+@pytest.mark.parametrize("wrapper", ["{}", "```json\n{}\n```", "```\n{}\n```"])
+async def test_preview_accepts_plain_and_fenced_json(wrapper):
+    from app.providers.ai_provider import AICompletionResult
+
+    provider = AsyncMock()
+    payload = (
+        '{"summary":"Morgan Vale received two listings.",'
+        '"tasks":["Morgan Vale: call the lender"],"decisions":[]}'
+    )
+    provider.complete.return_value = AICompletionResult(
+        content=wrapper.format(payload), model="test"
+    )
+    preview = await generate_preview(provider, "fictional test")
+    assert preview.summary == "Morgan Vale received two listings."
+    assert preview.tasks == ["Morgan Vale: call the lender"]
+    provider.complete.assert_awaited_once()
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        'Here are notes: {"summary":"private"}',
+        '```json\n{"summary":"private"}\n``` trailing text',
+        '{"summary":"private","tasks":[{"task":"invalid shape"}]}',
+        '{"summary":',
+    ],
+)
+async def test_invalid_preview_is_rejected_without_content_leak(payload, caplog):
+    from app.providers.ai_provider import AICompletionResult
+
+    provider = AsyncMock()
+    provider.complete.return_value = AICompletionResult(content=payload, model="test")
+    with pytest.raises(HTTPException) as err:
+        await generate_preview(provider, "private transcript")
+    assert err.value.status_code == 502
+    assert "response_validation" in caplog.text
+    assert "private" not in caplog.text + err.value.detail
+
+
 async def test_corrections_preserve_original_and_reject_foreign_or_stale(db_session):
     c = conversation("correct_owner", "test.wav")
     c.status = ConversationStatus.COMPLETED
