@@ -119,6 +119,25 @@ export function MemoryPanel({
         <p className="mt-4 text-xs text-ink/40">{" "}{t("AI-generated summary. Check important details and follow-up actions against the transcript; AI can make mistakes.")}{" "}</p>
       </SectionCard>
 
+      {transcript?.text && (
+        <div id="transcript-correction" className="rounded-xl border border-line bg-surface p-6">
+          <button
+            type="button"
+            aria-expanded={transcriptOpen}
+            aria-controls="conversation-transcript"
+            onClick={() => setTranscriptOpen((open) => !open)}
+            className="flex w-full items-center justify-between text-left"
+          >
+            <h3 className="text-xs font-medium uppercase tracking-wide text-ink/50">{" "}{t("Transcript")} · {t("Fix a transcript mistake")}{" "}</h3>
+            <span className="text-xs text-ink/40">{transcriptOpen ? t("Hide") : t("Show")}</span>
+          </button>
+          {(
+            <div hidden={!transcriptOpen}><p className="mt-3 font-medium">{t("Original transcript")}</p><p id="conversation-transcript" className="mt-3 break-words whitespace-pre-wrap text-sm leading-relaxed text-ink/80">
+              {transcript.text}</p><TranscriptCorrectionEditor conversationId={conversationId} original={transcript.text} currentSummary={memory.summary} /></div>
+          )}
+        </div>
+      )}
+
       <PrepareFollowup key={conversationId} conversationId={conversationId} memory={memory} />
         <SectionCard title={t("Tasks to review")}>
           <ConversationTasks memoryId={memory.id} items={memory.action_items} />
@@ -133,24 +152,8 @@ export function MemoryPanel({
         </SectionCard>
       </div>
 
-      {transcript?.text && (
-        <div className="rounded-xl border border-line bg-surface p-6">
-          <button
-            type="button"
-            aria-expanded={transcriptOpen}
-            aria-controls="conversation-transcript"
-            onClick={() => setTranscriptOpen((open) => !open)}
-            className="flex w-full items-center justify-between text-left"
-          >
-            <h3 className="text-xs font-medium uppercase tracking-wide text-ink/50">{" "}{t("Transcript")}{" "}</h3>
-            <span className="text-xs text-ink/40">{transcriptOpen ? t("Hide") : t("Show")}</span>
-          </button>
-          {(
-            <div hidden={!transcriptOpen}><p className="mt-3 font-medium">{t("Original transcript")}</p><p id="conversation-transcript" className="mt-3 break-words whitespace-pre-wrap text-sm leading-relaxed text-ink/80">
-              {transcript.text}</p><TranscriptCorrectionEditor conversationId={conversationId} original={transcript.text} /></div>
-          )}
-        </div>
-      )}
+
     </div>
   );
 }
+

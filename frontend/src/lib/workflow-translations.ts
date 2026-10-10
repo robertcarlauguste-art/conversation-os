@@ -1,5 +1,9 @@
 // Interface copy only. Native-speaker review remains part of the pilot.
 export const workflowCopy = [
+  ["Fix a transcript mistake", "Korije yon erè nan transkripsyon an", "Corriger une erreur de transcription", "Corregir un error de transcripción"],
+  ["Current summary", "Rezime aktyèl", "Résumé actuel", "Resumen actual"],
+  ["Suggested summary", "Rezime sijere", "Résumé proposé", "Resumen sugerido"],
+  ["Compare the suggestions below. To update a task or decision, use Edit on that item. This preview does not replace your summary or drafts.", "Konpare sijesyon ki anba yo. Pou mete yon travay oswa desizyon ajou, itilize Modifye sou atik la. Apèsi sa a pa ranplase rezime ou ni bouyon ou yo.", "Comparez les suggestions ci-dessous. Pour modifier une tâche ou une décision, utilisez Modifier sur cet élément. Cet aperçu ne remplace ni votre résumé ni vos brouillons.", "Compara las sugerencias de abajo. Para actualizar una tarea o decisión, usa Editar en ese elemento. Esta vista previa no reemplaza tu resumen ni tus borradores."],
   [
     "Processing failed",
     "Nou pa t ka trete anrejistreman an",
