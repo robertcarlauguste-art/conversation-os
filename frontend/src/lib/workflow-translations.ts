@@ -1494,5 +1494,20 @@ export const workflowCopy = [
 ["Owner: {name}","Responsab: {name}","Responsable : {name}","Responsable: {name}"],
 [" · Due: {date}"," · Dat limit: {date}"," · Échéance : {date}"," · Fecha límite: {date}"],
 ["Saved {date}","Sove {date}","Enregistré le {date}","Guardado el {date}"],
-["open","ouvè","ouverte","abierta"]
+["open","ouvè","ouverte","abierta"],
+["Original transcript","Transkripsyon orijinal","Transcription originale","Transcripción original"],
+["Correct transcript","Korije transkripsyon an","Corriger la transcription","Corregir transcripción"],
+["Corrected transcript","Transkripsyon korije","Transcription corrigée","Transcripción corregida"],
+["Save correction","Sove koreksyon an","Enregistrer la correction","Guardar corrección"],
+["Preview updated notes","Gade nouvo nòt yo","Aperçu des notes actualisées","Vista previa de notas actualizadas"],
+["Updated notes preview — not applied","Nouvo nòt pou verifye — yo poko aplike","Aperçu des notes — non appliquées","Vista previa de notas — sin aplicar"],
+["Suggested tasks","Travay yo sijere","Tâches suggérées","Tareas sugeridas"],
+["Corrections keep the original transcript. Saving does not use AI or change existing notes, tasks, client links or drafts.","Koreksyon yo konsève transkripsyon orijinal la. Sove pa itilize IA ni chanje nòt, travay, lyen kliyan oswa bouyon ki deja la.","Les corrections conservent la transcription originale. Enregistrer n’utilise pas l’IA et ne modifie ni les notes, tâches, liens clients ou brouillons existants.","Las correcciones conservan la transcripción original. Guardar no usa IA ni cambia notas, tareas, vínculos o borradores existentes."],
+["Generate a separate notes preview from the saved correction. This uses one AI request, including failed attempts. Existing work stays unchanged; review suggestions before manually editing your tasks.","Prepare yon aperçu nòt apa apati koreksyon sove a. Sa itilize yon demann IA, menm si tantativ la echwe. Travay ki deja la pa chanje; verifye sijesyon yo anvan ou modifye travay ou yo manyèlman.","Générez un aperçu distinct à partir de la correction enregistrée. Cela utilise une requête IA, même en cas d’échec. Le travail existant reste intact ; vérifiez les suggestions avant de modifier vos tâches manuellement.","Genera una vista previa aparte desde la corrección guardada. Usa una solicitud de IA, incluso si falla. El trabajo existente no cambia; revisa las sugerencias antes de editar tus tareas manualmente."],
+["Save your correction before leaving this page.","Sove koreksyon ou an anvan ou kite paj sa a.","Enregistrez votre correction avant de quitter cette page.","Guarda la corrección antes de salir de esta página."],
+["Discard unsaved transcript edits?","Jete chanjman transkripsyon ki pa sove yo?","Abandonner les modifications non enregistrées ?","¿Descartar los cambios sin guardar?"],
+["This transcript has unsaved changes. Leave without saving?","Transkripsyon sa a gen chanjman ki pa sove. Kite san sove?","Cette transcription contient des modifications non enregistrées. Quitter sans enregistrer ?","Esta transcripción tiene cambios sin guardar. ¿Salir sin guardar?"],
+["Could not load corrections.","Nou pa t ka chaje koreksyon yo.","Impossible de charger les corrections.","No se pudieron cargar las correcciones."],
+["Could not save correction.","Nou pa t ka sove koreksyon an.","Impossible d’enregistrer la correction.","No se pudo guardar la corrección."],
+["Could not generate updated notes.","Nou pa t ka prepare nouvo nòt yo.","Impossible de générer les notes actualisées.","No se pudieron generar las notas actualizadas."]
 ] as const;

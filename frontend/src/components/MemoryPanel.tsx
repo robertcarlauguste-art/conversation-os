@@ -1,5 +1,6 @@
 "use client";
 import { useLanguage } from "@/components/LanguageProvider";
+import { TranscriptCorrectionEditor } from "./TranscriptCorrectionEditor";
 import { ConversationTasks } from "./ConversationTasks";
 import { PrepareFollowup } from "./PrepareFollowup";
 import { PersonConfirmation } from "./PersonConfirmation";
@@ -144,10 +145,9 @@ export function MemoryPanel({
             <h3 className="text-xs font-medium uppercase tracking-wide text-ink/50">{" "}{t("Transcript")}{" "}</h3>
             <span className="text-xs text-ink/40">{transcriptOpen ? t("Hide") : t("Show")}</span>
           </button>
-          {transcriptOpen && (
-            <p id="conversation-transcript" className="mt-3 break-words whitespace-pre-wrap text-sm leading-relaxed text-ink/80">
-              {transcript.text}
-            </p>
+          {(
+            <div hidden={!transcriptOpen}><p className="mt-3 font-medium">{t("Original transcript")}</p><p id="conversation-transcript" className="mt-3 break-words whitespace-pre-wrap text-sm leading-relaxed text-ink/80">
+              {transcript.text}</p><TranscriptCorrectionEditor conversationId={conversationId} original={transcript.text} /></div>
           )}
         </div>
       )}

@@ -350,3 +350,14 @@ export async function previewClientMerge(source: string, target: string): Promis
 export async function confirmClientMerge(source: string, target: string, token: string, name: string): Promise<{ client_id: string }> {
   return unwrap(await authenticatedFetch(API_BASE_URL + "/api/v1/clients/" + source + "/merge", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ target_id: target, expected_token: token, confirmed_name: name }) }));
 }
+
+export type TranscriptCorrection = { text: string; version: number; updated_at: string; preview: { summary: string; tasks: string[]; decisions: string[] } | null };
+export async function getTranscriptCorrection(id: string): Promise<TranscriptCorrection | null> {
+  return unwrap(await authenticatedFetch(`${API_BASE_URL}/api/v1/transcriptions/by-conversation/${id}/correction`, { cache: "no-store" }));
+}
+export async function saveTranscriptCorrection(id: string, text: string, version: number): Promise<TranscriptCorrection> {
+  return unwrap(await authenticatedFetch(`${API_BASE_URL}/api/v1/transcriptions/by-conversation/${id}/correction`, {method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({text,expected_version:version})}));
+}
+export async function previewTranscriptCorrection(id: string, version: number): Promise<TranscriptCorrection> {
+  return unwrap(await authenticatedFetch(`${API_BASE_URL}/api/v1/transcriptions/by-conversation/${id}/correction/preview`, {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({expected_version:version})}));
+}
