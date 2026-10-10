@@ -123,4 +123,3 @@ async def test_preview_keeps_edited_completed_work_and_drafts(db_session):
     ).one()
     assert row.task == "User edited task" and row.status == "COMPLETED"
     assert (await drafts.get(cid, "email")).body == "My saved draft"
-
