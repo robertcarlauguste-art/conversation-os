@@ -1,5 +1,16 @@
 // Interface copy only. Native-speaker review remains part of the pilot.
 export const workflowCopy = [
+  ["Less time taking notes.", "Mwens tan ap pran nòt.", "Moins de temps à prendre des notes.", "Menos tiempo tomando notas."],
+  ["More time moving forward.", "Plis tan pou avanse.", "Plus de temps pour avancer.", "Más tiempo para avanzar."],
+  ["See an example", "Gade yon egzanp", "Voir un exemple", "Ver un ejemplo"],
+  ["Fictional example", "Egzanp envante", "Exemple fictif", "Ejemplo ficticio"],
+  ["I spoke with Mari. I’ll send her a $1,250 estimate by Friday.", "Mwen pale ak Mari. Disi vandredi, m ap voye yon estimasyon de 1 250 dola ba li.", "J’ai parlé avec Mari. Je lui enverrai un devis de 1 250 dollars au plus tard vendredi.", "Hablé con Mari. Le enviaré un presupuesto de 1.250 dólares a más tardar el viernes."],
+  ["Mari · Estimate follow-up", "Mari · Swivi estimasyon", "Mari · Suivi du devis", "Mari · Seguimiento del presupuesto"],
+  ["You will send Mari a $1,250 estimate by Friday.", "Ou pral voye yon estimasyon de 1 250 dola bay Mari disi vandredi.", "Vous enverrez à Mari un devis de 1 250 dollars au plus tard vendredi.", "Enviarás a Mari un presupuesto de 1.250 dólares a más tardar el viernes."],
+  ["Send Mari the $1,250 estimate", "Voye estimasyon de 1 250 dola a bay Mari", "Envoyer le devis de 1 250 dollars à Mari", "Enviar a Mari el presupuesto de 1.250 dólares"],
+  ["Your task · Due Friday", "Travay ou · Disi vandredi", "Votre tâche · Au plus tard vendredi", "Tu tarea · A más tardar el viernes"],
+  ["Follow-up draft to review", "Bouyon swivi pou verifye", "Brouillon de suivi à vérifier", "Borrador de seguimiento para revisar"],
+  ["Hi Mari, I’ll send you the $1,250 estimate by Friday.", "Bonjou Mari, disi vandredi, m ap voye estimasyon de 1 250 dola a ba ou.", "Bonjour Mari, je vous enverrai le devis de 1 250 dollars au plus tard vendredi.", "Hola Mari, te enviaré el presupuesto de 1.250 dólares a más tardar el viernes."],
   ["Fix a transcript mistake", "Korije yon erè nan transkripsyon an", "Corriger une erreur de transcription", "Corregir un error de transcripción"],
   ["Current summary", "Rezime aktyèl", "Résumé actuel", "Resumen actual"],
   ["Suggested summary", "Rezime sijere", "Résumé proposé", "Resumen sugerido"],
