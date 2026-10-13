@@ -1,5 +1,10 @@
 // Interface copy only. Native-speaker review remains part of the pilot.
 export const workflowCopy = [
+  ["Conversation", "Konvèsasyon", "Conversation", "Conversación"],
+  ["No decisions identified.", "Nou pa jwenn okenn desizyon.", "Aucune décision identifiée.", "No se identificaron decisiones."],
+  ["No people identified.", "Nou pa jwenn okenn moun.", "Aucune personne identifiée.", "No se identificaron personas."],
+  ["Not recorded", "Pa anrejistre", "Non enregistré", "Sin registrar"],
+
   ["Less time taking notes.", "Mwens tan ap pran nòt.", "Moins de temps à prendre des notes.", "Menos tiempo tomando notas."],
   ["More time moving forward.", "Plis tan pou avanse.", "Plus de temps pour avancer.", "Más tiempo para avanzar."],
   ["See an example", "Gade yon egzanp", "Voir un exemple", "Ver un ejemplo"],

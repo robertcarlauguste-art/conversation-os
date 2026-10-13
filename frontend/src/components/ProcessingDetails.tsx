@@ -1,4 +1,5 @@
 "use client";
+import { formatTimestamp } from "@/lib/format";
 import { useLanguage } from "@/components/LanguageProvider";
 import type { ConversationDetail } from "@/lib/types";
 
@@ -7,9 +8,9 @@ export function ProcessingDetails({
 }: {
   conversation: ConversationDetail;
 }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const timestamp = (value: string | null) =>
-    value ? new Date(value).toLocaleString() : "Not recorded";
+    value ? formatTimestamp(value, language) : t("Not recorded");
   return (
     <section
       className="rounded-xl border border-line bg-surface p-6"

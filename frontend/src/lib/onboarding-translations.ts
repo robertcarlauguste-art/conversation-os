@@ -116,7 +116,7 @@ export const copy = [
   ["Recent clients","Dènye kliyan yo","Clients récents","Clientes recientes"],
   ["No email","Pa gen imèl","Aucun e-mail","Sin correo electrónico"],
   ["Ready to review","Pare pou verifye","Prêt à vérifier","Listo para revisar"],
-  ["Waiting to start","Ap tann pou kòmanse","En attente de démarrage","Esperando para comenzar"],
+  ["Waiting to start","Ap tann pou kòmanse","En attente de démarrage","En espera de inicio"],
   ["Preparing your notes","N ap prepare nòt ou yo","Préparation de vos notes","Preparando tus notas"],
   ["Needs attention","Bezwen atansyon","À vérifier","Requiere atención"],
   ["Client follow-ups","Swivi kliyan yo","Suivis clients","Seguimiento de clientes"],

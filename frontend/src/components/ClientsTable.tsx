@@ -11,7 +11,7 @@ import { formatDate } from "@/lib/format";
 import { WaveformMark } from "./WaveformMark";
 
 export function ClientsTable() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
   const [role, setRole] = useState("");
@@ -109,7 +109,7 @@ export function ClientsTable() {
             </td>
             <td className="px-4 py-3 text-ink/70">{client.email ?? "—"}</td>
             <td className="px-4 py-3 text-ink/70">{client.phone ?? "—"}</td>
-            <td className="px-4 py-3 text-ink/70">{formatDate(client.created_at)}</td>
+            <td className="px-4 py-3 text-ink/70">{formatDate(client.created_at, language)}</td>
           </tr>
         ))}
       </tbody>

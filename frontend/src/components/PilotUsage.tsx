@@ -1,4 +1,5 @@
 "use client";
+import { formatTimestamp } from "@/lib/format";
 import { useQuery } from "@tanstack/react-query";
 import { getPilotUsage } from "@/lib/api";
 import { useLanguage } from "./LanguageProvider";
@@ -19,7 +20,7 @@ export function PilotUsage() {
       <li>{t("Processing retries left today: {count}.", { count: String(r.retries) })}</li>
       <li>{t("Client reviews, dashboard briefings and follow-up drafts share the AI allowance.")}</li>
     </ul>
-    <p className="mt-3">{t("Daily allowances reset: {date}. Reading and editing saved notes remain available. Deleting a recording frees storage but does not refund today’s usage.", { date: new Date(data.resets_at).toLocaleString(language) })}</p>
+    <p className="mt-3">{t("Daily allowances reset: {date}. Reading and editing saved notes remain available. Deleting a recording frees storage but does not refund today’s usage.", { date: formatTimestamp(data.resets_at, language) })}</p>
     <p className="mt-2">{t("AI requests count once processing starts, including unsuccessful or outdated reviews. This display updates every 30 seconds.")}</p>
     <button className="mt-2 text-accent underline" onClick={() => query.refetch()}>{t("Refresh allowance")}</button>
   </details>;

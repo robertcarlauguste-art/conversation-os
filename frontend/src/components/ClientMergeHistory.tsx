@@ -7,7 +7,7 @@ import { listClientMerges, undoClientMerge } from "@/lib/api";
 import { formatDate } from "@/lib/format";
 
 export function ClientMergeHistory() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -39,8 +39,8 @@ export function ClientMergeHistory() {
       {history.data?.length === 0 && <p>{t("No merges yet.")}</p>}
       {history.data?.map(row => <div key={row.id} className="space-y-2 rounded border border-line p-3">
         <p><strong>{row.source_name}</strong>{" "}{t("combined into")}{" "}<strong>{row.target_name}</strong></p>
-        <p className="text-sm">{formatDate(row.created_at)}</p>
-        {row.undone_at ? <p>{t("Undone")}{" "}{formatDate(row.undone_at)}</p> : !row.supports_undo ? <p>{t("This older merge needs manual recovery review.")}</p> : selected === row.id ? <>
+        <p className="text-sm">{formatDate(row.created_at, language)}</p>
+        {row.undone_at ? <p>{t("Undone")}{" "}{formatDate(row.undone_at, language)}</p> : !row.supports_undo ? <p>{t("This older merge needs manual recovery review.")}</p> : selected === row.id ? <>
           <p>{t("Restore")}{" "}{row.source_name}{" "}{t("and")}{" "}{row.target_name}{" "}{t("as separate clients?")}</p>
           <button disabled={busy} onClick={() => void undo(row.id)} className="rounded bg-accent px-3 py-2 text-white disabled:opacity-50">{busy ? t("Restoring…") : t("Confirm undo merge")}</button>
           <button disabled={busy} className="ml-3 underline" onClick={() => setSelected(null)}>{t("Cancel")}</button>

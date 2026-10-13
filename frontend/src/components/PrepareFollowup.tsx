@@ -1,4 +1,5 @@
 "use client";
+import { formatTimestamp } from "@/lib/format";
 import { useLanguage } from "@/components/LanguageProvider";
 
 import { useEffect, useId, useState } from "react";
@@ -6,7 +7,7 @@ import { getSavedFollowup, prepareFollowup, saveFollowup } from "@/lib/api";
 import type { MemoryDetail } from "@/lib/types";
 
 export function PrepareFollowup({ conversationId, memory }: { conversationId: string; memory: MemoryDetail }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [open, setOpen] = useState(false);
   const controlsId = useId();
   const [channel, setChannel] = useState<"email" | "text">("email");
@@ -128,7 +129,7 @@ export function PrepareFollowup({ conversationId, memory }: { conversationId: st
       <button type="button" disabled={busy || (!summary && !selected.length)} onClick={generate} className="mt-4 min-h-11 rounded bg-accent px-4 py-2 text-white disabled:opacity-50">{busy ? t("Preparing…") : t("Prepare draft")}</button>
     </> : <>
       <p className="mt-4 text-sm text-ink/70">{t("Review names, dates, responsibilities and private details before sharing. Save your edits before leaving. Saving and reopening do not use AI requests.")}</p>
-      <p className="mt-2 text-sm" role="status">{dirty ? t("Unsaved changes") : savedAt ? t("Saved {date}", { date: new Date(savedAt).toLocaleString() }) : t("Not saved")}</p>
+      <p className="mt-2 text-sm" role="status">{dirty ? t("Unsaved changes") : savedAt ? t("Saved {date}", { date: formatTimestamp(savedAt, language) }) : t("Not saved")}</p>
       {channel === "email" && <label className="mt-3 block text-sm">{t("Subject")}<input disabled={busy} maxLength={200} className={field} value={draft.subject} onChange={e => { setDraft({ ...draft, subject: e.target.value }); setDirty(true); }} /></label>}
       <label className="mt-3 block text-sm">{t("Message")}<textarea disabled={busy} rows={8} maxLength={5000} className={field} value={draft.body} onChange={e => { setDraft({ ...draft, body: e.target.value }); setDirty(true); }} /></label>
       <div className="mt-4 flex flex-wrap gap-3">

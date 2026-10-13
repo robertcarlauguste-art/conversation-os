@@ -30,7 +30,7 @@ const BRIEF_MARKERS: Record<DashboardBriefItem["tone"], string> = {
 };
 
 function DashboardSkeleton() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   return (
     <div aria-label={t("Loading dashboard")} className="flex animate-pulse flex-col gap-8">
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
@@ -46,7 +46,7 @@ function DashboardSkeleton() {
 }
 
 export function SummaryCards() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const queryClient = useQueryClient();
   const { notify } = useToast();
   const dashboardQuery = useQuery({
@@ -268,7 +268,7 @@ export function SummaryCards() {
                   href={`/conversations/${conversation.id}`}
                   className="flex flex-col gap-2 rounded-lg border border-line p-4 hover:bg-paper sm:flex-row sm:items-center sm:justify-between"
                 >
-                  <span className="min-w-0 break-words font-medium">{conversationTitle(conversation)}</span>
+                  <span className="min-w-0 break-words font-medium">{conversationTitle(conversation, language)}</span>
                   <span className="text-xs text-ink/50">{({ COMPLETED: t("Ready to review"), QUEUED: t("Waiting to start"), UPLOADED: t("Waiting to start"), PROCESSING: t("Preparing your notes"), FAILED: t("Needs attention") })[conversation.status]}</span>
                 </Link>
               ))
@@ -449,13 +449,13 @@ export function SummaryCards() {
                   </Link>
                   {activity.snoozed_until ? (
                     <span className="mt-1 block text-xs text-ink/50">
-                      {t("Snoozed until {date}", { date: formatDate(activity.snoozed_until) })}
+                      {t("Snoozed until {date}", { date: formatDate(activity.snoozed_until, language) })}
                     </span>
                   ) : null}
                 </span>
                 <span className="flex flex-col items-start gap-2 sm:items-end">
                   <span className="text-xs text-ink/50">
-                    {formatDate(activity.occurred_at)}
+                    {formatDate(activity.occurred_at, language)}
                   </span>
                   {activity.action === "complete_action_item" ? (
                     <button
