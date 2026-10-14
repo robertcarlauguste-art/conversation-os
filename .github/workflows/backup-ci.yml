@@ -10,14 +10,30 @@ on:
       - "infrastructure/backup/**"
       - ".github/workflows/backup-ci.yml"
 
+permissions:
+  contents: read
+
 jobs:
   backup:
+    # Defense in depth: GitHub must also require approval for ALL outside collaborators.
+    # Fork PRs stay blocked after approval; validate reviewed code on a maintainer branch.
+    if: >-
+      github.repository == 'robertcarlauguste-art/conversation-os' &&
+      (github.event_name == 'push' ||
+       (github.event_name == 'pull_request' &&
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        (github.event.pull_request.author_association == 'OWNER' ||
+         github.event.pull_request.author_association == 'MEMBER' ||
+         github.event.pull_request.author_association == 'COLLABORATOR')))
+    timeout-minutes: 20
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: infrastructure/backup
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
