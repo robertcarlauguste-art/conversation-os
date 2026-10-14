@@ -11,7 +11,7 @@ import { ClientConversations } from "@/components/ClientConversations";
 import { ClientFollowupRecorder } from "@/components/ClientFollowupRecorder";
 
 export default function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { id } = use(params);
   const [search, setSearch] = useState("");
   const [draftSearch, setDraftSearch] = useState("");
@@ -72,7 +72,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
               <li key={fact.id} className="flex flex-col gap-0.5">
                 <span>{fact.fact_text}</span>
                 <Link className="text-xs text-accent underline" href={`/conversations/${fact.source_conversation_id}`}>{t("Review source conversation")}</Link>
-                <span className="text-xs text-ink/40">{" "}{t("Recorded")}{" "}{formatDate(fact.created_at)}
+                <span className="text-xs text-ink/40">{" "}{t("Recorded")}{" "}{formatDate(fact.created_at, language)}
                 </span>
               </li>
             ))}

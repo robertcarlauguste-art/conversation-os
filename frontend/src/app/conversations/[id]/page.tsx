@@ -18,7 +18,7 @@ export default function ConversationDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { id } = use(params);
 
   const { data, isLoading, isError } = useQuery({
@@ -52,7 +52,7 @@ export default function ConversationDetailPage({
       <div>
         <Link href="/conversations" className="text-xs font-medium text-ink/50 hover:text-ink">{" "}{t("← Conversations")}{" "}</Link>
         <div className="mt-2 flex flex-wrap items-center gap-3">
-          <h1 className="min-w-0 break-words font-display text-3xl text-ink [overflow-wrap:anywhere]">{conversationTitle(data)}</h1>
+          <h1 className="min-w-0 break-words font-display text-3xl text-ink [overflow-wrap:anywhere]">{conversationTitle(data, language)}</h1>
           <StatusBadge status={data.status} />
         </div>
         <ConversationTitleEditor key={id} id={id} title={data.title} />
@@ -60,7 +60,7 @@ export default function ConversationDetailPage({
 
       <dl className="grid gap-4 rounded-xl border border-line bg-surface p-4 sm:grid-cols-2">
         <Field label={t("Client")} value={<ClientField conversationId={data.id} clientId={data.client_id} />} />
-        <Field label={t("Added")} value={formatDate(data.created_at)} />
+        <Field label={t("Added")} value={formatDate(data.created_at, language)} />
       </dl>
       <RetryConversation key={data.id} id={data.id} status={data.status} />
 

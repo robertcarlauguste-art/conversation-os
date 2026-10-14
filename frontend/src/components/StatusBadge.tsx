@@ -1,3 +1,5 @@
+"use client";
+import { useLanguage } from "./LanguageProvider";
 import type { ConversationStatus } from "@/lib/types";
 
 const LABELS: Record<ConversationStatus, string> = {
@@ -17,10 +19,11 @@ const DOT_COLOR: Record<ConversationStatus, string> = {
 };
 
 export function StatusBadge({ status }: { status: ConversationStatus }) {
+  const { t } = useLanguage();
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-2.5 py-1 text-xs font-medium text-ink">
       <span className={`h-1.5 w-1.5 rounded-full ${DOT_COLOR[status]}`} />
-      {LABELS[status]}
+      {t(LABELS[status])}
     </span>
   );
 }

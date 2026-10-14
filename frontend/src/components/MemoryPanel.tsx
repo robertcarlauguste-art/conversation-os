@@ -144,11 +144,11 @@ export function MemoryPanel({
         </SectionCard>
       <div className="grid gap-4 sm:grid-cols-2">
         <SectionCard title={t("Decisions")}>
-          {memory.decisions.length ? <ul className="flex flex-col gap-3">{memory.decisions.map(item => <MemoryItemEditor key={item.id} memoryId={memory.id} item={item} />)}</ul> : <EmptyNote>{t("None identified.")}</EmptyNote>}
+          {memory.decisions.length ? <ul className="flex flex-col gap-3">{memory.decisions.map(item => <MemoryItemEditor key={item.id} memoryId={memory.id} item={item} />)}</ul> : <EmptyNote>{t("No decisions identified.")}</EmptyNote>}
         </SectionCard>
 
         <SectionCard title={t("People")}>
-          {memory.people.length ? <ul className="space-y-3">{memory.people.map(p => <PersonConfirmation key={p.id} memoryId={memory.id} person={p} />)}</ul> : <EmptyNote>{t("None identified.")}</EmptyNote>}
+          {memory.people.length ? <ul className="space-y-3">{memory.people.map(p => <PersonConfirmation key={p.id} memoryId={memory.id} person={p} />)}</ul> : <EmptyNote>{t("No people identified.")}</EmptyNote>}
         </SectionCard>
       </div>
 

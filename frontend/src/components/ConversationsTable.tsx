@@ -10,7 +10,7 @@ import { StatusBadge } from "./StatusBadge";
 import { WaveformMark } from "./WaveformMark";
 
 export function ConversationsTable() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
@@ -109,14 +109,14 @@ export function ConversationsTable() {
                 href={`/conversations/${conversation.id}`}
                 className="break-all font-medium text-ink hover:text-accent"
               >
-                {conversationTitle(conversation)}
+                {conversationTitle(conversation, language)}
               </Link>
             </td>
             <td className="block min-w-0 px-1 py-2 md:table-cell md:px-4 md:py-3">
               <StatusBadge status={conversation.status} />
               {conversation.is_stale && <span className="ml-2 text-amber-700">{t("Taking longer than expected")}</span>}
             </td>
-            <td className="block px-1 py-1 text-ink/70 md:table-cell md:px-4 md:py-3"><span className="md:hidden">{t("Uploaded:")}{" "}</span>{formatDate(conversation.created_at)}</td>
+            <td className="block px-1 py-1 text-ink/70 md:table-cell md:px-4 md:py-3"><span className="md:hidden">{t("Uploaded:")}{" "}</span>{formatDate(conversation.created_at, language)}</td>
             <td className="block px-1 py-1 text-ink/70 md:table-cell md:px-4 md:py-3"><span className="md:hidden">{t("File size:")}{" "}</span>{formatFileSize(conversation.file_size)}</td>
             <td className="block min-w-0 px-1 py-2 md:table-cell md:px-4 md:py-3">
               <div className="flex gap-3">

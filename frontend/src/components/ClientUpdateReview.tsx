@@ -1,4 +1,5 @@
 "use client";
+import { formatTimestamp } from "@/lib/format";
 import { useLanguage } from "@/components/LanguageProvider";
 
 import { useState } from "react";
@@ -7,7 +8,7 @@ import Link from "next/link";
 import { completeActionItem, reviewClientUpdates, getSavedClientReview } from "@/lib/api";
 
 export function ClientUpdateReview({ clientId }: { clientId: string }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const queryClient = useQueryClient();
   const [confirmed, setConfirmed] = useState<string[]>([]);
   const saved = useQuery({ queryKey: ["client-review", clientId], queryFn: () => getSavedClientReview(clientId) });
@@ -30,7 +31,7 @@ export function ClientUpdateReview({ clientId }: { clientId: string }) {
     {data?.stale && <p role="status" className="mt-3">{t("Linked conversations have changed. Generate a new review to see updated details and suggestions.")}</p>}
     {review.isError && <p role="alert" className="mt-3 text-red-700">{review.error.message}</p>}
     {!saved.isError && !review.isPending && data && !data.stale && <div className="mt-5 space-y-4">
-      <p className="text-sm">{t("Reviewed")}{" "}{data.conversation_count}{" "}{t("transcribed conversations. Saved")}{" "}{data.saved_at ? new Date(data.saved_at).toLocaleString() : ""}{t(". AI suggestions still need your review.")}</p>
+      <p className="text-sm">{t("Reviewed")}{" "}{data.conversation_count}{" "}{t("transcribed conversations. Saved")}{" "}{data.saved_at ? formatTimestamp(data.saved_at, language) : ""}{t(". AI suggestions still need your review.")}</p>
       <h3 className="font-semibold">{t("Latest details to verify")}</h3>
       {data.details.length === 0 && <p>{t("No supported details identified.")}</p>}
       {data.details.map((item, index) => <div key={index} className="rounded-lg border border-line p-3">
