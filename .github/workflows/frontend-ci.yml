@@ -4,14 +4,30 @@ on:
   push:
     paths:
       - "frontend/**"
-      - ".github/workflows/frontend-ci.yml"
+      - ".github/scripts/verify-ci-trust.cjs"
+      - ".github/workflows/**"
   pull_request:
     paths:
       - "frontend/**"
-      - ".github/workflows/frontend-ci.yml"
+      - ".github/scripts/verify-ci-trust.cjs"
+      - ".github/workflows/**"
+
+permissions:
+  contents: read
 
 jobs:
   frontend:
+    # Defense in depth: GitHub must also require approval for ALL outside collaborators.
+    # Fork PRs stay blocked after approval; validate reviewed code on a maintainer branch.
+    if: >-
+      github.repository == 'robertcarlauguste-art/conversation-os' &&
+      (github.event_name == 'push' ||
+       (github.event_name == 'pull_request' &&
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        (github.event.pull_request.author_association == 'OWNER' ||
+         github.event.pull_request.author_association == 'MEMBER' ||
+         github.event.pull_request.author_association == 'COLLABORATOR')))
+    timeout-minutes: 20
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -19,16 +35,21 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: "npm"
-          cache-dependency-path: frontend/package.json
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
+
+      - name: Verify CI trust policy
+        run: node ../.github/scripts/verify-ci-trust.cjs
 
       - name: Lint
         run: npm run lint
@@ -43,3 +64,10 @@ jobs:
         env:
           APP_ENV: test
         run: npm run build
+
+      - name: Verify trusted release runtime dependencies
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          docker build -f Dockerfile.railway --build-arg APP_ENV=production --build-arg NEXT_PUBLIC_API_URL=https://api.example.invalid --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_c2VjdXJpdHktdGVzdC5jbGVyay5hY2NvdW50cy5kZXYk -t frontend-runtime-check .
+          docker run --rm -i --read-only --network none frontend-runtime-check node < scripts/verify-runtime.cjs
+          docker run --rm --read-only --tmpfs /tmp -e npm_config_cache=/tmp/npm frontend-runtime-check npm audit --omit=dev

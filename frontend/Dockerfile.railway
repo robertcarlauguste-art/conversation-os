@@ -1,23 +1,46 @@
-FROM node:22-slim
-
+FROM node:22-slim AS base
 WORKDIR /app
 
+FROM base AS build
 COPY package.json package-lock.json ./
 RUN npm ci
-
 COPY . .
 
 ARG APP_ENV=production
 ENV APP_ENV=$APP_ENV
-
 ARG NEXT_PUBLIC_API_URL
 ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
 
 RUN npm run build
+# Compile startup configuration while TypeScript is available. next start then
+# loads JavaScript without installing development dependencies at runtime.
+RUN ./node_modules/.bin/tsc next.config.ts environment.ts \
+    --outDir /runtime-config/compiled --module commonjs --target ES2020 \
+    --esModuleInterop --skipLibCheck \
+    && echo 'module.exports = require("./compiled/next.config.js").default;' > /runtime-config/next.config.js \
+    && mkdir -p public
 
+FROM base AS production-dependencies
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+
+FROM base AS runtime
+ARG APP_ENV=production
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
 ENV NODE_ENV=production
-EXPOSE 3000
+ENV APP_ENV=$APP_ENV
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
 
+COPY --from=production-dependencies --chown=node:node /app/node_modules ./node_modules
+COPY --from=production-dependencies --chown=node:node /app/package.json /app/package-lock.json ./
+COPY --from=build --chown=node:node /app/.next ./.next
+COPY --from=build --chown=node:node /app/public ./public
+COPY --from=build --chown=node:node /runtime-config/ ./
+
+USER node
+EXPOSE 3000
 CMD ["npm", "run", "start"]
