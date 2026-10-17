@@ -25,10 +25,15 @@ def snapshot(
     verify_remote,
     file_hash,
     max_bytes,
+    audit=None,
 ):
     if source_bucket == target_bucket:
         raise ValueError("Recording source and backup buckets must differ")
     before = inventory(source, source_bucket)
+    if audit is not None:
+        audit.emit(
+            "recording_inventory_observed", "observed", expected_count=len(before)
+        )
     if sum(size for _, size in before.values()) > max_bytes:
         raise ValueError("Recording snapshot exceeds proof-of-concept size limit")
     objects = []
@@ -61,6 +66,12 @@ def snapshot(
         verify_remote(
             target, target_bucket, target_key, cipher_hash, encrypted.stat().st_size
         )
+        if audit is not None:
+            audit.emit(
+                "recording_object_verified",
+                object_index=len(objects) + 1,
+                encrypted_bytes=encrypted.stat().st_size,
+            )
         objects.append(
             {
                 "source_key": source_key,
@@ -75,13 +86,27 @@ def snapshot(
         plain.unlink()
         encrypted.unlink()
     if inventory(source, source_bucket) != before:
+        if audit is not None:
+            audit.emit(
+                "recording_inventory_checked",
+                "failure",
+                error_category="inventory_changed",
+            )
         raise ValueError("Recording inventory changed during snapshot; retry required")
+    if audit is not None:
+        audit.emit(
+            "recording_inventory_checked",
+            expected_count=len(before),
+            verified_count=len(objects),
+        )
+        audit.emit("recordings_verified", verified_count=len(objects))
     manifest = {
         "format": "COSRECORDINGS1",
         "source_bucket": source_bucket,
         "objects": objects,
         "verified_download": True,
         "database_atomic_snapshot": False,
+        **(audit.metadata() if audit is not None else {}),
     }
     # Manifest is written last. Previous snapshots remain untouched on failure/deletion.
     target.put_object(
@@ -90,4 +115,6 @@ def snapshot(
         Body=json.dumps(manifest).encode(),
         ContentType="application/json",
     )
+    if audit is not None:
+        audit.emit("recording_manifest_published")
     return len(objects)

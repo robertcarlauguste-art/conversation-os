@@ -6,6 +6,7 @@ import json
 import os
 import subprocess
 import tempfile
+import time
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
@@ -19,6 +20,37 @@ from recordings import snapshot
 MAGIC = b"COSBACKUP1"
 CHUNK = 1024 * 1024
 MAX_BYTES = 256 * CHUNK
+
+
+class Audit:
+    """Best-effort application evidence; never proof of platform termination."""
+
+    def __init__(self):
+        self.execution_id = uuid.uuid4().hex
+        self.started = time.monotonic()
+        self.sequence = 0
+
+    def emit(self, event, outcome="success", **fields):
+        # Callers supply only fixed labels, counts and numeric outcomes, never secrets.
+        # A broken log sink must not prevent backups or replace their original error.
+        try:
+            self.sequence += 1
+            record = {
+                "audit_schema_version": 1,
+                "execution_id": self.execution_id,
+                "event": event,
+                "event_at": datetime.now(UTC).isoformat(),
+                "sequence": self.sequence,
+                "elapsed_seconds": time.monotonic() - self.started,
+                "outcome": outcome,
+                **fields,
+            }
+            print(json.dumps(record), flush=True)
+        except Exception:  # noqa: BLE001, S110 -- logging must never mask a backup error
+            pass
+
+    def metadata(self):
+        return {"audit_schema_version": 1, "execution_id": self.execution_id}
 
 
 def encrypt_file(source, destination, key):
@@ -123,7 +155,7 @@ def connection_environment(url):
     return env
 
 
-def dump_database(url, destination):
+def dump_database(url, destination, audit=None):
     # libpq does not expand a URI supplied through PGDATABASE. Pass fields separately.
     # Child process sees the database secret, never a command-line argument or log.
     env = connection_environment(url)
@@ -164,16 +196,46 @@ def dump_database(url, destination):
         category = next(
             (v for k, v in categories.items() if k in error), "database_export"
         )
-        print(
-            json.dumps(
-                {"backup_error_category": category, "exit_code": result.returncode}
+        if audit is not None:
+            audit.emit(
+                "database_export_failed",
+                "failure",
+                backup_error_category=category,
+                subprocess_exit_code=result.returncode,
             )
-        )
+        else:
+            print(
+                json.dumps(
+                    {"backup_error_category": category, "exit_code": result.returncode}
+                )
+            )
         raise RuntimeError("Database export failed")
 
 
 def run():
-    print('{"backup_stage":"configuration"}', flush=True)
+    audit = Audit()
+    audit.emit("application_started", "started")
+    try:
+        _run(audit)
+    except Exception:
+        audit.emit(
+            "application_failed",
+            "failure",
+            intended_exit_code=1,
+            backup="failed",
+            error_category="backup_execution",
+            platform_termination_confirmed=False,
+        )
+        raise
+    audit.emit(
+        "application_completed",
+        intended_exit_code=0,
+        platform_termination_confirmed=False,
+    )
+
+
+def _run(audit):
+    audit.emit("configuration_started", "started", backup_stage="configuration")
     values, key = config()
     client = boto3.client(
         "s3",
@@ -183,20 +245,25 @@ def run():
         aws_secret_access_key=values["BACKUP_SECRET_ACCESS_KEY"],
     )
     created = datetime.now(UTC)
-    prefix = "postgres/" + created.strftime("%Y/%m/%d/%H%M%S-") + uuid.uuid4().hex
+    prefix = "postgres/" + created.strftime("%Y/%m/%d/%H%M%S-") + audit.execution_id
     bucket = values["BACKUP_BUCKET"]
     with tempfile.TemporaryDirectory(prefix="cos-backup-") as directory:
         plain, encrypted = Path(directory) / "db.dump", Path(directory) / "db.enc"
-        print('{"backup_stage":"database_export"}', flush=True)
-        dump_database(values["BACKUP_DATABASE_URL"], plain)
-        print('{"backup_stage":"encryption"}', flush=True)
+        audit.emit("database_export_started", "started", backup_stage="database_export")
+        dump_database(values["BACKUP_DATABASE_URL"], plain, audit=audit)
+        audit.emit("encryption_started", "started", backup_stage="encryption")
         size = encrypt_file(plain, encrypted, key)
         digest = file_hash(encrypted)
         object_key = prefix + ".dump.aesgcm"
-        print('{"backup_stage":"upload"}', flush=True)
+        audit.emit("database_upload_started", "started", backup_stage="upload")
         client.upload_file(str(encrypted), bucket, object_key)
-        print('{"backup_stage":"download_verification"}', flush=True)
+        audit.emit(
+            "database_verification_started",
+            "started",
+            backup_stage="download_verification",
+        )
         verify_remote(client, bucket, object_key, digest, encrypted.stat().st_size)
+        audit.emit("database_verified", encrypted_bytes=encrypted.stat().st_size)
         manifest = {
             "format": "COSBACKUP1",
             "created_at": created.isoformat(),
@@ -207,6 +274,7 @@ def run():
             "key_id": values["BACKUP_KEY_ID"],
             "verified_download": True,
             "scope": "single PostgreSQL database; no audio, roles, or Redis",
+            **audit.metadata(),
         }
         client.put_object(
             Bucket=bucket,
@@ -214,7 +282,10 @@ def run():
             Body=json.dumps(manifest).encode(),
             ContentType="application/json",
         )
-        print('{"backup_stage":"recording_snapshot"}', flush=True)
+        audit.emit("database_manifest_published")
+        audit.emit(
+            "recording_snapshot_started", "started", backup_stage="recording_snapshot"
+        )
         source = boto3.client(
             "s3",
             endpoint_url=values["BACKUP_ENDPOINT_URL"],
@@ -234,23 +305,55 @@ def run():
             verify_remote,
             file_hash,
             MAX_BYTES,
+            audit=audit,
         )
-        print(json.dumps({"recordings_verified": count}), flush=True)
+        audit.emit("recording_snapshot_completed", recordings_verified=count)
+    audit.emit("verification_completed", recordings_verified=count)
     # Only verified uploads emit success. Missed/failed runs leave heartbeat overdue.
-    response = httpx.get(
-        values["BACKUP_HEARTBEAT_URL"], timeout=15, follow_redirects=False
+    audit.emit("heartbeat_request_started", "started")
+    request_started = time.monotonic()
+    try:
+        response = httpx.get(
+            values["BACKUP_HEARTBEAT_URL"], timeout=15, follow_redirects=False
+        )
+        audit.emit(
+            "heartbeat_response_received",
+            "observed",
+            http_status=response.status_code,
+            request_duration_seconds=time.monotonic() - request_started,
+        )
+        response.raise_for_status()
+    except httpx.HTTPStatusError:
+        audit.emit(
+            "heartbeat_failed",
+            "failure",
+            error_category="http_status",
+            receipt="uncorrelated",
+            http_status=response.status_code,
+            request_duration_seconds=time.monotonic() - request_started,
+        )
+        raise
+    except httpx.RequestError as error:
+        audit.emit(
+            "heartbeat_failed",
+            "failure",
+            error_category="timeout"
+            if isinstance(error, httpx.TimeoutException)
+            else "transport",
+            receipt="unknown",
+            request_duration_seconds=time.monotonic() - request_started,
+        )
+        raise
+    audit.emit(
+        "heartbeat_request_completed",
+        http_status=response.status_code,
+        receiver_execution_correlation="unverified",
     )
-    response.raise_for_status()
-    print(json.dumps({"backup": "verified", "created_at": created.isoformat()}))
+    audit.emit("backup_verified", backup="verified", created_at=created.isoformat())
 
 
 if __name__ == "__main__":
     try:
         run()
-    except Exception as error:  # noqa: BLE001
-        print(json.dumps({"backup_exception_type": type(error).__name__}))
-        # Provider errors may include credentials, URLs, or database content.
-        print(
-            '{"backup":"failed","detail":"Check configuration and provider availability"}'
-        )
+    except Exception:  # noqa: BLE001
         raise SystemExit(1) from None
