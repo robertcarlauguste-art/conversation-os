@@ -1,9 +1,20 @@
 import io
 import json
+import socket
 
 import backup
 import pytest
 import recordings
+
+
+@pytest.fixture(autouse=True)
+def no_network(monkeypatch):
+    def denied(*args, **kwargs):
+        raise AssertionError("Network access forbidden in offline tests")
+
+    monkeypatch.setattr(socket.socket, "connect", denied)
+    monkeypatch.setattr(socket, "create_connection", denied)
+    monkeypatch.setattr(socket, "getaddrinfo", denied)
 
 
 class Store:
@@ -36,7 +47,7 @@ class Store:
         self.manifests.append(json.loads(kwargs["Body"]))
 
 
-def perform(source, target, tmp_path, limit=1024):
+def perform(source, target, tmp_path, limit=1024, audit=None):
     return recordings.snapshot(
         source,
         "source",
@@ -49,6 +60,7 @@ def perform(source, target, tmp_path, limit=1024):
         backup.verify_remote,
         backup.file_hash,
         limit,
+        audit=audit,
     )
 
 
@@ -83,3 +95,46 @@ def test_source_change_prevents_manifest(tmp_path):
     with pytest.raises(ValueError, match="changed"):
         perform(source, target, tmp_path)
     assert target.manifests == []
+
+
+def test_optional_audit_preserves_legacy_manifest(tmp_path):
+    source, target = Store(), Store()
+    perform(source, target, tmp_path)
+    assert set(target.manifests[0]) == {
+        "format",
+        "source_bucket",
+        "objects",
+        "verified_download",
+        "database_atomic_snapshot",
+    }
+    assert target.manifests[0]["format"] == "COSRECORDINGS1"
+
+
+@pytest.mark.parametrize("mismatch", ["inventory", "ciphertext"])
+def test_verification_failure_has_no_manifest_or_completion(
+    tmp_path, monkeypatch, capsys, mismatch
+):
+    source, target = Store(), Store()
+    if mismatch == "inventory":
+        original = source.paginate
+        calls = []
+
+        def changed(**kwargs):
+            calls.append(1)
+            return original(**kwargs) if len(calls) == 1 else [{"Contents": []}]
+
+        monkeypatch.setattr(source, "paginate", changed)
+    else:
+        monkeypatch.setattr(
+            target, "get_object", lambda **kwargs: {"Body": io.BytesIO(b"corrupt")}
+        )
+    with pytest.raises(ValueError):
+        perform(source, target, tmp_path, audit=backup.Audit())
+    records = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    assert target.manifests == []
+    assert not any(
+        item["event"] in {"recordings_verified", "recording_manifest_published"}
+        for item in records
+    )
+    if mismatch == "inventory":
+        assert records[-1]["outcome"] == "failure"
